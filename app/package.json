@@ -11,5 +11,8 @@
   },
   "dependencies": {
     "@forge/api": "^8.5.0"
+  },
+  "overrides": {
+    "glob": "^14.0.6"
   }
 }
