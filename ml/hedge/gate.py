@@ -31,13 +31,16 @@ class GateModel:
 def fit_gate(X, y, names, l2: float = 1.0) -> GateModel:
     """Fit on features X (n, d) and labels y (1 = acting would be right).
 
-    The penalty is l2 / (2n) * ||w||^2 on standardized weights, so l2 behaves the same at
-    any dataset size. The bias is not penalized.
+    The objective is mean log loss + l2 / (2n) * ||w||^2 on standardized weights: a Gaussian
+    prior with fixed precision l2. Its pull fades as n grows, so on millions of rows l2 = 1
+    barely regularizes; raise it if the gate overfits. The bias is not penalized.
     """
     X = np.asarray(X, dtype=float)
     y = np.asarray(y, dtype=float)
     if X.ndim != 2 or X.shape[0] != y.size or X.shape[1] != len(names):
         raise ValueError("X must be (n, len(names)) and y must have n labels")
+    if not np.all(np.isfinite(X)):
+        raise ValueError("features must be finite")
     if not set(np.unique(y)) <= {0.0, 1.0}:
         raise ValueError("labels must be 0 or 1")
     mu = X.mean(axis=0)
@@ -77,6 +80,8 @@ def policy_dict(
         "calibrationSize": int(calibration_size),
         "threshold": float(threshold.threshold) if calibrated else None,
         "calibrationCoverage": threshold.coverage,
+        "calibrationActed": threshold.acted,
+        "calibrationErrors": threshold.errors,
         "model": {
             "bias": model.bias,
             "weights": {name: float(w) for name, w in zip(model.names, model.weights)},

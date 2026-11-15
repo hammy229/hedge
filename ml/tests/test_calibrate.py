@@ -45,6 +45,22 @@ def test_missing_split_is_an_error():
         build_policy([r | {"split": "train"} for r in rows(100)], alpha=0.05, delta=0.1)
 
 
+@pytest.mark.parametrize("bad", [{"split": "calib"}, {"right": 2}, {"right": None}])
+def test_bad_rows_are_errors_not_silently_dropped(bad):
+    data = rows(200)
+    data[150] = data[150] | bad
+    with pytest.raises(ValueError, match="row 150"):
+        build_policy(data, alpha=0.05, delta=0.1)
+
+
+def test_groups_shrink_the_calibration_set_to_one_row_each():
+    data = rows(6000)
+    grouped = [r | {"group": i // 3} for i, r in enumerate(data)]
+    policy = build_policy(grouped, alpha=0.05, delta=0.1)
+    assert policy["calibrationSize"] == 1000  # 3000 calibration rows in groups of 3
+    assert policy["calibrationActed"] >= policy["calibrationErrors"] >= 0
+
+
 def test_cli_writes_an_importable_policy(tmp_path, capsys):
     path = tmp_path / "rows.jsonl"
     path.write_text("\n".join(json.dumps(r) for r in rows(4000)) + "\n")

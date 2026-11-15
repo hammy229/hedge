@@ -26,8 +26,22 @@ from .gate import fit_gate, policy_dict, write_policy
 from .risk import ltt_threshold
 
 
+SPLITS = {"train", "calibration"}
+
+
 def build_policy(rows: Iterable[dict], alpha: float, delta: float, l2: float = 1.0) -> dict:
+    """Fit on train rows, certify on calibration rows.
+
+    A row may carry ``group`` (its duplicate cluster or project). When any calibration row
+    does, the threshold is certified on one row per group, because correlated rows would
+    otherwise make the test overconfident. Rows without a group count as their own group.
+    """
     rows = list(rows)
+    for i, r in enumerate(rows):
+        if r.get("split") not in SPLITS:
+            raise ValueError(f"row {i}: split must be one of {sorted(SPLITS)}, got {r.get('split')!r}")
+        if r.get("right") not in (0, 1):
+            raise ValueError(f"row {i}: right must be 0 or 1, got {r.get('right')!r}")
     train = [r for r in rows if r["split"] == "train"]
     cal = [r for r in rows if r["split"] == "calibration"]
     if not train or not cal:
@@ -35,8 +49,12 @@ def build_policy(rows: Iterable[dict], alpha: float, delta: float, l2: float = 1
     model = fit_gate(to_matrix(train), [r["right"] for r in train], FEATURE_NAMES, l2=l2)
     scores = model.predict_proba(to_matrix(cal))
     wrong = 1 - np.asarray([r["right"] for r in cal])
-    threshold = ltt_threshold(scores, wrong, alpha=alpha, delta=delta)
-    return policy_dict(model, threshold, alpha, delta, len(cal))
+    groups = None
+    if any("group" in r for r in cal):
+        groups = [str(r.get("group", f"__row{i}")) for i, r in enumerate(cal)]
+    threshold = ltt_threshold(scores, wrong, alpha=alpha, delta=delta, groups=groups)
+    size = len(set(groups)) if groups else len(cal)
+    return policy_dict(model, threshold, alpha, delta, size)
 
 
 def main(argv: list[str] | None = None) -> int:

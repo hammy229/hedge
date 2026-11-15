@@ -47,6 +47,8 @@ def test_rejects_bad_input():
         fit_gate(np.zeros((3, 2)), [0, 1, 1], ["only_one"])
     with pytest.raises(ValueError):
         fit_gate(np.zeros((2, 1)), [0, 2], ["a"])
+    with pytest.raises(ValueError, match="finite"):
+        fit_gate(np.array([[1.0], [np.inf]]), [0, 1], ["a"])
 
 
 def test_uncertified_threshold_keeps_the_gate_closed(tmp_path):
