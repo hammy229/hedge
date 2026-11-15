@@ -1,0 +1,44 @@
+modules:
+  rovo:mcp:
+    - key: hedge-mcp
+      name: Hedge
+      tools:
+        - triage-issue
+        - explain-policy
+  action:
+    - key: triage-issue
+      name: Triage issue
+      function: triage-fn
+      actionVerb: GET
+      description: >
+        Decide whether an agent may act on a Jira issue (link a duplicate, route it to a team)
+        or must ask a person first. Returns the decision, the confidence score, the
+        calibrated threshold and a plain-language reason.
+      inputs:
+        issueKey:
+          title: Issue key
+          type: string
+          required: true
+          description: The Jira issue key, for example PROJ-123
+    - key: explain-policy
+      name: Explain policy
+      function: explain-fn
+      actionVerb: GET
+      description: >
+        Describe the error-rate guarantee of the installed act-or-ask policy: the error
+        budget, the confidence level and the calibration set size.
+  function:
+    - key: triage-fn
+      handler: index.triageIssue
+    - key: explain-fn
+      handler: index.explainPolicy
+app:
+  runtime:
+    name: nodejs24.x
+    memoryMB: 256
+    architecture: arm64
+  # Replace with the id printed by `forge register` (see README, Getting started).
+  id: ari:cloud:ecosystem::app/00000000-0000-0000-0000-000000000000
+permissions:
+  scopes:
+    - read:jira-work

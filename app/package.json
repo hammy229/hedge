@@ -1,0 +1,15 @@
+{
+  "name": "hedge-forge",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Forge app for Hedge: calibrated act-or-ask decisions for Jira triage",
+  "license": "MIT",
+  "scripts": {
+    "test": "node --test test/",
+    "lint": "forge lint"
+  },
+  "dependencies": {
+    "@forge/api": "^8.5.0"
+  }
+}
