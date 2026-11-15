@@ -35,6 +35,27 @@ def coverage_at_risk(scores, wrong, alpha: float) -> float:
     return float(coverage[ok].max()) if ok.any() else 0.0
 
 
+def recall_at_k(ranked: Sequence[Sequence], relevant: Sequence[set], k: int) -> float:
+    """Share of queries with at least one relevant item in their top k.
+
+    Queries with no relevant item are skipped: recall is undefined for them. They still
+    matter for the gate, which must learn to not act on them.
+    """
+    hits = [bool(set(r[:k]) & rel) for r, rel in zip(ranked, relevant, strict=True) if rel]
+    return float(np.mean(hits)) if hits else float("nan")
+
+
+def mean_reciprocal_rank(ranked: Sequence[Sequence], relevant: Sequence[set]) -> float:
+    """Mean of 1 / rank of the first relevant item (0 when none is retrieved)."""
+    rr = []
+    for r, rel in zip(ranked, relevant, strict=True):
+        if not rel:
+            continue
+        rank = next((i for i, x in enumerate(r, start=1) if x in rel), None)
+        rr.append(1 / rank if rank else 0.0)
+    return float(np.mean(rr)) if rr else float("nan")
+
+
 def cluster_bootstrap_ci(
     statistic: Callable[[np.ndarray], float],
     clusters: Sequence,
