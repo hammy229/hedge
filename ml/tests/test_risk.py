@@ -3,7 +3,7 @@ import math
 import numpy as np
 import pytest
 
-from hedge.risk import NEVER_ACT, binomial_p_value, crc_threshold, ltt_threshold
+from hedge.risk import NEVER_ACT, binomial_p_value, crc_threshold, ltt_threshold, one_per_group
 
 
 def synthetic(n, rng):
@@ -95,6 +95,42 @@ def test_crc_guarantee_holds_in_expectation():
         t = crc_threshold(*synthetic(500, rng), alpha=alpha)
         risks.append(0.0 if t.threshold == NEVER_ACT else true_marginal_risk(t.threshold))
     assert np.mean(risks) <= alpha + 0.005
+
+
+def clustered(groups, size, rng):
+    """Clusters whose rows share one score and one outcome: the worst case for the test."""
+    sg = rng.uniform(size=groups)
+    wg = rng.uniform(size=groups) < 0.5 * (1 - sg)
+    return np.repeat(sg, size), np.repeat(wg, size), np.repeat(np.arange(groups), size)
+
+
+def violation_rate(groups, size, use_groups, trials=400, seed=0):
+    rng = np.random.default_rng(seed)
+    bad = 0
+    for _ in range(trials):
+        s, w, g = clustered(groups, size, rng)
+        t = ltt_threshold(s, w, alpha=0.1, delta=0.1, groups=g if use_groups else None)
+        bad += t.threshold != NEVER_ACT and true_selective_risk(t.threshold) > 0.1
+    return bad / trials
+
+
+def test_clustered_rows_break_the_naive_test():
+    # Documents the failure the grouped test exists to fix: 50 clusters of 10 rows.
+    assert violation_rate(50, 10, use_groups=False) > 0.2
+
+
+def test_one_row_per_cluster_restores_the_guarantee():
+    assert violation_rate(50, 10, use_groups=True) <= 0.1 + 0.03
+    assert violation_rate(25, 20, use_groups=True) <= 0.1 + 0.03
+
+
+def test_one_per_group_picks_exactly_one_row_each():
+    g = np.array([3, 1, 3, 2, 1, 3])
+    keep = one_per_group(g, seed=4)
+    assert sorted(g[keep].tolist()) == [1, 2, 3]
+    assert keep.tolist() == sorted(keep.tolist())
+    with pytest.raises(ValueError):
+        ltt_threshold([0.5, 0.6], [0, 0], alpha=0.1, groups=[1])
 
 
 def test_ltt_is_not_trivially_conservative():

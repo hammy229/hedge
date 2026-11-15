@@ -96,10 +96,28 @@ def binomial_p_value(errors: int, acted: int, alpha: float) -> float:
 
 
 DEFAULT_GRID = np.linspace(0.0, 1.0, 101)
+DEFAULT_GRID.flags.writeable = False
+
+
+def one_per_group(groups, seed: int = 0) -> np.ndarray:
+    """Indices of one randomly chosen row per group, in ascending order.
+
+    The binomial test counts each row as an independent trial. Jira tickets are not: a
+    burst of duplicates of one bug tends to be all right or all wrong together. Counting
+    such a cluster as 20 trials makes the test overconfident, and on synthetic clustered
+    data it certified bad thresholds 2.5 to 4 times more often than delta allows (see
+    tests/test_risk.py). Keeping one row per cluster restores independent trials, at the
+    price of a smaller calibration set.
+    """
+    g = np.asarray(groups)
+    rng = np.random.default_rng(seed)
+    order = rng.permutation(g.size)
+    _, first = np.unique(g[order], return_index=True)
+    return np.sort(order[first])
 
 
 def ltt_threshold(
-    scores, wrong, alpha: float, delta: float = 0.1, grid=DEFAULT_GRID
+    scores, wrong, alpha: float, delta: float = 0.1, grid=DEFAULT_GRID, groups=None, seed: int = 0
 ) -> Threshold:
     """Most lenient grid threshold whose selective risk is certified <= alpha at level delta.
 
@@ -107,10 +125,19 @@ def ltt_threshold(
     above alpha". A null is rejected when its binomial p-value is at most delta / len(grid),
     so the chance of certifying any bad threshold is at most delta. The grid must be fixed
     before seeing the calibration data, which is why scores live in [0, 1].
+
+    Pass ``groups`` (a duplicate cluster or project id per row) whenever rows can be
+    correlated; the test then runs on one row per group. Coverage in the result is still
+    reported over the rows that were tested.
     """
     if not 0 < alpha < 1 or not 0 < delta < 1:
         raise ValueError("alpha and delta must be in (0, 1)")
     s, w = _as_arrays(scores, wrong)
+    if groups is not None:
+        if len(groups) != s.size:
+            raise ValueError("groups must have one entry per score")
+        keep = one_per_group(groups, seed)
+        s, w = s[keep], w[keep]
     if s.min() < 0 or s.max() > 1:
         raise ValueError("scores must be probabilities in [0, 1]")
     g = np.asarray(grid, dtype=float)
