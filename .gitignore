@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.egg-info/
+.venv/
+.pytest_cache/
+
+# Node
+node_modules/
+
+# Data and trained artifacts stay out of git (see docs/PLAN.md for how to rebuild them)
+data/
+runs/
+*.onnx
+*.safetensors
+
+# Secrets
+.env
+.env.*
