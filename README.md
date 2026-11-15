@@ -20,6 +20,8 @@ Only numbers this repo produces. The real-data rows fill in as the plan's weeks 
 | The selective risk guarantee holds | 0 of 400 calibration draws certified a threshold with true error above 10% (allowed: 10% of draws) | `ml/tests/test_risk.py`, synthetic tickets with a known error curve |
 | It still acts on a useful share | 28.6% of tickets certified at a 10% budget, where the best possible is 40% | same test file, 5,000 synthetic tickets |
 | Conformal risk control is tight | mean marginal risk 0.0495 against a 0.05 target over 400 draws | same test file |
+| Correlated tickets break the naive test, and per-cluster testing fixes it | false certification 24.8% (clusters of 10) and 38.3% (clusters of 20) against 10% allowed; 0.0% for both after testing one ticket per cluster | same test file, [ADR 2](docs/adr/0002-certify-one-ticket-per-cluster.md) |
+| The Forge gate scores exactly like the Python model | 50 of 50 tickets match to 1e-12 | `ml/tests/test_gate.py` runs `app/src/gate.js` under Node |
 | Hedge beats the agent's own confidence on real Jira tickets | not measured yet | week 3: held-out Apache, MongoDB and Red Hat Jira data, 95% cluster bootstrap CIs |
 
 ## Why it matters
@@ -49,6 +51,8 @@ tickets where a calibrated statistical test shows the error rate among its actio
 |---|---|
 | Certify selective risk P(wrong given act), not overall error | "At most 3% of what the bot does is wrong" is the promise an admin actually wants |
 | Bonferroni over a fixed grid, not fixed sequence testing | Fixed sequence certified nothing in testing, see [ADR 1](docs/adr/0001-bonferroni-over-fixed-sequence.md) |
+| Certify on one ticket per duplicate cluster | Bursts of duplicates succeed or fail together, and counting them as separate trials broke the guarantee, see [ADR 2](docs/adr/0002-certify-one-ticket-per-cluster.md) |
+| Read the mongodump archive directly | The dataset is one 5.8 GB archive that restores to about 60 GB; streaming it needs no MongoDB server and no spare disk |
 | Fail closed | No policy, a missing feature or a bad score all mean "ask", never "act" |
 | Small trained models, not a fine-tuned LLM | Forge's hosted LLMs cannot be fine-tuned, and small models run inside Forge without a server |
 | Cluster bootstrap by project | Tickets in one project are correlated, so resampling tickets would give intervals that are too narrow |
@@ -95,8 +99,16 @@ hedge/
 │   ├── src/index.js        tool handlers: triage-issue, explain-policy
 │   └── test/               node:test suite
 ├── ml/                     training and calibration
+│   ├── hedge/archive.py    streams issues out of the mongodump archive
+│   ├── hedge/dupes.py      duplicate clusters and time-ordered labels
+│   ├── hedge/bm25.py       time-masked BM25 baseline retriever
+│   ├── hedge/splits.py     temporal and project-held-out splits
+│   ├── hedge/features.py   gate features (names shared with the Forge app)
+│   ├── hedge/gate.py       logistic gate model and policy export
+│   ├── hedge/calibrate.py  fit, certify, write app/src/policy.js
 │   ├── hedge/risk.py       conformal risk control and Learn then Test thresholds
-│   ├── hedge/metrics.py    risk-coverage curve, AURC, cluster bootstrap CIs
+│   ├── hedge/evaluate.py   compares confidence methods, renders the results table
+│   ├── hedge/metrics.py    risk-coverage, AURC, recall@k, MRR, cluster bootstrap CIs
 │   ├── hedge/leakage.py    answer-text stripping and cross-split copy detection
 │   └── tests/              pytest suite, including Monte Carlo guarantee checks
 └── docs/
@@ -107,7 +119,7 @@ hedge/
 ## Testing
 
 ```bash
-cd ml && ../.venv/bin/pytest -q     # 29 tests
+cd ml && ../.venv/bin/pytest -q     # 106 tests, including a Python to JavaScript parity check
 cd app && npm test                  # 7 tests
 ```
 
