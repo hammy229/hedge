@@ -6,7 +6,7 @@
   "description": "Forge app for Hedge: calibrated act-or-ask decisions for Jira triage",
   "license": "MIT",
   "scripts": {
-    "test": "node --test test/",
+    "test": "node --test \"test/**/*.test.js\"",
     "lint": "forge lint"
   },
   "dependencies": {
