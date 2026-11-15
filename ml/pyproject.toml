@@ -17,3 +17,6 @@ packages = ["hedge"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# Import the package from source so tests never depend on an editable install's .pth file
+# (Python 3.13 skips .pth files that macOS has flagged hidden).
+pythonpath = ["."]
