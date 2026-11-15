@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hedge"
+version = "0.1.0"
+description = "Calibrated act-or-ask thresholds and evaluation tools for Jira triage"
+requires-python = ">=3.11"
+dependencies = ["numpy>=1.26", "scipy>=1.11"]
+
+[project.optional-dependencies]
+test = ["pytest>=8"]
+
+[tool.setuptools]
+packages = ["hedge"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
