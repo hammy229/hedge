@@ -133,6 +133,48 @@ def test_one_per_group_picks_exactly_one_row_each():
         ltt_threshold([0.5, 0.6], [0, 0], alpha=0.1, groups=[1])
 
 
+def brute_force_crc(s, w, alpha):
+    """The original O(n^2) scan, kept as the reference for the fast version."""
+    s, w = np.asarray(s, float), np.asarray(w, bool)
+    best = NEVER_ACT
+    for t in np.unique(s)[::-1]:
+        if (np.sum((s >= t) & w) + 1) / (s.size + 1) <= alpha:
+            best = t
+        else:
+            break
+    return best
+
+
+@pytest.mark.parametrize("seed", range(20))
+def test_fast_crc_matches_brute_force_including_ties(seed):
+    rng = np.random.default_rng(seed)
+    n = int(rng.integers(5, 300))
+    s = np.round(rng.uniform(size=n), 1)  # heavy ties
+    w = rng.uniform(size=n) < 0.3 * (1 - s)
+    alpha = float(rng.uniform(0.02, 0.3))
+    assert crc_threshold(s, w, alpha).threshold == brute_force_crc(s, w, alpha)
+
+
+def test_crc_scales_to_large_calibration_sets():
+    rng = np.random.default_rng(0)
+    s, w = synthetic(300_000, rng)
+    t = crc_threshold(s, w, alpha=0.05)  # the O(n^2) version took minutes here
+    assert 0 < t.coverage < 1
+
+
+@pytest.mark.parametrize("grid", [[], [0.5, 0.5], [-0.1, 0.5], [0.5, 1.2], [[0.1, 0.2]]])
+def test_ltt_rejects_bad_grids(grid):
+    with pytest.raises(ValueError):
+        ltt_threshold([0.5, 0.6], [0, 0], alpha=0.1, grid=grid)
+
+
+def test_default_grid_cannot_be_mutated():
+    from hedge.risk import DEFAULT_GRID
+
+    with pytest.raises(ValueError):
+        DEFAULT_GRID[0] = 0.5
+
+
 def test_ltt_is_not_trivially_conservative():
     """On 5000 items the certified threshold should act on a real share of tickets."""
     rng = np.random.default_rng(2)

@@ -57,11 +57,6 @@ def _as_arrays(scores, wrong) -> tuple[np.ndarray, np.ndarray]:
     return s, w
 
 
-def _candidates_strict_to_lenient(s: np.ndarray) -> np.ndarray:
-    """Unique scores, highest first. Acting at a threshold t means acting on score >= t."""
-    return np.unique(s)[::-1]
-
-
 def _summary(s: np.ndarray, w: np.ndarray, t: float) -> Threshold:
     act = s >= t
     return Threshold(t, float(act.mean()), int((act & w).sum()), int(act.sum()))
@@ -77,15 +72,19 @@ def crc_threshold(scores, wrong, alpha: float) -> Threshold:
         raise ValueError("alpha must be in (0, 1)")
     s, w = _as_arrays(scores, wrong)
     n = s.size
-    best = NEVER_ACT
-    for t in _candidates_strict_to_lenient(s):
-        if (np.sum((s >= t) & w) + 1) / (n + 1) <= alpha:
-            best = t
-        else:
-            break  # the loss only grows as t falls, so no later candidate can pass
-    if best == NEVER_ACT:
+    # Sort once, highest score first. errors_at[j] = wrong rows among those with score >= the
+    # j-th distinct score, so every candidate is checked in O(1) after an O(n log n) sort.
+    order = np.argsort(-s, kind="stable")
+    s_sorted, w_sorted = s[order], w[order]
+    cum_wrong = np.cumsum(w_sorted)
+    last_of_value = np.flatnonzero(np.append(s_sorted[1:] != s_sorted[:-1], True))
+    ok = (cum_wrong[last_of_value] + 1) / (n + 1) <= alpha
+    # The loss only grows as the threshold falls, so passing candidates form a prefix.
+    passing = np.flatnonzero(~ok)
+    k = passing[0] if passing.size else ok.size
+    if k == 0:
         return Threshold(NEVER_ACT, 0.0, 0, 0)
-    return _summary(s, w, best)
+    return _summary(s, w, float(s_sorted[last_of_value[k - 1]]))
 
 
 def binomial_p_value(errors: int, acted: int, alpha: float) -> float:
@@ -141,6 +140,10 @@ def ltt_threshold(
     if s.min() < 0 or s.max() > 1:
         raise ValueError("scores must be probabilities in [0, 1]")
     g = np.asarray(grid, dtype=float)
+    if g.ndim != 1 or g.size == 0:
+        raise ValueError("grid must be a non-empty 1-D sequence")
+    if g.min() < 0 or g.max() > 1 or np.unique(g).size != g.size:
+        raise ValueError("grid points must be distinct and lie in [0, 1]")
     level = delta / g.size
     certified = [
         t
