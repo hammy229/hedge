@@ -46,20 +46,25 @@ def test_bad_arguments():
             quantile_temporal_split([1, 2, 3], cal_frac=cal, test_frac=test)
 
 
-def test_cluster_disjoint_drops_train_and_test_rows_only():
-    from hedge.splits import cluster_disjoint
+def test_cluster_disjoint_drops_train_rows_only():
+    from hedge.splits import cluster_disjoint, shares_cluster
 
     #          0     1     2     3     4     5     6     7
     groups = ["a", "b", None, "c", "a", "b", None, "c"]
     s = Split(train=np.array([0, 1, 2]), calibration=np.array([3, 4]), test=np.array([5, 6, 7]))
     out, dropped = cluster_disjoint(s, groups)
     assert out.train.tolist() == [2]  # 0 shares "a" with calibration, 1 shares "b" with test
-    assert out.calibration.tolist() == [3, 4]  # calibration is never touched
-    assert out.test.tolist() == [5, 6]  # 7 shares "c" with calibration; 5 shares only with train
-    assert dropped == {"train": 2, "test": 1}
-    g = np.asarray(groups, dtype=object)
-    parts = [set(g[out.train]) - {None}, set(g[out.calibration]) - {None}, set(g[out.test]) - {None}]
-    assert not (parts[0] & parts[1]) and not (parts[0] & parts[2]) and not (parts[1] & parts[2])
+    assert out.calibration.tolist() == [3, 4] and out.test.tolist() == [5, 6, 7]
+    assert dropped == {"train": 2}
+    assert shares_cluster(out.test, out.calibration, groups).tolist() == [False, False, True]
+
+
+def test_tuple_cluster_ids_stay_whole():
+    from hedge.splits import cluster_disjoint
+
+    groups = [("J", 1), ("J", 1), ("J", 2)]
+    out, _ = cluster_disjoint(Split(np.array([0]), np.array([1]), np.array([2])), groups)
+    assert out.train.tolist() == []
 
 
 def test_cluster_disjoint_without_clusters_is_a_no_op():
@@ -68,7 +73,7 @@ def test_cluster_disjoint_without_clusters_is_a_no_op():
     s = temporal_split([1, 2, 3, 4], cal_start=2, test_start=3)
     out, dropped = cluster_disjoint(s, [None] * 4)
     assert (out.train.tolist(), out.test.tolist()) == (s.train.tolist(), s.test.tolist())
-    assert dropped == {"train": 0, "test": 0}
+    assert dropped == {"train": 0}
 
 
 def test_drop_copies_filters_calibration_and_test_alike():

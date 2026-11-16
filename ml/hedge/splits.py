@@ -89,37 +89,45 @@ def project_holdout_split(
 
 
 def cluster_disjoint(split: Split, groups: Sequence) -> tuple[Split, dict[str, int]]:
-    """Remove rows so no duplicate cluster spans two parts. Returns the split and drop counts.
+    """Drop train rows whose duplicate cluster also appears in calibration or test.
 
     ``groups`` holds one cluster id per issue, indexed like the split; use None for an
-    issue in no cluster. Which side gives up its rows matters:
+    issue in no cluster. A retriever fine-tuned on a cluster's pairs would otherwise be
+    graded on a cluster it memorized. Train is the largest part, so it gives up the rows.
 
-    - Train rows whose cluster also appears in calibration or test are dropped. Train is the
-      largest part, and a retriever fine-tuned on a cluster's pairs would otherwise be
-      graded on a cluster it memorized.
-    - Test rows whose cluster appears in calibration are dropped, so the realized-risk check
-      on test does not reuse the outcomes the threshold was certified on.
-
-    Test rows are never dropped for sharing a cluster with train. Doing so would delete the
-    most realistic case, a new report of a long-known bug, and the retrieval corpus is
-    allowed to hold every earlier issue anyway.
+    Calibration and test are left whole. Deployment sees new reports of bugs from every
+    earlier window, so removing test rows that share a cluster with calibration would test
+    a different population than the one the threshold is certified for. The learn then test
+    bound needs only exchangeability between calibration and deployment, and calibration
+    already certifies on one row per cluster. Use ``shares_cluster`` to report test results
+    with and without that overlap.
     """
-    g = np.asarray(groups, dtype=object)
+    g = _groups(groups)
+    banned = _ids(g, split.calibration) | _ids(g, split.test)
+    train = split.train[~_member(g, split.train, banned)]
+    return Split(train, split.calibration, split.test), {"train": split.train.size - train.size}
 
-    def ids(idx: np.ndarray) -> set:
-        return {x for x in g[idx].tolist() if x is not None}
 
-    def keep(idx: np.ndarray, banned: set) -> np.ndarray:
-        if not banned:
-            return idx
-        mask = np.array([x is None or x not in banned for x in g[idx].tolist()], dtype=bool)
-        return idx[mask]
+def shares_cluster(part: np.ndarray, other: np.ndarray, groups: Sequence) -> np.ndarray:
+    """Boolean mask over ``part``: rows whose cluster also has a row in ``other``."""
+    g = _groups(groups)
+    return _member(g, part, _ids(g, other))
 
-    cal_ids, test_ids = ids(split.calibration), ids(split.test)
-    train = keep(split.train, cal_ids | test_ids)
-    test = keep(split.test, cal_ids)
-    dropped = {"train": split.train.size - train.size, "test": split.test.size - test.size}
-    return Split(train, split.calibration, test), dropped
+
+def _groups(groups: Sequence) -> np.ndarray:
+    # Filled element by element so tuple cluster ids stay single objects instead of
+    # becoming a 2-D array.
+    g = np.empty(len(groups), dtype=object)
+    g[:] = list(groups)
+    return g
+
+
+def _ids(g: np.ndarray, idx: np.ndarray) -> set:
+    return {x for x in g[idx].tolist() if x is not None}
+
+
+def _member(g: np.ndarray, idx: np.ndarray, ids: set) -> np.ndarray:
+    return np.array([x is not None and x in ids for x in g[idx].tolist()], dtype=bool)
 
 
 def drop_copies(
