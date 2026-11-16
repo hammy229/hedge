@@ -69,3 +69,35 @@ def test_cluster_disjoint_without_clusters_is_a_no_op():
     out, dropped = cluster_disjoint(s, [None] * 4)
     assert (out.train.tolist(), out.test.tolist()) == (s.train.tolist(), s.test.tolist())
     assert dropped == {"train": 0, "test": 0}
+
+
+def test_drop_copies_filters_calibration_and_test_alike():
+    from hedge.splits import drop_copies
+
+    texts = [
+        "NPE in Parser.parse()",  # 0 train
+        "Slow startup",  # 1 train
+        "npe in parser parse",  # 2 calibration, copy of 0
+        "New calibration bug",  # 3 calibration
+        "new CALIBRATION bug!",  # 4 test, copy of 3
+        "SLOW startup (HDFS-9)",  # 5 test, copy of 1
+        "Fresh test bug",  # 6 test
+        "",  # 7 test, empty never counts as a copy
+    ]
+    s = Split(np.array([0, 1]), np.array([2, 3]), np.array([4, 5, 6, 7]))
+    out, dropped = drop_copies(s, texts)
+    assert out.train.tolist() == [0, 1]
+    assert out.calibration.tolist() == [3]
+    assert out.test.tolist() == [6, 7]
+    assert dropped == {"calibration": 1, "test": 2}
+
+
+def test_drop_copies_compares_test_only_to_kept_calibration_rows():
+    from hedge.splits import drop_copies
+
+    # Row 2 is dropped from calibration as a copy of train; test row 3 copies it, so it is
+    # also a copy of train and must go too.
+    texts = ["same bug", "other", "same bug", "Same bug."]
+    s = Split(np.array([0]), np.array([1, 2]), np.array([3]))
+    out, _ = drop_copies(s, texts)
+    assert out.calibration.tolist() == [1] and out.test.tolist() == []

@@ -17,10 +17,12 @@ Two splits answer two questions:
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 
 import numpy as np
+
+from .leakage import cross_split_duplicates
 
 
 @dataclass(frozen=True)
@@ -118,3 +120,27 @@ def cluster_disjoint(split: Split, groups: Sequence) -> tuple[Split, dict[str, i
     test = keep(split.test, cal_ids)
     dropped = {"train": split.train.size - train.size, "test": split.test.size - test.size}
     return Split(train, split.calibration, test), dropped
+
+
+def drop_copies(
+    split: Split, texts: Sequence[str], project_keys: Iterable[str] | None = None
+) -> tuple[Split, dict[str, int]]:
+    """Drop calibration and test rows whose text is a copy of an earlier part's text.
+
+    The same filter runs on both evaluated parts. Filtering only test would leave copies in
+    calibration, where a pasted-in ticket is trivially "right" and makes the certified
+    threshold look safer than it is on new tickets. Calibration is checked against train;
+    test against train and calibration.
+    """
+    t = list(texts)
+
+    def copies(earlier: np.ndarray, part: np.ndarray) -> np.ndarray:
+        if part.size == 0:
+            return part
+        hits = cross_split_duplicates([t[i] for i in earlier], [t[i] for i in part], project_keys)
+        return np.delete(part, hits)
+
+    cal = copies(split.train, split.calibration)
+    test = copies(np.concatenate([split.train, cal]), split.test)
+    dropped = {"calibration": split.calibration.size - cal.size, "test": split.test.size - test.size}
+    return Split(split.train, cal, test), dropped
