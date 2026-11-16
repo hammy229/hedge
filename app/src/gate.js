@@ -11,9 +11,43 @@ export const RUNTIME = Object.freeze({ featureSchema: FEATURE_SCHEMA, retriever:
 export function score(features, model) {
   let z = model.bias;
   for (const [name, weight] of Object.entries(model.weights)) {
-    z += weight * features[name];
+    z += weight * (Object.hasOwn(features, name) ? features[name] : NaN);
   }
   return 1 / (1 + Math.exp(-z));
+}
+
+const isNumber = (x) => typeof x === 'number' && Number.isFinite(x);
+
+// Why a policy cannot be trusted, or null if it can. Every check here guards a way a
+// malformed policy file would otherwise act: a null threshold compares as 0, an empty
+// weight map needs no features, a string bias concatenates.
+export function policyProblem(policy, runtime = RUNTIME) {
+  if (policy?.calibrated !== true) return 'No calibrated policy is installed yet, so every ticket goes to a person.';
+  if (policy.featureSchema !== runtime.featureSchema) {
+    return (
+      `The policy was trained on feature schema ${policy.featureSchema}, but this app computes ` +
+      `schema ${runtime.featureSchema}.`
+    );
+  }
+  if (policy.retriever !== runtime.retriever) {
+    return (
+      `The policy was calibrated on scores from ${policy.retriever}, but this app retrieves ` +
+      `with ${runtime.retriever}.`
+    );
+  }
+  if (!isNumber(policy.threshold) || policy.threshold <= 0 || policy.threshold > 1) {
+    return 'The policy threshold is not a probability in (0, 1].';
+  }
+  const model = policy.model;
+  const weights = model?.weights;
+  if (!isNumber(model?.bias) || !weights || typeof weights !== 'object' || Array.isArray(weights)) {
+    return 'The policy model is malformed.';
+  }
+  const names = Object.keys(weights);
+  if (names.length === 0 || !names.every((n) => isNumber(weights[n]))) {
+    return 'The policy model has no usable weights.';
+  }
+  return null;
 }
 
 function ask(reason, extra = {}) {
@@ -21,27 +55,24 @@ function ask(reason, extra = {}) {
 }
 
 export function decide(features, policy, runtime = RUNTIME) {
-  if (!policy?.calibrated) {
-    return ask('No calibrated policy is installed yet, so every ticket goes to a person.');
+  try {
+    return decideOrThrow(features, policy, runtime);
+  } catch {
+    return ask('The gate hit an unexpected error, so this ticket goes to a person.');
   }
-  if (policy.featureSchema !== runtime.featureSchema) {
-    return ask(
-      `The policy was trained on feature schema ${policy.featureSchema}, but this app computes ` +
-        `schema ${runtime.featureSchema}.`,
-    );
-  }
-  if (policy.retriever !== runtime.retriever) {
-    return ask(
-      `The policy was calibrated on scores from ${policy.retriever}, but this app retrieves ` +
-        `with ${runtime.retriever}.`,
-    );
-  }
+}
+
+function decideOrThrow(features, policy, runtime) {
+  const problem = policyProblem(policy, runtime);
+  if (problem) return ask(problem);
   const names = Object.keys(policy.model.weights);
-  const missing = names.filter((name) => !Number.isFinite(features?.[name]));
+  const f = features && typeof features === 'object' ? features : {};
+  const missing = names.filter((name) => !(Object.hasOwn(f, name) && isNumber(f[name])));
   if (missing.length > 0) {
     return ask(`Missing features: ${missing.join(', ')}.`);
   }
-  const s = score(features, policy.model);
+  const s = score(f, policy.model);
+  if (!isNumber(s)) return ask('The confidence score is not a finite number.');
   const facts = { score: s, threshold: policy.threshold };
   if (s >= policy.threshold) {
     return {

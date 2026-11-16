@@ -74,3 +74,29 @@ test('a policy from another feature schema or retriever fails closed', () => {
   assert.equal(decide(features, noBinding).decision, 'ask');
   assert.equal(decide(features, calibrated, { ...RUNTIME }).decision, 'act');
 });
+
+test('malformed policies fail closed', () => {
+  const features = { margin: 1 };
+  const bad = [
+    { threshold: -Infinity },
+    { threshold: null },
+    { threshold: '0.5' },
+    { threshold: 0 },
+    { calibrated: 'true' },
+    { model: { bias: 5, weights: {} } },
+    { model: { bias: '1', weights: { margin: 4 } } },
+    { model: { bias: -1, weights: { margin: '4' } } },
+    { model: { bias: -1, weights: [4] } },
+    { model: null },
+  ];
+  for (const patch of bad) {
+    const out = decide(features, { ...calibrated, ...patch });
+    assert.equal(out.decision, 'ask', JSON.stringify(patch));
+  }
+});
+
+test('inherited properties never count as features', () => {
+  const policy = { ...calibrated, model: { bias: 5, weights: { toString: 1 } } };
+  assert.equal(decide({}, policy).decision, 'ask');
+  assert.equal(decide(Object.create({ margin: 1 }), calibrated).decision, 'ask');
+});
