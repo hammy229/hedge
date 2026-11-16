@@ -54,3 +54,50 @@ def test_retrieval_metrics_by_hand():
     assert recall_at_k(ranked, relevant, k=3) == 1.0
     assert mean_reciprocal_rank(ranked, relevant) == pytest.approx((1 / 2 + 1 / 3) / 2)
     assert math.isnan(recall_at_k([["a"]], [set()], k=1))
+
+
+def test_exclude_drops_the_query_itself():
+    index = BM25().fit(DOCS)
+    top = index.search(DOCS[0], k=4, exclude=0)
+    assert 0 not in [i for i, _ in top] and top[0][0] == 2
+    assert [i for i, _ in index.search(DOCS[0], k=4, exclude=[0, 2])] == [1, 3]  # tied at 0
+
+
+def test_before_only_returns_older_issues():
+    index = BM25().fit(DOCS, created=[10, 20, 30, 40])
+    assert {i for i, _ in index.search("FileSystem.open empty path", k=4, before=30)} == {0, 1}
+    assert index.search("anything", before=10) == []
+    with pytest.raises(ValueError):
+        BM25().fit(DOCS).search("x", before=1.0)
+    with pytest.raises(ValueError):
+        BM25().fit(DOCS, created=[1, 2])
+
+
+def test_ties_go_to_the_lower_index():
+    index = BM25().fit(["same words"] * 6)
+    assert [i for i, _ in index.search("same words", k=3)] == [0, 1, 2]
+    assert [i for i, _ in index.search("same words", k=3, exclude=1)] == [0, 2, 3]
+
+
+def test_empty_documents_get_zero_length():
+    index = BM25().fit(["", "cat", "", "cat dog"])
+    s = index.scores("cat")
+    assert s[0] == 0 and s[2] == 0 and s[1] > s[3] > 0
+
+
+def test_matches_a_direct_bm25_formula():
+    docs = ["a b b c", "b c", "c c c d", "a"]
+    index = BM25(k1=1.5, b=0.6).fit(docs)
+    toks = [d.split() for d in docs]
+    avg = sum(map(len, toks)) / len(toks)
+
+    def direct(q, d):
+        total = 0.0
+        for term in set(q.split()):
+            df = sum(term in t for t in toks)
+            idf = math.log1p((len(toks) - df + 0.5) / (df + 0.5))
+            f = d.count(term)
+            total += q.split().count(term) * idf * f * 2.5 / (f + 1.5 * (1 - 0.6 + 0.6 * len(d) / avg))
+        return total
+
+    np.testing.assert_allclose(index.scores("b c a"), [direct("b c a", t) for t in toks])
