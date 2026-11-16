@@ -74,3 +74,36 @@ def earlier_duplicates(
         for i, (t, key) in enumerate(dated):
             out[key] = {k for tk, k in dated[:i] if tk < t}
     return out
+
+
+def duplicate_labels(
+    links: Iterable[tuple[str, str]],
+    created: Mapping[str, float],
+    max_cluster: int | None = 100,
+) -> dict[str, set[str]]:
+    """Like ``earlier_duplicates``, but distrusts the transitive closure of huge clusters.
+
+    Union-find merges every chain of links. In the Public Jira Dataset that is right for
+    almost every cluster (median size 2, 99th percentile 35) and wrong for a few: Mojang's
+    catch-all tickets such as "Multiplayer Connection Issues and Workarounds" collect
+    thousands of direct duplicates each, and chains between those hubs build clusters of
+    over 20,000 issues about unrelated bugs. In a cluster larger than ``max_cluster`` an
+    issue's correct answers are only the earlier issues it is directly linked to.
+    ``max_cluster=None`` keeps the full closure everywhere.
+    """
+    links = [(a, b) for a, b in links if a != b]
+    clusters = duplicate_clusters(links)
+    if max_cluster is None:
+        return earlier_duplicates(clusters, created)
+    labels = earlier_duplicates([c for c in clusters if len(c) <= max_cluster], created)
+    big = {k for c in clusters if len(c) > max_cluster for k in c}
+    neighbors: dict[str, set[str]] = defaultdict(set)
+    for a, b in links:
+        if a in big:
+            neighbors[a].add(b)
+            neighbors[b].add(a)
+    for key in big:
+        if key in created:
+            t = created[key]
+            labels[key] = {n for n in neighbors[key] if n in created and created[n] < t}
+    return labels
