@@ -60,12 +60,12 @@ def test_exclude_drops_the_query_itself():
     index = BM25().fit(DOCS)
     top = index.search(DOCS[0], k=4, exclude=0)
     assert 0 not in [i for i, _ in top] and top[0][0] == 2
-    assert [i for i, _ in index.search(DOCS[0], k=4, exclude=[0, 2])] == [1, 3]  # tied at 0
+    assert index.search(DOCS[0], k=4, exclude=[0, 2]) == []  # nothing else shares a term
 
 
 def test_before_only_returns_older_issues():
     index = BM25().fit(DOCS, created=[10, 20, 30, 40])
-    assert {i for i, _ in index.search("FileSystem.open empty path", k=4, before=30)} == {0, 1}
+    assert {i for i, _ in index.search("FileSystem.open empty path", k=4, before=30)} == {0}  # 2 is too new, 1 shares no term
     assert index.search("anything", before=10) == []
     with pytest.raises(ValueError):
         BM25().fit(DOCS).search("x", before=1.0)
@@ -101,3 +101,9 @@ def test_matches_a_direct_bm25_formula():
         return total
 
     np.testing.assert_allclose(index.scores("b c a"), [direct("b c a", t) for t in toks])
+
+
+def test_trailing_empty_document_and_zero_scores():
+    index = BM25().fit(["a b", "c d", ""])  # an empty last doc used to crash the build
+    assert index.search("a") == [(0, index.scores("a")[0])]
+    assert index.search("qqq unknown") == []

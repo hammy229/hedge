@@ -49,13 +49,12 @@ class BM25:
         indptr_a = np.frombuffer(indptr, dtype=np.int64)
         cols = np.frombuffer(indices, dtype=np.int32)
         tf = np.frombuffer(counts, dtype=float)
-        lengths = np.add.reduceat(tf, indptr_a[:-1]) if tf.size else np.zeros(n)
-        lengths[np.diff(indptr_a) == 0] = 0.0  # reduceat repeats the next value for empty docs
+        rows = np.repeat(np.arange(n), np.diff(indptr_a))
+        lengths = np.bincount(rows, weights=tf, minlength=n)
         df = np.bincount(cols, minlength=v)
         idf = np.log1p((n - df + 0.5) / (df + 0.5))  # Lucene's always-positive variant
         avg = lengths.mean() if n and lengths.mean() > 0 else 1.0
         norm = self.k1 * (1 - self.b + self.b * lengths / avg)
-        rows = np.repeat(np.arange(n), np.diff(indptr_a))
         w = tf * (self.k1 + 1) / (tf + norm[rows]) * idf[cols]
         self.weights = sparse.csr_matrix((w, cols, indptr_a), shape=(n, v)).tocsc()
         self.created = None if created is None else np.asarray(created, dtype=float)
@@ -80,6 +79,10 @@ class BM25:
     ) -> list[tuple[int, float]]:
         """Top-k (index, score) pairs, best first. Equal scores go to the lower index.
 
+        Only documents sharing at least one term with the query (score above 0) are
+        returned, so fewer than k may come back. A zero-score document is not a candidate
+        duplicate, and keeping them would make every tie at 0 a fake neighbor.
+
         mask     only documents where mask is True
         before   only documents created strictly before this time (needs fit(created=...))
         exclude  document indices to leave out, such as the query's own index
@@ -92,7 +95,7 @@ class BM25:
             allowed &= self.created < before
         if exclude is not None:
             allowed[np.asarray([exclude] if np.isscalar(exclude) else list(exclude), dtype=int)] = False
-        cand = np.flatnonzero(allowed)
+        cand = np.flatnonzero(allowed & (s > 0))
         if k <= 0 or cand.size == 0:
             return []
         if cand.size > k:
