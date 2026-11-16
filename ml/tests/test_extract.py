@@ -32,7 +32,8 @@ def dup(side, other, name="Duplicate"):
 
 
 def test_parse_time():
-    assert parse_time("1970-01-01T00:00:10.000+0000") == 10.0
+    assert parse_time("2010-01-01T00:00:10.000+0000") == 1262304010.0
+    assert parse_time("2010-01-01T00:00:10+0000") == 1262304010.0  # no milliseconds
     assert parse_time("2022-01-04T10:13:21.000+0100") == parse_time("2022-01-04T09:13:21.000+0000")
     assert parse_time("not a date") is None and parse_time(None) is None
 
@@ -122,3 +123,16 @@ def test_same_key_in_two_jiras_stays_two_issues():
     out = s.to_dict()
     # RedHat's TS-1 links to RedHat's TS-2, which is not Apache's TS-2.
     assert out["duplicate_pairs"] == 1 and out["clustered_issues"] == 2
+
+
+def test_implausible_dates_are_unknown():
+    assert parse_time("0010-04-03T00:00:00.000+0000") is None  # as on SPARK-578
+    assert parse_time("1982-11-26T00:00:00.000+0000") is None
+    assert parse_time("2030-01-01T00:00:00.000+0000") is None
+    assert parse_time("2001-04-06T00:00:00.000+0000") is not None  # RedHat's oldest
+
+
+def test_totals_keep_zero_counts():
+    s = Summary()
+    s.add(slim("A", issue("A-1")))
+    assert s.to_dict()["total"]["with_duplicate_link"] == 0

@@ -27,19 +27,30 @@ from .archive import read_archive
 from .dupes import duplicate_clusters
 
 MEMBER = "ThePublicJiraDataset/3. DataDump/mongodump-JiraReposAnon.archive"
-JIRA_TIME = "%Y-%m-%dT%H:%M:%S.%f%z"
+JIRA_TIMES = ("%Y-%m-%dT%H:%M:%S.%f%z", "%Y-%m-%dT%H:%M:%S%z")
+# The dump was taken in January 2022, and no tracker in it predates 2000 (issues migrated
+# from older trackers start in 2001), so a creation time outside these bounds is corrupt:
+# 289 Apache issues are dated in the year 10 and one Jira issue in 1982. Treating it
+# as unknown keeps a misdated issue from becoming the "earliest" member of its cluster,
+# and so a correct answer for every later report.
+EARLIEST = datetime(2000, 1, 1, tzinfo=timezone.utc).timestamp()
+LATEST = datetime(2022, 2, 1, tzinfo=timezone.utc).timestamp()
 
 
 def parse_time(value) -> float | None:
-    """Epoch seconds from Jira's '2022-01-04T09:13:21.000+0000', or None if unparseable."""
+    """Epoch seconds from Jira's '2022-01-04T09:13:21.000+0000', or None if unparseable or
+    outside the plausible range."""
+    t = None
     if isinstance(value, datetime):
-        return value.timestamp()
-    if not isinstance(value, str):
-        return None
-    try:
-        return datetime.strptime(value, JIRA_TIME).timestamp()
-    except ValueError:
-        return None
+        t = value.timestamp()
+    elif isinstance(value, str):
+        for fmt in JIRA_TIMES:
+            try:
+                t = datetime.strptime(value, fmt).timestamp()
+                break
+            except ValueError:
+                continue
+    return t if t is not None and EARLIEST <= t < LATEST else None
 
 
 def _is_duplicate(link_type: dict) -> bool:
@@ -129,7 +140,7 @@ class Summary:
         }
         return {
             "jiras": jiras,
-            "total": dict(sum(self.per.values(), Counter())),
+            "total": dict(_total(self.per.values())),
             "duplicate_pairs": len(self.pairs),
             "duplicate_clusters": len(clusters),
             "clustered_issues": sum(len(g) for g in clusters),
@@ -147,6 +158,15 @@ def unique_issues(records: Iterable[dict], skipped: Counter | None = None) -> It
             continue
         seen.add(r["id"])
         yield r
+
+
+def _total(counters) -> Counter:
+    # Counter.__add__ drops zero counts, so a field empty everywhere would vanish from the
+    # totals; update() keeps it.
+    total: Counter = Counter()
+    for c in counters:
+        total.update(c)
+    return total
 
 
 def stream_issues(zip_path: Path, member: str = MEMBER, skipped: Counter | None = None) -> Iterator[dict]:
