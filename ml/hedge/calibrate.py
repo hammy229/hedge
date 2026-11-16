@@ -8,7 +8,8 @@ Input is JSON Lines, one ticket per line:
 nothing) is correct. The gate is fit on train rows only and the threshold is certified on
 calibration rows only, so the guarantee is not computed on data the model has seen.
 
-    python -m hedge.calibrate rows.jsonl --alpha 0.03 --delta 0.1 --out ../app/src/policy.js
+    python -m hedge.calibrate rows.jsonl --retriever bm25-v1 --alpha 0.03 --delta 0.1 \\
+        --out ../app/src/policy.js
 """
 
 from __future__ import annotations
@@ -29,7 +30,9 @@ from .risk import ltt_threshold
 SPLITS = {"train", "calibration"}
 
 
-def build_policy(rows: Iterable[dict], alpha: float, delta: float, l2: float = 1.0) -> dict:
+def build_policy(
+    rows: Iterable[dict], alpha: float, delta: float, retriever: str, l2: float = 1.0
+) -> dict:
     """Fit on train rows, certify on calibration rows.
 
     A row may carry ``group`` (its duplicate cluster or project). When any calibration row
@@ -54,7 +57,7 @@ def build_policy(rows: Iterable[dict], alpha: float, delta: float, l2: float = 1
         groups = [str(r.get("group", f"__row{i}")) for i, r in enumerate(cal)]
     threshold = ltt_threshold(scores, wrong, alpha=alpha, delta=delta, groups=groups)
     size = len(set(groups)) if groups else len(cal)
-    return policy_dict(model, threshold, alpha, delta, size)
+    return policy_dict(model, threshold, alpha, delta, size, retriever)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -62,12 +65,13 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("rows", type=Path, help="JSON Lines file of feature rows")
     ap.add_argument("--alpha", type=float, default=0.03, help="error budget among acted tickets")
     ap.add_argument("--delta", type=float, default=0.1, help="allowed chance the bound fails")
+    ap.add_argument("--retriever", required=True, help="id of the retriever that produced the scores, e.g. bm25-v1")
     ap.add_argument("--l2", type=float, default=1.0)
     ap.add_argument("--out", type=Path, required=True, help="where to write policy.js")
     args = ap.parse_args(argv)
     with args.rows.open() as f:
         rows = [json.loads(line) for line in f if line.strip()]
-    policy = build_policy(rows, args.alpha, args.delta, args.l2)
+    policy = build_policy(rows, args.alpha, args.delta, args.retriever, args.l2)
     write_policy(policy, args.out)
     if policy["calibrated"]:
         print(

@@ -13,6 +13,11 @@ import numpy as np
 
 FEATURE_NAMES = ("top1", "margin", "entropy", "summaryWords", "hasDescription")
 
+# Bump whenever a feature's definition changes, and regenerate fixtures/features.json. A
+# policy trained on one schema must not score features computed under another, so the
+# version travels inside the policy and the Forge gate checks it.
+FEATURE_SCHEMA = 1
+
 
 def score_features(scores: Sequence[float], k: int = 10) -> dict[str, float]:
     """Features from a ticket's retrieval scores, best first.

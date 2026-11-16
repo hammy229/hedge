@@ -1,7 +1,12 @@
 // The act-or-ask gate that runs inside Forge.
 //
 // The threshold and weights come from ml/ (see docs/PLAN.md). The gate fails closed:
-// with no calibrated policy, or any missing feature, the ticket goes to a person.
+// with no calibrated policy, a policy trained on other features or another retriever, or
+// any missing feature, the ticket goes to a person.
+
+import { FEATURE_SCHEMA, RETRIEVER } from './features.js';
+
+export const RUNTIME = Object.freeze({ featureSchema: FEATURE_SCHEMA, retriever: RETRIEVER });
 
 export function score(features, model) {
   let z = model.bias;
@@ -15,9 +20,21 @@ function ask(reason, extra = {}) {
   return { decision: 'ask', reason, ...extra };
 }
 
-export function decide(features, policy) {
+export function decide(features, policy, runtime = RUNTIME) {
   if (!policy?.calibrated) {
     return ask('No calibrated policy is installed yet, so every ticket goes to a person.');
+  }
+  if (policy.featureSchema !== runtime.featureSchema) {
+    return ask(
+      `The policy was trained on feature schema ${policy.featureSchema}, but this app computes ` +
+        `schema ${runtime.featureSchema}.`,
+    );
+  }
+  if (policy.retriever !== runtime.retriever) {
+    return ask(
+      `The policy was calibrated on scores from ${policy.retriever}, but this app retrieves ` +
+        `with ${runtime.retriever}.`,
+    );
   }
   const names = Object.keys(policy.model.weights);
   const missing = names.filter((name) => !Number.isFinite(features?.[name]));

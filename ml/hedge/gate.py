@@ -15,6 +15,7 @@ import numpy as np
 from scipy.optimize import minimize
 from scipy.special import expit
 
+from .features import FEATURE_SCHEMA
 from .risk import Threshold
 
 
@@ -69,12 +70,26 @@ def fit_gate(X, y, names, l2: float = 1.0) -> GateModel:
 
 
 def policy_dict(
-    model: GateModel, threshold: Threshold, alpha: float, delta: float, calibration_size: int
+    model: GateModel,
+    threshold: Threshold,
+    alpha: float,
+    delta: float,
+    calibration_size: int,
+    retriever: str,
 ) -> dict:
-    """The policy object the Forge gate reads. An uncertified threshold keeps the gate closed."""
+    """The policy object the Forge gate reads. An uncertified threshold keeps the gate closed.
+
+    ``retriever`` names the retriever whose scores the gate was trained on (for example
+    "bm25-v1"). Scores from a different retriever have a different scale, so the Forge gate
+    refuses to act when its retriever id or feature schema differs from the policy's.
+    """
+    if not retriever:
+        raise ValueError("retriever id is required")
     calibrated = bool(np.isfinite(threshold.threshold))
     return {
         "calibrated": calibrated,
+        "featureSchema": FEATURE_SCHEMA,
+        "retriever": retriever,
         "alpha": alpha,
         "delta": delta,
         "calibrationSize": int(calibration_size),
