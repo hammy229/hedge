@@ -31,3 +31,11 @@ test('scoreFeatures rejects k below 2 and does not mutate its input', () => {
 test('the app computes the schema version the fixture was generated under', () => {
   assert.equal(FEATURE_SCHEMA, contract.featureSchema);
 });
+
+test('broken scores give NaN features, like Python', () => {
+  for (const scores of [[5, 4, NaN, ...Array(10).fill(1)], [Infinity, 1], [null, 1], ['3', 1]]) {
+    const f = scoreFeatures(scores);
+    assert.ok(Object.values(f).every(Number.isNaN), JSON.stringify(scores));
+  }
+  assert.throws(() => scoreFeatures([1, 2], 2.5), RangeError);
+});

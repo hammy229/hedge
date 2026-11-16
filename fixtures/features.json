@@ -291,6 +291,116 @@
         "summaryWords": 1.0,
         "hasDescription": 1.0
       }
+    },
+    {
+      "name": "byte order mark is not a space",
+      "summary": "Crash",
+      "description": "﻿",
+      "descriptionAdf": {
+        "type": "doc",
+        "version": 1,
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "﻿"
+              }
+            ]
+          }
+        ]
+      },
+      "scores": [
+        3.0,
+        1.0
+      ],
+      "expected": {
+        "top1": 3.0,
+        "margin": 2.0,
+        "entropy": 0.15866247731681654,
+        "summaryWords": 1.0,
+        "hasDescription": 1.0
+      }
+    },
+    {
+      "name": "next line U+0085 is a space",
+      "summary": "Crash",
+      "description": "",
+      "descriptionAdf": {
+        "type": "doc",
+        "version": 1,
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": ""
+              }
+            ]
+          }
+        ]
+      },
+      "scores": [
+        3.0,
+        1.0
+      ],
+      "expected": {
+        "top1": 3.0,
+        "margin": 2.0,
+        "entropy": 0.15866247731681654,
+        "summaryWords": 1.0,
+        "hasDescription": 0.0
+      }
+    },
+    {
+      "name": "U+001C separates words",
+      "summary": "a\u001cb",
+      "description": "x",
+      "descriptionAdf": {
+        "type": "doc",
+        "version": 1,
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "x"
+              }
+            ]
+          }
+        ]
+      },
+      "scores": [
+        3.0,
+        1.0
+      ],
+      "expected": {
+        "top1": 3.0,
+        "margin": 2.0,
+        "entropy": 0.15866247731681654,
+        "summaryWords": 2.0,
+        "hasDescription": 1.0
+      }
+    },
+    {
+      "name": "plain string description",
+      "summary": "Crash on save",
+      "description": "Steps to reproduce",
+      "descriptionAdf": "Steps to reproduce",
+      "scores": [
+        3.0,
+        1.0
+      ],
+      "expected": {
+        "top1": 3.0,
+        "margin": 2.0,
+        "entropy": 0.15866247731681654,
+        "summaryWords": 3.0,
+        "hasDescription": 1.0
+      }
     }
   ]
 }

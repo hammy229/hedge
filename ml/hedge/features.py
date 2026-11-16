@@ -7,6 +7,7 @@ cannot find.
 
 from __future__ import annotations
 
+import math
 from collections.abc import Sequence
 
 import numpy as np
@@ -34,7 +35,12 @@ def score_features(scores: Sequence[float], k: int = 10) -> dict[str, float]:
     """
     if k < 2:
         raise ValueError("k must be at least 2")
-    s = np.sort(np.asarray(scores, dtype=float))[::-1][:k]
+    s = np.asarray(scores, dtype=float)
+    if not np.all(np.isfinite(s)):
+        # A broken retriever score must not turn into a confident-looking feature. NaN
+        # features make both gates ask.
+        return {"top1": math.nan, "margin": math.nan, "entropy": math.nan}
+    s = np.sort(s)[::-1][:k]
     if s.size == 0:
         return {"top1": 0.0, "margin": 0.0, "entropy": 1.0}
     margin = float(s[0] - s[1]) if s.size > 1 else 0.0

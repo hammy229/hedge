@@ -19,20 +19,34 @@ export function adfToText(node) {
   return children.map(adfToText).join('') + sep;
 }
 
+// Python's str.isspace() set, so split and strip agree with ml/. JavaScript's \s differs:
+// it adds U+FEFF and leaves out U+001C to U+001F and U+0085.
+const SPACE = /[\t-\r\x1c-\x20\x85\xa0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]+/;
+const words = (text) => text.split(SPACE).filter(Boolean);
+
+function descriptionText(description) {
+  // API v3 returns ADF; v2 and the dataset return a plain string.
+  return typeof description === 'string' ? description : adfToText(description);
+}
+
 export function featurize(issue) {
-  const summary = issue?.fields?.summary ?? '';
-  const description = adfToText(issue?.fields?.description).trim();
+  const summary = issue?.fields?.summary;
   return {
-    summaryWords: summary.split(/\s+/).filter(Boolean).length,
-    hasDescription: description.length > 0 ? 1 : 0,
+    summaryWords: typeof summary === 'string' ? words(summary).length : 0,
+    hasDescription: words(descriptionText(issue?.fields?.description)).length > 0 ? 1 : 0,
   };
 }
 
 // How sure the retriever looks about its best candidate: top score, gap to the second,
 // and the entropy of a softmax over the top k scores divided by log(k).
 export function scoreFeatures(scores, k = K) {
-  if (!(k >= 2)) throw new RangeError('k must be at least 2');
-  const s = [...(scores ?? [])].map(Number).sort((a, b) => b - a).slice(0, k);
+  if (!Number.isInteger(k) || k < 2) throw new RangeError('k must be an integer of at least 2');
+  const raw = Array.isArray(scores) ? scores : [];
+  if (!raw.every((x) => typeof x === 'number' && Number.isFinite(x))) {
+    // Same rule as Python: a broken score gives NaN features, and the gate asks.
+    return { top1: NaN, margin: NaN, entropy: NaN };
+  }
+  const s = [...raw].sort((a, b) => b - a).slice(0, k);
   if (s.length === 0) return { top1: 0, margin: 0, entropy: 1 };
   const margin = s.length > 1 ? s[0] - s[1] : 0;
   if (s.length === 1) return { top1: s[0], margin, entropy: 0 };

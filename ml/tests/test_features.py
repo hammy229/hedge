@@ -47,3 +47,9 @@ def test_matrix_uses_canonical_order():
     m = to_matrix([row, row])
     assert m.shape == (2, len(FEATURE_NAMES))
     np.testing.assert_array_equal(m[0], [row[n] for n in FEATURE_NAMES])
+
+
+def test_non_finite_scores_give_nan_features():
+    f = score_features([5.0, 4.0, float("nan")] + [1.0] * 10)
+    assert all(math.isnan(v) for v in f.values())
+    assert math.isnan(score_features([float("inf"), 1.0])["top1"])
