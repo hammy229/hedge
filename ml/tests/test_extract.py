@@ -3,6 +3,7 @@ import io
 import json
 import struct
 import zipfile
+from collections import Counter
 
 import bson
 import pytest
@@ -48,7 +49,8 @@ def test_slim_keeps_only_duplicate_links_both_directions():
         components=["namenode", "client"],
     )
     r = slim("Apache", doc)
-    assert r["duplicates"] == ["HDFS-1", "HDFS-3"]
+    assert r["duplicates"] == ["Apache:HDFS-1", "Apache:HDFS-3"]
+    assert r["id"] == "Apache:HDFS-2" and r["key"] == "HDFS-2"
     assert r["components"] == ["client", "namenode"]
     assert r["project"] == "HDFS" and r["jira"] == "Apache" and r["type"] == "Bug"
 
@@ -101,4 +103,22 @@ def test_main_streams_a_zipped_archive(tmp_path):
 
 @pytest.mark.parametrize("name", ["Duplicate", "duplicate", "Duplicates"])
 def test_duplicate_type_names(name):
-    assert slim("J", issue("A-1", links=[dup("outwardIssue", "A-2", name=name)]))["duplicates"] == ["A-2"]
+    assert slim("J", issue("A-1", links=[dup("outwardIssue", "A-2", name=name)]))["duplicates"] == ["J:A-2"]
+
+
+def test_same_key_in_two_jiras_stays_two_issues():
+    from hedge.extract import unique_issues
+
+    s = Summary()
+    a = slim("RedHat", issue("TS-1", links=[dup("outwardIssue", "TS-2")]))
+    b = slim("Apache", issue("TS-1"))
+    c = slim("Apache", issue("TS-2"))
+    skipped = Counter()
+    rows = list(unique_issues([a, b, c, dict(b)], skipped))
+    assert [r["id"] for r in rows] == ["RedHat:TS-1", "Apache:TS-1", "Apache:TS-2"]
+    assert skipped == {"repeated_documents": 1}
+    for r in rows:
+        s.add(r)
+    out = s.to_dict()
+    # RedHat's TS-1 links to RedHat's TS-2, which is not Apache's TS-2.
+    assert out["duplicate_pairs"] == 1 and out["clustered_issues"] == 2

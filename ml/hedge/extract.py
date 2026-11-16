@@ -19,7 +19,7 @@ import sys
 import time
 import zipfile
 from collections import Counter, defaultdict
-from collections.abc import Iterator
+from collections.abc import Iterable, Iterator
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -47,8 +47,18 @@ def _is_duplicate(link_type: dict) -> bool:
     return str(link_type.get("name", "")).lower().startswith("duplicate")
 
 
+def issue_id(jira: str, key: str) -> str:
+    """A dataset-wide id. Keys are only unique inside one Jira: TS-1 exists in RedHat and in
+    Apache as unrelated issues, and 6,052 keys repeat across Jiras like that."""
+    return f"{jira}:{key}"
+
+
 def slim(jira: str, doc: dict) -> dict | None:
-    """The fields Hedge uses, or None for a document that is not an issue."""
+    """The fields Hedge uses, or None for a document that is not an issue.
+
+    ``duplicates`` holds ids, not keys. A link names a bare key, which Jira resolves inside
+    its own instance, so the linked issue lives in the same Jira.
+    """
     key = doc.get("key")
     fields = doc.get("fields")
     if not isinstance(key, str) or not isinstance(fields, dict):
@@ -60,9 +70,10 @@ def slim(jira: str, doc: dict) -> dict | None:
         for side in ("inwardIssue", "outwardIssue"):
             other = (link.get(side) or {}).get("key")
             if isinstance(other, str) and other != key:
-                dupes.add(other)
+                dupes.add(issue_id(jira, other))
     description = fields.get("description")
     return {
+        "id": issue_id(jira, key),
         "key": key,
         "jira": jira,
         "project": (fields.get("project") or {}).get("key"),
@@ -108,7 +119,7 @@ class Summary:
             self.first[j] = min(self.first.get(j, t), t)
             self.last[j] = max(self.last.get(j, t), t)
         for other in r["duplicates"]:
-            self.pairs.add((min(r["key"], other), max(r["key"], other)))
+            self.pairs.add((min(r["id"], other), max(r["id"], other)))
 
     def to_dict(self) -> dict:
         clusters = duplicate_clusters(self.pairs)
@@ -126,12 +137,22 @@ class Summary:
         }
 
 
-def stream_issues(zip_path: Path, member: str = MEMBER) -> Iterator[dict]:
+def unique_issues(records: Iterable[dict], skipped: Counter | None = None) -> Iterator[dict]:
+    """Drop repeated documents for an id already seen (59 in the dump, all exact copies)."""
+    seen: set[str] = set()
+    for r in records:
+        if r["id"] in seen:
+            if skipped is not None:
+                skipped["repeated_documents"] += 1
+            continue
+        seen.add(r["id"])
+        yield r
+
+
+def stream_issues(zip_path: Path, member: str = MEMBER, skipped: Counter | None = None) -> Iterator[dict]:
     with zipfile.ZipFile(zip_path) as z, z.open(member) as raw, gzip.GzipFile(fileobj=raw) as f:
-        for jira, doc in read_archive(f):
-            record = slim(jira, doc)
-            if record is not None:
-                yield record
+        records = (r for jira, doc in read_archive(f) if (r := slim(jira, doc)) is not None)
+        yield from unique_issues(records, skipped)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -144,13 +165,15 @@ def main(argv: list[str] | None = None) -> int:
     args.out.parent.mkdir(parents=True, exist_ok=True)
     start = time.monotonic()
     summary = Summary()
+    skipped: Counter = Counter()
     with gzip.open(args.out, "wt", encoding="utf-8") as out:
-        for i, r in enumerate(stream_issues(args.zip, args.member), start=1):
+        for i, r in enumerate(stream_issues(args.zip, args.member, skipped), start=1):
             out.write(json.dumps(r, ensure_ascii=False) + "\n")
             summary.add(r)
             if i % 100_000 == 0:
                 print(f"{i:,} issues, {time.monotonic() - start:.0f} s", file=sys.stderr, flush=True)
     stats = summary.to_dict()
+    stats["skipped"] = dict(skipped)
     stats["seconds"] = round(time.monotonic() - start, 1)
     args.stats.write_text(json.dumps(stats, indent=2) + "\n")
     print(f"{stats['total'].get('issues', 0):,} issues in {stats['seconds']} s")
