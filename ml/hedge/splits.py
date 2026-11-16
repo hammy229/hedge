@@ -84,3 +84,37 @@ def project_holdout_split(
         calibration=seen[t[seen] >= cut],
         test=np.flatnonzero(held),
     )
+
+
+def cluster_disjoint(split: Split, groups: Sequence) -> tuple[Split, dict[str, int]]:
+    """Remove rows so no duplicate cluster spans two parts. Returns the split and drop counts.
+
+    ``groups`` holds one cluster id per issue, indexed like the split; use None for an
+    issue in no cluster. Which side gives up its rows matters:
+
+    - Train rows whose cluster also appears in calibration or test are dropped. Train is the
+      largest part, and a retriever fine-tuned on a cluster's pairs would otherwise be
+      graded on a cluster it memorized.
+    - Test rows whose cluster appears in calibration are dropped, so the realized-risk check
+      on test does not reuse the outcomes the threshold was certified on.
+
+    Test rows are never dropped for sharing a cluster with train. Doing so would delete the
+    most realistic case, a new report of a long-known bug, and the retrieval corpus is
+    allowed to hold every earlier issue anyway.
+    """
+    g = np.asarray(groups, dtype=object)
+
+    def ids(idx: np.ndarray) -> set:
+        return {x for x in g[idx].tolist() if x is not None}
+
+    def keep(idx: np.ndarray, banned: set) -> np.ndarray:
+        if not banned:
+            return idx
+        mask = np.array([x is None or x not in banned for x in g[idx].tolist()], dtype=bool)
+        return idx[mask]
+
+    cal_ids, test_ids = ids(split.calibration), ids(split.test)
+    train = keep(split.train, cal_ids | test_ids)
+    test = keep(split.test, cal_ids)
+    dropped = {"train": split.train.size - train.size, "test": split.test.size - test.size}
+    return Split(train, split.calibration, test), dropped
