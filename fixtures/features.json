@@ -1,0 +1,296 @@
+{
+  "about": "Shared Python and JavaScript feature cases, read by ml/tests/test_feature_contract.py and app/test/features.test.js. When a definition changes, regenerate expected values from hedge.features and bump featureSchema.",
+  "featureSchema": 1,
+  "featureNames": [
+    "top1",
+    "margin",
+    "entropy",
+    "summaryWords",
+    "hasDescription"
+  ],
+  "k": 10,
+  "cases": [
+    {
+      "name": "clear winner",
+      "summary": "NPE in FileSystem.open",
+      "description": "Stack trace attached",
+      "descriptionAdf": {
+        "type": "doc",
+        "version": 1,
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Stack trace "
+              },
+              {
+                "type": "text",
+                "text": "attached"
+              }
+            ]
+          }
+        ]
+      },
+      "scores": [
+        20.0,
+        2.0,
+        1.5,
+        1.0
+      ],
+      "expected": {
+        "top1": 20.0,
+        "margin": 18.0,
+        "entropy": 2.525664728219909e-07,
+        "summaryWords": 3.0,
+        "hasDescription": 1.0
+      }
+    },
+    {
+      "name": "ten-way tie",
+      "summary": "Login fails",
+      "description": "on Safari",
+      "descriptionAdf": {
+        "type": "doc",
+        "version": 1,
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "on Safari"
+              }
+            ]
+          }
+        ]
+      },
+      "scores": [
+        5.0,
+        5.0,
+        5.0,
+        5.0,
+        5.0,
+        5.0,
+        5.0,
+        5.0,
+        5.0,
+        5.0
+      ],
+      "expected": {
+        "top1": 5.0,
+        "margin": 0.0,
+        "entropy": 0.9999999999999998,
+        "summaryWords": 2.0,
+        "hasDescription": 1.0
+      }
+    },
+    {
+      "name": "two-way tie is less ambiguous than ten",
+      "summary": "Login fails",
+      "description": "x",
+      "descriptionAdf": {
+        "type": "doc",
+        "version": 1,
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "x"
+              }
+            ]
+          }
+        ]
+      },
+      "scores": [
+        5.0,
+        5.0
+      ],
+      "expected": {
+        "top1": 5.0,
+        "margin": 0.0,
+        "entropy": 0.30102999566398114,
+        "summaryWords": 2.0,
+        "hasDescription": 1.0
+      }
+    },
+    {
+      "name": "one candidate",
+      "summary": "Crash on save",
+      "description": "",
+      "descriptionAdf": null,
+      "scores": [
+        3.0
+      ],
+      "expected": {
+        "top1": 3.0,
+        "margin": 0.0,
+        "entropy": 0.0,
+        "summaryWords": 3.0,
+        "hasDescription": 0.0
+      }
+    },
+    {
+      "name": "no candidates",
+      "summary": "Crash on save",
+      "description": "",
+      "descriptionAdf": null,
+      "scores": [],
+      "expected": {
+        "top1": 0.0,
+        "margin": 0.0,
+        "entropy": 1.0,
+        "summaryWords": 3.0,
+        "hasDescription": 0.0
+      }
+    },
+    {
+      "name": "more than k candidates",
+      "summary": "Slow  startup\ttoday",
+      "description": "a\nb",
+      "descriptionAdf": {
+        "type": "doc",
+        "version": 1,
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "a"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "b"
+              }
+            ]
+          }
+        ]
+      },
+      "scores": [
+        9.0,
+        8.5,
+        8.0,
+        7.0,
+        6.0,
+        5.0,
+        4.0,
+        3.0,
+        2.0,
+        1.0,
+        0.5,
+        0.1
+      ],
+      "expected": {
+        "top1": 9.0,
+        "margin": 0.5,
+        "entropy": 0.5826420757868422,
+        "summaryWords": 3.0,
+        "hasDescription": 1.0
+      }
+    },
+    {
+      "name": "unsorted scores",
+      "summary": "Upgrade build",
+      "description": "   ",
+      "descriptionAdf": {
+        "type": "doc",
+        "version": 1,
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "   "
+              }
+            ]
+          }
+        ]
+      },
+      "scores": [
+        1.0,
+        9.0,
+        4.0
+      ],
+      "expected": {
+        "top1": 9.0,
+        "margin": 5.0,
+        "entropy": 0.018746959425238314,
+        "summaryWords": 2.0,
+        "hasDescription": 0.0
+      }
+    },
+    {
+      "name": "no-break space splits words",
+      "summary": "Crash on save",
+      "description": "details",
+      "descriptionAdf": {
+        "type": "doc",
+        "version": 1,
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "details"
+              }
+            ]
+          }
+        ]
+      },
+      "scores": [
+        2.0,
+        1.0
+      ],
+      "expected": {
+        "top1": 2.0,
+        "margin": 1.0,
+        "entropy": 0.2528475975370711,
+        "summaryWords": 3.0,
+        "hasDescription": 1.0
+      }
+    },
+    {
+      "name": "huge scores stay finite",
+      "summary": "Big",
+      "description": "y",
+      "descriptionAdf": {
+        "type": "doc",
+        "version": 1,
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "y"
+              }
+            ]
+          }
+        ]
+      },
+      "scores": [
+        1000000.0,
+        999999.0,
+        0.0
+      ],
+      "expected": {
+        "top1": 1000000.0,
+        "margin": 1.0,
+        "entropy": 0.2528475975370711,
+        "summaryWords": 1.0,
+        "hasDescription": 1.0
+      }
+    }
+  ]
+}
