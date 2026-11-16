@@ -70,7 +70,11 @@ def cluster_bootstrap_ci(
     intervals that are too narrow.
     """
     labels = np.asarray(clusters)
-    groups = [np.flatnonzero(labels == c) for c in np.unique(labels)]
+    # One stable sort groups the rows, instead of a full scan per cluster (O(n log n), not
+    # O(n * clusters), which matters with one cluster per duplicate group).
+    _, inverse = np.unique(labels, return_inverse=True)
+    order = np.argsort(inverse, kind="stable")
+    groups = np.split(order, np.flatnonzero(np.diff(inverse[order])) + 1)
     if len(groups) < 2:
         raise ValueError("need at least two clusters to bootstrap")
     rng = np.random.default_rng(seed)

@@ -48,3 +48,22 @@ def test_cluster_ci_is_wider_than_naive_when_clusters_correlate():
 def test_bootstrap_needs_two_clusters():
     with pytest.raises(ValueError):
         cluster_bootstrap_ci(lambda idx: 0.0, [1, 1, 1])
+
+
+def test_bootstrap_groups_rows_by_cluster():
+    # Each resample must contain whole clusters: here the statistic is the number of rows,
+    # and every cluster has 3 rows, so every resample size is a multiple of 3.
+
+    labels = ["b", "a", "c", "a", "b", "c", "a", "b", "c"]
+    seen = []
+
+    def stat(i):
+        seen.append(i)
+        return float(len(i))
+
+    cluster_bootstrap_ci(stat, labels, n_boot=50)
+    assert all(len(i) % 3 == 0 for i in seen)
+    lab = np.asarray(labels)
+    for i in seen[1:]:
+        counts = {c: int((lab[i] == c).sum()) for c in "abc"}
+        assert all(v % 3 == 0 for v in counts.values())
