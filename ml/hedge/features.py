@@ -20,8 +20,15 @@ def score_features(scores: Sequence[float], k: int = 10) -> dict[str, float]:
     top1     best score
     margin   best minus second best (0 if there is only one candidate)
     entropy  entropy of a softmax over the top k scores, divided by log(k), so 0 means one
-             candidate dominates and 1 means the top k are indistinguishable
+             candidate dominates and 1 means k candidates are indistinguishable
+
+    The denominator is log(k) even when fewer than k candidates exist. Dividing by the
+    number actually returned would score two tied candidates as 1.0, exactly as unsure as
+    ten tied candidates, and would make the feature mean different things for tickets in
+    small and large projects.
     """
+    if k < 2:
+        raise ValueError("k must be at least 2")
     s = np.sort(np.asarray(scores, dtype=float))[::-1][:k]
     if s.size == 0:
         return {"top1": 0.0, "margin": 0.0, "entropy": 1.0}
@@ -30,7 +37,7 @@ def score_features(scores: Sequence[float], k: int = 10) -> dict[str, float]:
         return {"top1": float(s[0]), "margin": margin, "entropy": 0.0}
     p = np.exp(s - s.max())
     p /= p.sum()
-    entropy = float(-(p * np.log(np.clip(p, 1e-300, None))).sum() / np.log(s.size))
+    entropy = float(-(p * np.log(np.clip(p, 1e-300, None))).sum() / np.log(k))
     return {"top1": float(s[0]), "margin": margin, "entropy": entropy}
 
 

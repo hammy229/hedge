@@ -8,9 +8,18 @@ from hedge.features import FEATURE_NAMES, gate_features, score_features, text_fe
 
 def test_one_clear_winner_has_low_entropy():
     clear = score_features([20.0, 2.0, 1.5, 1.0])
-    tied = score_features([5.0, 5.0, 5.0, 5.0])
+    tied = score_features([5.0] * 10)
     assert clear["margin"] == 18.0 and clear["entropy"] < 0.01
     assert tied["margin"] == 0.0 and tied["entropy"] == pytest.approx(1.0)
+
+
+def test_entropy_denominator_is_fixed_at_log_k():
+    # Two tied candidates are less ambiguous than ten tied candidates.
+    two = score_features([5.0, 5.0], k=10)["entropy"]
+    assert two == pytest.approx(math.log(2) / math.log(10))
+    assert two < score_features([5.0] * 10, k=10)["entropy"]
+    with pytest.raises(ValueError):
+        score_features([1.0, 2.0], k=1)
 
 
 def test_scores_are_sorted_before_use():
