@@ -5,7 +5,7 @@
 [![CI](https://github.com/hammy229/hedge/actions/workflows/ci.yml/badge.svg)](https://github.com/hammy229/hedge/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**Links:** [Plan](docs/PLAN.md) · [Design decisions](docs/adr/) · [arhamdoshi.dev](https://arhamdoshi.dev) · [linkedin.com/in/arhamdoshi](https://linkedin.com/in/arhamdoshi)
+**Links:** [Plan](docs/PLAN.md) · [Data](docs/data.md) · [Design decisions](docs/adr/) · [arhamdoshi.dev](https://arhamdoshi.dev) · [linkedin.com/in/arhamdoshi](https://linkedin.com/in/arhamdoshi)
 
 > Status: in progress for Atlassian Codegeist 2026 (due Dec 22, 2026). The threshold math, its
 > tests and the Forge tool surface are done. The trained models are not, so the app currently
@@ -22,6 +22,8 @@ Only numbers this repo produces. The real-data rows fill in as the plan's weeks 
 | Conformal risk control is tight | mean marginal risk 0.0495 against a 0.05 target over 400 draws | same test file |
 | Correlated tickets break the naive test, and per-cluster testing fixes it | false certification 24.8% (clusters of 10) and 38.3% (clusters of 20) against 10% allowed; 0.0% for both after testing one ticket per cluster | same test file, [ADR 2](docs/adr/0002-certify-one-ticket-per-cluster.md) |
 | The Forge gate scores exactly like the Python model | 50 of 50 tickets match to 1e-12 | `ml/tests/test_gate.py` runs `app/src/gate.js` under Node |
+| The Forge app computes the same features as training | 13 of 13 shared cases agree to 1e-12, including Unicode whitespace edge cases | `fixtures/features.json`, read by both test suites |
+| The real dataset streams without a database | 2,686,223 issues and 271,185 Duplicate pairs in 261 s from the 5.8 GB zip | `python -m hedge.extract`, counts in [docs/data.md](docs/data.md) |
 | Hedge beats the agent's own confidence on real Jira tickets | not measured yet | week 3: held-out Apache, MongoDB and Red Hat Jira data, 95% cluster bootstrap CIs |
 
 ## Why it matters
@@ -52,8 +54,11 @@ tickets where a calibrated statistical test shows the error rate among its actio
 | Certify selective risk P(wrong given act), not overall error | "At most 3% of what the bot does is wrong" is the promise an admin actually wants |
 | Bonferroni over a fixed grid, not fixed sequence testing | Fixed sequence certified nothing in testing, see [ADR 1](docs/adr/0001-bonferroni-over-fixed-sequence.md) |
 | Certify on one ticket per duplicate cluster | Bursts of duplicates succeed or fail together, and counting them as separate trials broke the guarantee, see [ADR 2](docs/adr/0002-certify-one-ticket-per-cluster.md) |
+| Key issues by Jira and key | 6,052 keys name unrelated issues in two Jiras, which merged their duplicate clusters |
+| Label huge clusters by direct links only | Links between Mojang catch-all tickets chain into clusters of over 20,000 unrelated issues, see [ADR 3](docs/adr/0003-direct-links-in-huge-clusters.md) |
+| Bind the policy to its retriever and feature schema | A threshold certified on one retriever's score scale means nothing on another's, so the gate asks on a mismatch |
 | Read the mongodump archive directly | The dataset is one 5.8 GB archive that restores to about 60 GB; streaming it needs no MongoDB server and no spare disk |
-| Fail closed | No policy, a missing feature or a bad score all mean "ask", never "act" |
+| Fail closed | No policy, a malformed or mismatched policy, a missing feature or a bad score all mean "ask", never "act" |
 | Small trained models, not a fine-tuned LLM | Forge's hosted LLMs cannot be fine-tuned, and small models run inside Forge without a server |
 | Cluster bootstrap by project | Tickets in one project are correlated, so resampling tickets would give intervals that are too narrow |
 | Strip issue keys and "duplicate of" text from inputs | Public Jira text often names the answer, which inflates duplicate-detection scores |
@@ -98,11 +103,13 @@ hedge/
 │   ├── src/policy.js       calibrated policy, written by ml/ (placeholder until trained)
 │   ├── src/index.js        tool handlers: triage-issue, explain-policy
 │   └── test/               node:test suite
+├── fixtures/features.json  feature cases shared by the Python and JavaScript tests
 ├── ml/                     training and calibration
 │   ├── hedge/archive.py    streams issues out of the mongodump archive
+│   ├── hedge/extract.py    one pass from the zip to slim issue records and dataset counts
 │   ├── hedge/dupes.py      duplicate clusters and time-ordered labels
-│   ├── hedge/bm25.py       time-masked BM25 baseline retriever
-│   ├── hedge/splits.py     temporal and project-held-out splits
+│   ├── hedge/bm25.py       BM25 baseline retriever (excludes the query and later issues)
+│   ├── hedge/splits.py     temporal and project-held-out splits, cluster and copy filters
 │   ├── hedge/features.py   gate features (names shared with the Forge app)
 │   ├── hedge/gate.py       logistic gate model and policy export
 │   ├── hedge/calibrate.py  fit, certify, write app/src/policy.js
@@ -113,14 +120,15 @@ hedge/
 │   └── tests/              pytest suite, including Monte Carlo guarantee checks
 └── docs/
     ├── PLAN.md             dated plan with status
+    ├── data.md             dataset counts and quality notes
     └── adr/                design decision records
 ```
 
 ## Testing
 
 ```bash
-cd ml && ../.venv/bin/pytest -q     # 106 tests, including a Python to JavaScript parity check
-cd app && npm test                  # 7 tests
+cd ml && ../.venv/bin/pytest -q     # 151 tests, including a Python to JavaScript parity check
+cd app && npm test                  # 26 tests
 ```
 
 CI runs both suites on every push and pull request to main.
