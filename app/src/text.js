@@ -67,8 +67,15 @@ export function codePointPrefix(text, n) {
   return out;
 }
 
+// The summary and description as retrieval and the gate's text features see them.
+export function retrievalParts(summary, description, projectKeys = []) {
+  return {
+    summary: stripAnswerText(summary ?? '', projectKeys),
+    description: stripAnswerText(codePointPrefix(String(description ?? ''), MAX_DESCRIPTION), projectKeys),
+  };
+}
+
 export function retrievalText(summary, description, projectKeys = []) {
-  const s = stripAnswerText(summary ?? '', projectKeys);
-  const d = stripAnswerText(codePointPrefix(String(description ?? ''), MAX_DESCRIPTION), projectKeys);
-  return `${s}\n${d}`;
+  const p = retrievalParts(summary, description, projectKeys);
+  return `${p.summary}\n${p.description}`;
 }

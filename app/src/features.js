@@ -7,7 +7,7 @@ export const K = 10;
 // The feature definitions and the retriever this build computes scores with. A policy
 // carries the values it was trained under; the gate refuses to act on a mismatch.
 export const FEATURE_SCHEMA = 1;
-export const RETRIEVER = 'bm25-v1';
+export { RETRIEVER } from './bm25.js';
 
 // Jira Cloud returns descriptions as Atlassian Document Format: a tree of nodes whose
 // leaves carry text.

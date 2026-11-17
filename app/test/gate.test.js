@@ -1,13 +1,15 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { RUNTIME, decide, describePolicy, score } from '../src/gate.js';
-import { adfToText, featurize } from '../src/features.js';
-import placeholder from '../src/policy.js';
+import { RETRIEVER, adfToText, featurize } from '../src/features.js';
+import policies from '../src/policy.js';
+
+const placeholder = policies.link;
 
 const calibrated = {
   calibrated: true,
   featureSchema: 1,
-  retriever: 'bm25-v1',
+  retriever: RETRIEVER,
   alpha: 0.03,
   delta: 0.1,
   calibrationSize: 2000,
