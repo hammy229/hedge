@@ -27,9 +27,9 @@ import numpy as np
 from .dupes import duplicate_clusters, duplicate_labels
 from .leakage import normalize, strip_answer_text
 
-# Long descriptions are mostly stack traces and logs. The first 2,000 characters hold the
-# report itself and keep the corpus in memory on a laptop.
-MAX_DESCRIPTION = 2000
+# Long descriptions are mostly stack traces and logs. The first 1,000 characters hold the
+# report itself and keep 2.7M issues in a laptop's memory. app/src/bm25.js cuts the same way.
+MAX_DESCRIPTION = 1000
 
 
 @dataclass
@@ -63,15 +63,36 @@ class Corpus:
         return np.diff(self.label_ptr) > 0
 
     @classmethod
-    def from_records(cls, records: Iterable[dict], max_description: int = MAX_DESCRIPTION) -> Corpus:
-        rows = [r for r in records if r.get("created") is not None]
-        rows.sort(key=lambda r: (r["jira"], r["project"] or "", r["created"], r["id"]))
-        ids = [r["id"] for r in rows]
+    def from_records(
+        cls,
+        records: Iterable[dict],
+        max_description: int = MAX_DESCRIPTION,
+        project_keys: Iterable[str] | None = None,
+    ) -> Corpus:
+        """Build from slim records. Each record is cut down as it is read, so the full
+        descriptions never pile up in memory.
+
+        ``project_keys`` lets answer text be stripped during the read. Without it the
+        keys come from the records themselves, after reading.
+        """
+        keys = frozenset(project_keys) if project_keys is not None else None
+        strip = (lambda t: strip_answer_text(t, keys)) if keys is not None else (lambda t: t)
+        rows = [
+            (r["jira"], r["project"] or "", r["created"], r["id"], tuple(r["duplicates"]),
+             strip(r["summary"]), strip(r["description"][:max_description]))
+            for r in records
+            if r.get("created") is not None
+        ]
+        rows.sort(key=lambda r: r[:4])
+        if keys is None:
+            keys = frozenset(r[1] for r in rows if r[1])
+            rows = [(*r[:5], strip_answer_text(r[5], keys), strip_answer_text(r[6], keys)) for r in rows]
+        ids = [r[3] for r in rows]
         index = {k: i for i, k in enumerate(ids)}
         if len(index) != len(ids):
             raise ValueError("issue ids must be unique")
-        created = np.array([r["created"] for r in rows], dtype=float)
-        links = {(min(r["id"], b), max(r["id"], b)) for r in rows for b in r["duplicates"]}
+        created = np.array([r[2] for r in rows], dtype=float)
+        links = {(min(r[3], b), max(r[3], b)) for r in rows for b in r[4]}
         # Endpoints outside the corpus (dangling links, unknown dates) still join clusters,
         # as docs/data.md describes, but can never be an answer.
         times = {k: created[i] for k, i in index.items()}
@@ -86,16 +107,15 @@ class Corpus:
         for i, k in enumerate(ids):
             idx.extend(sorted(index[a] for a in labels.get(k, ())))
             ptr[i + 1] = len(idx)
-        keys = {r["project"] for r in rows if r["project"]}
-        summary = [strip_answer_text(r["summary"], keys) for r in rows]
-        text = [
-            s + "\n" + strip_answer_text(r["description"][:max_description], keys)
-            for s, r in zip(summary, rows, strict=True)
-        ]
+        jira = np.array([r[0] for r in rows], dtype=object)
+        group = np.array([f"{r[0]}/{r[1]}" for r in rows], dtype=object)
+        summary = [r[5] for r in rows]
+        text = [r[5] + "\n" + r[6] for r in rows]
+        del rows
         return cls(
             ids=np.array(ids, dtype=object),
-            jira=np.array([r["jira"] for r in rows], dtype=object),
-            group=np.array([f"{r['jira']}/{r['project']}" for r in rows], dtype=object),
+            jira=jira,
+            group=group,
             created=created,
             summary=summary,
             text=text,
@@ -107,8 +127,11 @@ class Corpus:
 
     @classmethod
     def from_jsonl(cls, path: str | Path, max_description: int = MAX_DESCRIPTION) -> Corpus:
+        """Two passes: a cheap scan for project keys, then the real read."""
         with gzip.open(path, "rt", encoding="utf-8") as f:
-            return cls.from_records((json.loads(line) for line in f), max_description)
+            keys = {p for line in f if (p := json.loads(line).get("project"))}
+        with gzip.open(path, "rt", encoding="utf-8") as f:
+            return cls.from_records((json.loads(line) for line in f), max_description, keys)
 
     def save(self, path: str | Path) -> None:
         with open(path, "wb") as f:
