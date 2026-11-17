@@ -80,8 +80,9 @@ def build_policy(
     ``grid_size=None`` for the even 101-point grid on [0, 1].
 
     A row may carry ``group`` (its duplicate cluster or project). When any calibration row
-    does, the threshold is certified on one row per group, because correlated rows would
-    otherwise make the test overconfident. Rows without a group count as their own group.
+    does, errors are counted per group and tested with a bound that holds under any
+    dependence inside a group (``risk.clustered_p_value``). Rows without a group count as
+    their own group.
     """
     rows = list(rows)
     for i, r in enumerate(rows):
@@ -104,7 +105,7 @@ def build_policy(
     if any("group" in r for r in cal):
         groups = [str(r.get("group", f"__row{i}")) for i, r in enumerate(cal)]
     threshold = ltt_threshold(scores, wrong, alpha=alpha, delta=delta, grid=grid, groups=groups)
-    size = len(set(groups)) if groups else len(cal)
+    size = len(cal)
     return {"action": action, **policy_dict(model, threshold, alpha, delta, size, retriever)}
 
 

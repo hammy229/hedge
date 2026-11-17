@@ -1,6 +1,6 @@
 # 2. Certify on one ticket per cluster
 
-Date: 2026-11-15. Status: accepted.
+Date: 2026-11-15. Status: superseded by [ADR 5](0005-per-ticket-risk-under-clustering.md), which keeps the problem and replaces the fix.
 
 ## Context
 

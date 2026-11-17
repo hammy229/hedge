@@ -58,7 +58,7 @@ def test_grouped_rows_are_all_used_and_cost_some_coverage():
     grouped = [r | {"group": i // 3} for i, r in enumerate(data)]
     policy = build_policy(grouped, alpha=0.05, delta=0.1, retriever="bm25-v1")
     plain = build_policy(data, alpha=0.05, delta=0.1, retriever="bm25-v1")
-    assert policy["calibrationSize"] == 1000  # one row per group of 3
+    assert policy["calibrationSize"] == 3000  # every calibration ticket counts
     assert policy["calibrationCoverage"] <= plain["calibrationCoverage"]
     assert policy["calibrationActed"] >= policy["calibrationErrors"] >= 0
 

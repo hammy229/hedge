@@ -3,7 +3,14 @@ import math
 import numpy as np
 import pytest
 
-from hedge.risk import NEVER_ACT, binomial_p_value, crc_threshold, ltt_threshold, one_per_group
+from hedge.risk import (
+    NEVER_ACT,
+    binomial_p_value,
+    clustered_p_value,
+    crc_threshold,
+    ltt_threshold,
+    one_per_group,
+)
 
 
 def synthetic(n, rng):
@@ -181,3 +188,59 @@ def test_ltt_is_not_trivially_conservative():
     t = ltt_threshold(*synthetic(5000, rng), alpha=0.1, delta=0.1)
     # The true selective risk is 0.1 at t = 0.6, i.e. coverage 0.4 is the oracle.
     assert 0.25 < t.coverage <= 0.45
+
+
+def lopsided(rng, singles=300, clusters=15, size=20):
+    """New reports are singletons and rarely wrong; duplicates arrive in clusters that are
+    all wrong or all right together. Scores carry no signal, so every threshold has the same
+    per-ticket risk: (300 * 0.02 + 300 * 0.5) / 600 = 26%."""
+    s = np.r_[rng.uniform(size=singles), np.repeat(rng.uniform(size=clusters), size)]
+    w = np.r_[rng.uniform(size=singles) < 0.02, np.repeat(rng.uniform(size=clusters) < 0.5, size)]
+    g = np.r_[np.arange(singles), singles + np.repeat(np.arange(clusters), size)]
+    return s, w, g
+
+
+def lopsided_violations(grouped, trials=300, seed=0):
+    rng = np.random.default_rng(seed)
+    bad = 0
+    for _ in range(trials):
+        s, w, g = lopsided(rng)
+        bad += ltt_threshold(s, w, alpha=0.1, delta=0.1, groups=g, grouped=grouped).threshold != NEVER_ACT
+    return bad / trials
+
+
+def test_one_row_per_group_fails_when_cluster_size_tracks_the_outcome():
+    # One row per group estimates the error rate over groups (about 4%), not over tickets
+    # (26%), so it certifies a 10% budget it is nowhere near.
+    assert lopsided_violations("one-per-group") > 0.5
+
+
+def test_clustered_bound_holds_when_cluster_size_tracks_the_outcome():
+    assert lopsided_violations("bound") <= 0.1
+
+
+def test_clustered_bound_holds_on_equal_clusters_too():
+    rng = np.random.default_rng(1)
+    bad = 0
+    for _ in range(300):
+        s, w, g = clustered(50, 10, rng)
+        t = ltt_threshold(s, w, alpha=0.1, delta=0.1, groups=g)
+        bad += t.threshold != NEVER_ACT and true_selective_risk(t.threshold) > 0.1
+    assert bad / 300 <= 0.1
+
+
+@pytest.mark.parametrize("errors,acted", [(0, 50), (2, 100), (10, 400), (30, 1000)])
+def test_clustered_p_value_on_singletons_bounds_the_binomial_tail(errors, acted):
+    e = np.r_[np.ones(errors), np.zeros(acted - errors)]
+    p = clustered_p_value(e, np.ones(acted), 0.1)
+    assert binomial_p_value(errors, acted, 0.1) <= p <= 1.0
+    assert p < 0.5  # and is not vacuous
+
+
+def test_clustered_p_value_is_stricter_when_tickets_bunch():
+    singles = clustered_p_value(np.zeros(200), np.ones(200), 0.05)
+    bunched = clustered_p_value(np.zeros(10), np.full(10, 20.0), 0.05)
+    assert singles < bunched <= 1.0
+    assert clustered_p_value([5], [10], 0.1) == 1.0  # observed rate above alpha
+    with pytest.raises(ValueError):
+        clustered_p_value([3], [2], 0.1)

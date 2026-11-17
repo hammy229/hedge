@@ -94,6 +94,39 @@ def binomial_p_value(errors: int, acted: int, alpha: float) -> float:
     return float(binom.cdf(errors, acted, alpha))
 
 
+_LAMBDAS = np.geomspace(1e-4, 50.0, 400)
+
+
+def clustered_p_value(errors, acted, alpha: float) -> float:
+    """A p-value for "the per-ticket error rate among acted tickets is above alpha", valid
+    when clusters are independent and tickets inside a cluster may depend on each other
+    in any way.
+
+    ``errors[c]`` and ``acted[c]`` count cluster c's wrong and acted tickets. Let A_c be
+    its acted count and E_c its errors, so E_c lies in [0, A_c]. By convexity,
+    E[exp(-lam E_c)] <= 1 - q_c (1 - exp(-lam A_c)) with q_c = E[E_c] / A_c: the worst case
+    is a cluster that is all right or all wrong together. Under the null the q_c average
+    at least alpha, weighted by A_c, and the bound's maximum over such q_c is a fractional
+    knapsack that puts the error mass on the largest clusters first. A Chernoff bound over
+    a fixed grid of lam then gives P(total errors <= observed) <= p. With every cluster of
+    size one this is the Poisson Chernoff bound, a little looser than the exact binomial.
+    """
+    e = np.asarray(errors, dtype=float)
+    a = np.asarray(acted, dtype=float)
+    if e.shape != a.shape or np.any(e < 0) or np.any(e > a):
+        raise ValueError("need 0 <= errors <= acted for every cluster")
+    a, e = a[a > 0], e[a > 0]
+    total, observed = a.sum(), e.sum()
+    if total == 0 or observed >= alpha * total:
+        return 1.0
+    a = np.sort(a)[::-1]
+    budget = alpha * total
+    before = np.concatenate([[0.0], np.cumsum(a)[:-1]])
+    q = np.clip((budget - before) / a, 0.0, 1.0)
+    log_p = _LAMBDAS * observed - (1 - np.exp(-np.outer(_LAMBDAS, a))) @ q
+    return float(min(1.0, np.exp(log_p.min())))
+
+
 DEFAULT_GRID = np.linspace(0.0, 1.0, 101)
 DEFAULT_GRID.flags.writeable = False
 
@@ -116,27 +149,48 @@ def one_per_group(groups, seed: int = 0) -> np.ndarray:
 
 
 def ltt_threshold(
-    scores, wrong, alpha: float, delta: float = 0.1, grid=DEFAULT_GRID, groups=None, seed: int = 0
+    scores,
+    wrong,
+    alpha: float,
+    delta: float = 0.1,
+    grid=DEFAULT_GRID,
+    groups=None,
+    seed: int = 0,
+    grouped: str = "bound",
 ) -> Threshold:
     """Most lenient grid threshold whose selective risk is certified <= alpha at level delta.
 
     Each grid point t carries the null "the error rate among items with score >= t is
-    above alpha". A null is rejected when its binomial p-value is at most delta / len(grid),
+    above alpha". A null is rejected when its p-value (binomial, or ``clustered_p_value``
+    with groups) is at most delta / len(grid),
     so the chance of certifying any bad threshold is at most delta. The grid must be fixed
     before seeing the calibration data, which is why scores live in [0, 1].
 
     Pass ``groups`` (a duplicate cluster or project id per row) whenever rows can be
-    correlated; the test then runs on one row per group. Coverage in the result is still
-    reported over the rows that were tested.
+    correlated. The test then counts errors per group and uses ``clustered_p_value``,
+    which controls the per-ticket error rate under any dependence inside a group.
+
+    ``grouped="one-per-group"`` keeps the older test on one random row per group. It is
+    valid only when every group has the same size: it certifies the error rate over
+    groups, and when wrong tickets come in large clusters (new reports are singletons,
+    duplicates of one bug come in bursts) that rate sits far below the per-ticket rate.
+    On the real calibration rows the duplicate rate is 15.1% per ticket and 8.2% per
+    group, and the older test certified thresholds that went over budget (ADR 5).
     """
     if not 0 < alpha < 1 or not 0 < delta < 1:
         raise ValueError("alpha and delta must be in (0, 1)")
+    if grouped not in ("bound", "one-per-group"):
+        raise ValueError("grouped must be 'bound' or 'one-per-group'")
     s, w = _as_arrays(scores, wrong)
+    g_idx = None
     if groups is not None:
         if len(groups) != s.size:
             raise ValueError("groups must have one entry per score")
-        keep = one_per_group(groups, seed)
-        s, w = s[keep], w[keep]
+        if grouped == "one-per-group":
+            keep = one_per_group(groups, seed)
+            s, w = s[keep], w[keep]
+        else:
+            _, g_idx = np.unique(np.asarray(groups), return_inverse=True)
     if s.min() < 0 or s.max() > 1:
         raise ValueError("scores must be probabilities in [0, 1]")
     g = np.asarray(grid, dtype=float)
@@ -145,11 +199,14 @@ def ltt_threshold(
     if g.min() < 0 or g.max() > 1 or np.unique(g).size != g.size:
         raise ValueError("grid points must be distinct and lie in [0, 1]")
     level = delta / g.size
-    certified = [
-        t
-        for t in g
-        if binomial_p_value(int(((s >= t) & w).sum()), int((s >= t).sum()), alpha) <= level
-    ]
+
+    def p_value(t: float) -> float:
+        act = s >= t
+        if g_idx is None:
+            return binomial_p_value(int((act & w).sum()), int(act.sum()), alpha)
+        return clustered_p_value(np.bincount(g_idx, weights=act & w), np.bincount(g_idx, weights=act), alpha)
+
+    certified = [t for t in g if p_value(t) <= level]
     if not certified:
         return Threshold(NEVER_ACT, 0.0, 0, 0)
     return _summary(s, w, float(min(certified)))
