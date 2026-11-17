@@ -108,3 +108,14 @@ def test_load_rejects_other_pickles(tmp_path):
     p.write_bytes(pickle.dumps({"not": "a corpus"}))
     with pytest.raises(TypeError):
         Corpus.load(p)
+
+
+def test_a_cache_from_other_corpus_code_is_refused(tmp_path, monkeypatch):
+    import hedge.corpus as corpus_module
+
+    c = corpus(rec("J:X-1", 10))
+    c.save(tmp_path / "c.pkl")
+    assert not (tmp_path / "c.pkl.tmp").exists()
+    monkeypatch.setattr(corpus_module, "code_stamp", lambda: "different")
+    with pytest.raises(ValueError, match="rebuild"):
+        Corpus.load(tmp_path / "c.pkl")

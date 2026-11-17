@@ -17,6 +17,7 @@ from __future__ import annotations
 import gzip
 import hashlib
 import json
+import os
 import pickle
 from collections.abc import Iterable
 from dataclasses import dataclass
@@ -95,7 +96,7 @@ class Corpus:
         links = {(min(r[3], b), max(r[3], b)) for r in rows for b in r[4]}
         # Endpoints outside the corpus (dangling links, unknown dates) still join clusters,
         # as docs/data.md describes, but can never be an answer.
-        times = {k: created[i] for k, i in index.items()}
+        times = dict(zip(ids, created.tolist()))  # floats, not 2.7M numpy scalars
         labels = duplicate_labels(links, times)
         cluster = np.full(len(rows), -1, dtype=np.int32)
         for c, members in enumerate(sorted(duplicate_clusters(links), key=min)):
@@ -134,17 +135,40 @@ class Corpus:
             return cls.from_records((json.loads(line) for line in f), max_description, keys)
 
     def save(self, path: str | Path) -> None:
-        with open(path, "wb") as f:
-            pickle.dump(self, f, protocol=pickle.HIGHEST_PROTOCOL)
+        """Write the cache with a stamp of the code that made it, atomically, so a crash
+        never leaves a truncated cache at ``path``."""
+        path = Path(path)
+        tmp = path.with_name(path.name + ".tmp")
+        with open(tmp, "wb") as f:
+            pickle.dump((code_stamp(), self), f, protocol=pickle.HIGHEST_PROTOCOL)
+        os.replace(tmp, path)
 
     @staticmethod
     def load(path: str | Path) -> Corpus:
-        # Only for caches this package wrote locally. Never load a pickle from elsewhere.
+        """Read a cache this package wrote locally. Never load a pickle from elsewhere:
+        unpickling runs code, and no check afterwards can undo that.
+
+        Refuses a cache made by different text or label code (a changed description cut,
+        stripping rule or cluster rule), because rows built from it would no longer match
+        what fixtures/bm25.json and the app compute.
+        """
         with open(path, "rb") as f:
-            corpus = pickle.load(f)
-        if not isinstance(corpus, Corpus):
-            raise TypeError(f"{path} does not hold a Corpus")
+            stored = pickle.load(f)
+        if not (isinstance(stored, tuple) and len(stored) == 2 and isinstance(stored[1], Corpus)):
+            raise TypeError(f"{path} does not hold a Corpus cache")
+        stamp, corpus = stored
+        if stamp != code_stamp():
+            raise ValueError(f"{path} was built by different corpus code; rebuild it with Corpus.from_jsonl")
         return corpus
+
+
+def code_stamp() -> str:
+    """Hash of the sources that decide retrieval text and labels, plus the description cut."""
+    here = Path(__file__).resolve().parent
+    h = hashlib.sha256(str(MAX_DESCRIPTION).encode())
+    for name in ("corpus.py", "leakage.py", "dupes.py"):
+        h.update((here / name).read_bytes())
+    return h.hexdigest()
 
 
 def retrieval_parts(
