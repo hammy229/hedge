@@ -56,3 +56,20 @@ def test_copy_detection_uses_project_keys():
     test = ["crash on save HADOOP-99", "crash on save hadoop-99"]
     assert cross_split_duplicates(train, test) == []  # without keys, "hadoop-12" stays as text
     assert cross_split_duplicates(train, test, project_keys={"HADOOP"}) == [0, 1]
+
+
+def test_key_stripping_matches_the_alternation_it_replaced():
+    # The old implementation: uppercase keys, or known project names in any case.
+    import random
+    import re
+
+    from hedge.leakage import ISSUE_KEY, _strip_keys
+
+    keys = {"HADOOP", "MC", "SPARK_X", "AB1"}
+    names = "|".join(re.escape(k) for k in sorted(keys, key=len, reverse=True))
+    old = re.compile(rf"{ISSUE_KEY.pattern}|\b(?i:{names})-\d+\b")
+    rng = random.Random(0)
+    parts = ["HADOOP", "hadoop", "Mc", "mc", "MCX", "spark_x", "UTF", "utf", "SHA", "python", "AB1", "x", "_", "-", "12", "3", " ", ".", "/"]
+    for _ in range(5000):
+        text = "".join(rng.choice(parts) for _ in range(rng.randint(1, 8)))
+        assert _strip_keys(text, keys) == old.sub(" ", text), text

@@ -36,29 +36,46 @@ DUPLICATE_PHRASE = re.compile(
 )
 
 
+# Any token shaped like an issue key, in any case. Whether it is one is decided after the
+# match: a 1,245-way case-insensitive alternation of project names made stripping the full
+# dataset take about 90 minutes, and a set lookup per match gives the same result.
+_KEY_SHAPED = re.compile(r"\b[A-Za-z][A-Za-z0-9_]*-\d+\b")
+
+
 @lru_cache(maxsize=32)
-def _key_pattern(project_keys: frozenset[str] | None) -> re.Pattern:
+def _remover(project_keys: frozenset[str]):
+    known = frozenset(k.upper() for k in project_keys)
+
+    def replace(m: re.Match) -> str:
+        token = m.group(0)
+        if ISSUE_KEY.fullmatch(token) or token.rpartition("-")[0].upper() in known:
+            return " "
+        return token
+
+    return replace
+
+
+def _strip_keys(text: str, project_keys: Iterable[str] | None) -> str:
+    """Replace issue keys with a space: uppercase keys always, and keys of the given
+    projects in any case."""
     if not project_keys:
-        return ISSUE_KEY
-    names = "|".join(re.escape(k) for k in sorted(project_keys, key=len, reverse=True))
-    return re.compile(rf"{ISSUE_KEY.pattern}|\b(?i:{names})-\d+\b")
-
-
-def _keys(project_keys: Iterable[str] | None) -> re.Pattern:
-    return _key_pattern(frozenset(project_keys) if project_keys else None)
+        return ISSUE_KEY.sub(" ", text)
+    # frozenset() of a frozenset is the same object, so callers that pass one keep the
+    # lru_cache hit cheap.
+    return _KEY_SHAPED.sub(_remover(frozenset(project_keys)), text)
 
 
 def strip_answer_text(text: str, project_keys: Iterable[str] | None = None) -> str:
     """Remove issue URLs, issue keys and 'duplicate of' phrasing, then tidy whitespace."""
     text = ISSUE_URL.sub(" ", text)
-    text = _keys(project_keys).sub(" ", text)
+    text = _strip_keys(text, project_keys)
     text = DUPLICATE_PHRASE.sub(" ", text)
     return re.sub(r"\s+", " ", text).strip()
 
 
 def normalize(text: str, project_keys: Iterable[str] | None = None) -> str:
     """Lowercase, drop issue keys and punctuation, collapse whitespace."""
-    text = _keys(project_keys).sub(" ", text).lower()
+    text = _strip_keys(text, project_keys).lower()
     text = re.sub(r"[^a-z0-9]+", " ", text)
     return " ".join(text.split())
 
