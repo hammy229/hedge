@@ -86,7 +86,7 @@ class Corpus:
         rows.sort(key=lambda r: r[:4])
         if keys is None:
             keys = frozenset(r[1] for r in rows if r[1])
-            rows = [(*r[:5], strip_answer_text(r[5], keys), strip_answer_text(r[6], keys)) for r in rows]
+            rows = [(*r[:5], *retrieval_parts(r[5], r[6], keys)) for r in rows]
         ids = [r[3] for r in rows]
         index = {k: i for i, k in enumerate(ids)}
         if len(index) != len(ids):
@@ -145,6 +145,22 @@ class Corpus:
         if not isinstance(corpus, Corpus):
             raise TypeError(f"{path} does not hold a Corpus")
         return corpus
+
+
+def retrieval_parts(
+    summary: str, description: str, project_keys, max_description: int = MAX_DESCRIPTION
+) -> tuple[str, str]:
+    """The summary and description exactly as retrieval sees them: answer text stripped,
+    description cut at ``max_description`` code points. app/src/text.js does the same."""
+    return (
+        strip_answer_text(summary, project_keys),
+        strip_answer_text(description[:max_description], project_keys),
+    )
+
+
+def retrieval_text(summary: str, description: str, project_keys, max_description: int = MAX_DESCRIPTION) -> str:
+    s, d = retrieval_parts(summary, description, project_keys, max_description)
+    return s + "\n" + d
 
 
 def earlier_copies(texts: list[str], created: np.ndarray, project_keys=None) -> np.ndarray:

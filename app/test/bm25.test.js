@@ -1,0 +1,38 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { K, RETRIEVER, WINDOW, topK, windowScores } from '../src/bm25.js';
+import { MAX_DESCRIPTION, codePointPrefix, retrievalText } from '../src/text.js';
+import { scoreFeatures } from '../src/features.js';
+
+const contract = JSON.parse(readFileSync(new URL('../../fixtures/bm25.json', import.meta.url), 'utf8'));
+
+test('constants match the Python retriever', () => {
+  assert.equal(RETRIEVER, contract.retriever);
+  assert.equal(WINDOW, contract.window);
+  assert.equal(K, contract.k);
+  assert.equal(MAX_DESCRIPTION, contract.maxDescription);
+});
+
+const close = (a, b) => Math.abs(a - b) <= 1e-9 * Math.max(1, Math.abs(b));
+
+for (const c of contract.cases) {
+  test(`matches the Python retriever: ${c.name}`, () => {
+    const texts = [...c.window, c.query].map((d) => retrievalText(d.summary, d.description, contract.projectKeys));
+    assert.deepEqual(texts, c.expected.texts);
+    const scores = windowScores(texts.slice(0, -1), texts.at(-1));
+    assert.equal(scores.length, c.expected.scores.length);
+    scores.forEach((s, i) => assert.ok(close(s, c.expected.scores[i]), `score ${i}: js ${s} vs python ${c.expected.scores[i]}`));
+    const top = topK(scores, contract.k);
+    assert.deepEqual(top, c.expected.top);
+    const features = scoreFeatures(top.map((i) => scores[i]), contract.k);
+    for (const [name, want] of Object.entries(c.expected.features)) {
+      assert.ok(close(features[name], want), `${name}: js ${features[name]} vs python ${want}`);
+    }
+  });
+}
+
+test('codePointPrefix counts code points, not UTF-16 units', () => {
+  assert.equal(codePointPrefix('😀😀😀', 2), '😀😀');
+  assert.equal(codePointPrefix('ab', 5), 'ab');
+});

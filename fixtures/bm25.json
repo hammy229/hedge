@@ -1,0 +1,383 @@
+{
+  "about": "Shared retrieval cases, written by python -m hedge.contract and read by ml/tests/test_bm25_contract.py and app/test/bm25.test.js.",
+  "retriever": "bm25-recent1000-v1",
+  "window": 1000,
+  "k": 10,
+  "k1": 1.2,
+  "b": 0.75,
+  "maxDescription": 1000,
+  "projectKeys": [
+    "HADOOP",
+    "MC",
+    "SPARK"
+  ],
+  "cases": [
+    {
+      "name": "clear duplicate",
+      "query": {
+        "summary": "NPE in FileSystem.open when path is null",
+        "description": ""
+      },
+      "window": [
+        {
+          "summary": "FileSystem.open throws NPE for a null path",
+          "description": "Stack trace below"
+        },
+        {
+          "summary": "Dark mode colors are wrong",
+          "description": ""
+        },
+        {
+          "summary": "Upgrade to Java 21",
+          "description": ""
+        }
+      ],
+      "expected": {
+        "texts": [
+          "FileSystem.open throws NPE for a null path\nStack trace below",
+          "Dark mode colors are wrong\n",
+          "Upgrade to Java 21\n",
+          "NPE in FileSystem.open when path is null\n"
+        ],
+        "scores": [
+          3.1720435416549444,
+          0.0,
+          0.0
+        ],
+        "top": [
+          0
+        ],
+        "features": {
+          "top1": 3.1720435416549444,
+          "margin": 0.0,
+          "entropy": 0.0
+        }
+      }
+    },
+    {
+      "name": "answer text is stripped before scoring",
+      "query": {
+        "summary": "Crash on login, duplicate of HADOOP-12",
+        "description": "see hadoop-12"
+      },
+      "window": [
+        {
+          "summary": "HADOOP-12 login crash",
+          "description": "https://issues.apache.org/jira/browse/HADOOP-12"
+        },
+        {
+          "summary": "login page is slow",
+          "description": ""
+        }
+      ],
+      "expected": {
+        "texts": [
+          "login crash\n",
+          "login page is slow\n",
+          "Crash on login,\nsee"
+        ],
+        "scores": [
+          1.0137006432518842,
+          0.1604429699786801
+        ],
+        "top": [
+          0,
+          1
+        ],
+        "features": {
+          "top1": 1.0137006432518842,
+          "margin": 0.8532576732732041,
+          "entropy": 0.26483338280999735
+        }
+      }
+    },
+    {
+      "name": "standards and unknown lowercase keys stay",
+      "query": {
+        "summary": "UTF-8 names break python-3 builds",
+        "description": "SHA-256 mismatch"
+      },
+      "window": [
+        {
+          "summary": "python-3 build fails on UTF-8 file names",
+          "description": ""
+        },
+        {
+          "summary": "SHA-256 checksum mismatch in release",
+          "description": ""
+        }
+      ],
+      "expected": {
+        "texts": [
+          "python-3 build fails on UTF-8 file names\n",
+          "SHA-256 checksum mismatch in release\n",
+          "UTF-8 names break python-3 builds\nSHA-256 mismatch"
+        ],
+        "scores": [
+          3.2036214227560498,
+          2.2647383127206133
+        ],
+        "top": [
+          0,
+          1
+        ],
+        "features": {
+          "top1": 3.2036214227560498,
+          "margin": 0.9388831100354365,
+          "entropy": 0.25797684747741173
+        }
+      }
+    },
+    {
+      "name": "exact ties go to the older issue",
+      "query": {
+        "summary": "cache leak",
+        "description": ""
+      },
+      "window": [
+        {
+          "summary": "cache leak",
+          "description": ""
+        },
+        {
+          "summary": "cache leak",
+          "description": ""
+        },
+        {
+          "summary": "thread deadlock",
+          "description": ""
+        }
+      ],
+      "expected": {
+        "texts": [
+          "cache leak\n",
+          "cache leak\n",
+          "thread deadlock\n",
+          "cache leak\n"
+        ],
+        "scores": [
+          0.940007258491471,
+          0.940007258491471,
+          0.0
+        ],
+        "top": [
+          0,
+          1
+        ],
+        "features": {
+          "top1": 0.940007258491471,
+          "margin": 0.0,
+          "entropy": 0.30102999566398114
+        }
+      }
+    },
+    {
+      "name": "no shared terms returns nothing",
+      "query": {
+        "summary": "zzz qqq",
+        "description": ""
+      },
+      "window": [
+        {
+          "summary": "alpha beta",
+          "description": ""
+        },
+        {
+          "summary": "gamma",
+          "description": ""
+        }
+      ],
+      "expected": {
+        "texts": [
+          "alpha beta\n",
+          "gamma\n",
+          "zzz qqq\n"
+        ],
+        "scores": [
+          0.0,
+          0.0
+        ],
+        "top": [],
+        "features": {
+          "top1": 0.0,
+          "margin": 0.0,
+          "entropy": 1.0
+        }
+      }
+    },
+    {
+      "name": "empty window",
+      "query": {
+        "summary": "anything at all",
+        "description": ""
+      },
+      "window": [],
+      "expected": {
+        "texts": [
+          "anything at all\n"
+        ],
+        "scores": [],
+        "top": [],
+        "features": {
+          "top1": 0.0,
+          "margin": 0.0,
+          "entropy": 1.0
+        }
+      }
+    },
+    {
+      "name": "unicode letters next to keys and non-ASCII digits",
+      "query": {
+        "summary": "éHADOOP-1 and HADOOP-١٢ fail",
+        "description": "Grüße"
+      },
+      "window": [
+        {
+          "summary": "HADOOP fail grüße",
+          "description": ""
+        },
+        {
+          "summary": "unrelated",
+          "description": ""
+        }
+      ],
+      "expected": {
+        "texts": [
+          "HADOOP fail grüße\n",
+          "unrelated\n",
+          "éHADOOP-1 and fail\nGrüße"
+        ],
+        "scores": [
+          2.2261661273458095,
+          0.0
+        ],
+        "top": [
+          0
+        ],
+        "features": {
+          "top1": 2.2261661273458095,
+          "margin": 0.0,
+          "entropy": 0.0
+        }
+      }
+    },
+    {
+      "name": "descriptions are cut at the same code point",
+      "query": {
+        "summary": "emoji crash tailword",
+        "description": ""
+      },
+      "window": [
+        {
+          "summary": "emoji crash",
+          "description": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀 tailword"
+        },
+        {
+          "summary": "emoji",
+          "description": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀 tailword"
+        },
+        {
+          "summary": "tailword",
+          "description": ""
+        }
+      ],
+      "expected": {
+        "texts": [
+          "emoji crash\n😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀 tailword",
+          "emoji\n😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀",
+          "tailword\n",
+          "emoji crash tailword\n"
+        ],
+        "scores": [
+          1.4472055908585735,
+          0.5619608610546839,
+          0.5619608610546839
+        ],
+        "top": [
+          0,
+          1,
+          2
+        ],
+        "features": {
+          "top1": 1.4472055908585735,
+          "margin": 0.8852447298038896,
+          "entropy": 0.4351384449878886
+        }
+      }
+    },
+    {
+      "name": "repeated query terms count more",
+      "query": {
+        "summary": "render render render ui",
+        "description": ""
+      },
+      "window": [
+        {
+          "summary": "render loop",
+          "description": ""
+        },
+        {
+          "summary": "ui ui ui widget",
+          "description": ""
+        }
+      ],
+      "expected": {
+        "texts": [
+          "render loop\n",
+          "ui ui ui widget\n",
+          "render render render ui\n"
+        ],
+        "scores": [
+          2.4077744166819155,
+          1.016615864821253
+        ],
+        "top": [
+          0,
+          1
+        ],
+        "features": {
+          "top1": 2.4077744166819155,
+          "margin": 1.3911585518606624,
+          "entropy": 0.21685330896894356
+        }
+      }
+    },
+    {
+      "name": "dotted and underscored names are single tokens",
+      "query": {
+        "summary": "max_len breaks FileSystem.open",
+        "description": ""
+      },
+      "window": [
+        {
+          "summary": "max len breaks file system open",
+          "description": ""
+        },
+        {
+          "summary": "max_len and FileSystem.open",
+          "description": ""
+        }
+      ],
+      "expected": {
+        "texts": [
+          "max len breaks file system open\n",
+          "max_len and FileSystem.open\n",
+          "max_len breaks FileSystem.open\n"
+        ],
+        "scores": [
+          0.609969518892752,
+          1.6051829444546102
+        ],
+        "top": [
+          1,
+          0
+        ],
+        "features": {
+          "top1": 1.6051829444546102,
+          "margin": 0.9952134255618582,
+          "entropy": 0.2532557831918304
+        }
+      }
+    }
+  ]
+}
