@@ -53,11 +53,13 @@ def test_bad_rows_are_errors_not_silently_dropped(bad):
         build_policy(data, alpha=0.05, delta=0.1, retriever="bm25-v1")
 
 
-def test_groups_shrink_the_calibration_set_to_one_row_each():
+def test_grouped_rows_are_all_used_and_cost_some_coverage():
     data = rows(6000)
     grouped = [r | {"group": i // 3} for i, r in enumerate(data)]
     policy = build_policy(grouped, alpha=0.05, delta=0.1, retriever="bm25-v1")
-    assert policy["calibrationSize"] == 1000  # 3000 calibration rows in groups of 3
+    plain = build_policy(data, alpha=0.05, delta=0.1, retriever="bm25-v1")
+    assert policy["calibrationSize"] == 1000  # one row per group of 3
+    assert policy["calibrationCoverage"] <= plain["calibrationCoverage"]
     assert policy["calibrationActed"] >= policy["calibrationErrors"] >= 0
 
 
