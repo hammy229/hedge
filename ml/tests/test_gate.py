@@ -8,6 +8,7 @@ import pytest
 
 from hedge.gate import fit_gate, policy_dict, write_policy
 from hedge.risk import NEVER_ACT, Threshold
+from hedge.window import RETRIEVER
 
 APP = Path(__file__).resolve().parents[2] / "app"
 
@@ -54,7 +55,7 @@ def test_rejects_bad_input():
 def test_uncertified_threshold_keeps_the_gate_closed(tmp_path):
     X, y = data(500)
     m = fit_gate(X, y, ["a", "b", "noise"])
-    policy = policy_dict(m, Threshold(NEVER_ACT, 0.0, 0, 0), 0.03, 0.1, 500, "bm25-v1")
+    policy = policy_dict(m, Threshold(NEVER_ACT, 0.0, 0, 0), 0.03, 0.1, 500, RETRIEVER)
     assert policy["calibrated"] is False and policy["threshold"] is None
     text = write_policy(policy, tmp_path / "policy.js").read_text()
     assert text.startswith("// Generated") and "Infinity" not in text
@@ -66,7 +67,7 @@ def test_javascript_gate_matches_python(tmp_path):
     X, y = data(2000)
     names = ["a", "b", "noise"]
     m = fit_gate(X, y, names)
-    policy = policy_dict(m, Threshold(0.5, 0.4, 3, 800), 0.03, 0.1, 2000, "bm25-v1")
+    policy = policy_dict(m, Threshold(0.5, 0.4, 3, 800), 0.03, 0.1, 2000, RETRIEVER)
     policy_path = write_policy(policy, tmp_path / "policy.mjs")
     rows = [dict(zip(names, map(float, x))) for x in X[:50]]
     script = (
