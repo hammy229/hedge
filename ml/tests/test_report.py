@@ -49,3 +49,27 @@ def test_main_writes_json_and_markdown_and_can_drop_a_jira(tmp_path):
     result = json.loads(out.read_text())
     assert result["n_test"] == 500 and result["excluded_jiras"] == ["Other"]
     assert out.with_suffix(".md").read_text().startswith("| Action |")
+
+
+def test_verdict_needs_the_whole_interval_under_budget_and_enough_tickets():
+    from hedge.report import verdict
+
+    base = {"alpha": 0.05, "test_acted": 500}
+    assert verdict(base | {"test_error": (0.02, 0.01, 0.04)}) == "yes"
+    assert verdict(base | {"test_error": (0.04, 0.02, 0.07)}) == "unclear"
+    assert verdict(base | {"test_error": (0.08, 0.06, 0.10)}) == "no"
+    assert verdict({"alpha": 0.05, "test_acted": 3, "test_error": (0.0, 0.0, 0.0)}).startswith("too few")
+
+
+def test_bootstrap_drops_resamples_where_the_statistic_is_undefined():
+    from hedge.metrics import cluster_bootstrap_ci
+
+    acted = np.array([True, False, False, False])
+    wrong = np.array([True, False, False, False])
+
+    def risk(i):
+        a = acted[i]
+        return float(wrong[i][a].mean()) if a.any() else float("nan")
+
+    point, lo, hi = cluster_bootstrap_ci(risk, clusters=[0, 1, 2, 3], n_boot=200)
+    assert point == 1.0 and lo == 1.0 and hi == 1.0  # empty draws never pull it toward 0

@@ -31,6 +31,18 @@ from .metrics import cluster_bootstrap_ci
 from .window import RETRIEVER
 
 ALPHAS = (0.01, 0.03, 0.05, 0.1)
+# Below this many acted test tickets an error rate says little, so the verdict is withheld.
+MIN_ACTED = 30
+
+
+def verdict(c: dict) -> str:
+    """Within budget only when the interval's upper end is; unclear when just the point is."""
+    if c["test_acted"] < MIN_ACTED:
+        return f"too few acted ({c['test_acted']})"
+    point, _, hi = c["test_error"]
+    if hi <= c["alpha"]:
+        return "yes"
+    return "unclear" if point <= c["alpha"] else "no"
 
 
 def gate_scores(policy: dict, rows: Sequence[dict]) -> np.ndarray:
@@ -78,7 +90,7 @@ def report(rows: list[dict], alphas=ALPHAS, delta: float = 0.1, n_boot: int = 10
 
                 def risk(i, act=act):
                     a = act[i]
-                    return float(wrong[i][a].mean()) if a.any() else 0.0
+                    return float(wrong[i][a].mean()) if a.any() else float("nan")
 
                 boot = dict(clusters=projects, n_boot=n_boot, seed=seed)
                 row["test_coverage"] = cluster_bootstrap_ci(lambda i, act=act: float(act[i].mean()), **boot)
@@ -95,18 +107,18 @@ def report(rows: list[dict], alphas=ALPHAS, delta: float = 0.1, n_boot: int = 10
 
 def to_markdown(result: dict) -> str:
     lines = [
-        "| Action | Budget | Certified on calibration | Test coverage | Test error | Within budget |",
-        "|---|---|---|---|---|---|",
+        "| Action | Budget | Certified on calibration | Test coverage | Acted | Test error | Within budget (95% CI) |",
+        "|---|---|---|---|---|---|---|",
     ]
     for action, a in result["actions"].items():
         for c in a["certified"]:
             if not c["calibrated"]:
-                lines.append(f"| {action} | {c['alpha']:.0%} | nothing certified | 0% | n/a | n/a |")
+                lines.append(f"| {action} | {c['alpha']:.0%} | nothing certified | 0% | 0 | n/a | n/a |")
                 continue
-            ok = "yes" if c["test_error"][0] <= c["alpha"] else "no"
             lines.append(
                 f"| {action} | {c['alpha']:.0%} | acts on {c['calibration_coverage']:.1%} | "
-                f"{_fmt(c['test_coverage'], True)} | {_fmt(c['test_error'], True)} | {ok} |"
+                f"{_fmt(c['test_coverage'], True)} | {c['test_acted']:,} | "
+                f"{_fmt(c['test_error'], True)} | {verdict(c)} |"
             )
     alphas = result["alphas"]
     lines += ["", "| Action | Signal | AURC (lower is better) | " + " | ".join(f"Coverage at {a:.0%} error" for a in alphas) + " |"]

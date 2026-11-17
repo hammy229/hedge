@@ -83,6 +83,11 @@ def cluster_bootstrap_ci(
     for b in range(n_boot):
         picks = rng.integers(0, len(groups), size=len(groups))
         stats[b] = statistic(np.concatenate([groups[i] for i in picks]))
+    # A resample can leave the statistic undefined (no acted tickets, so no error rate).
+    # Those draws are dropped rather than counted as 0, which would pull the interval down.
+    stats = stats[np.isfinite(stats)]
+    if stats.size == 0:
+        return float(point), float("nan"), float("nan")
     tail = (1 - level) / 2
     lo, hi = np.quantile(stats, [tail, 1 - tail])
     return float(point), float(lo), float(hi)
