@@ -72,3 +72,14 @@ def test_main_writes_rows_and_meta(tmp_path):
     assert {r["split"] for r in rows} == {"train", "calibration", "test"}
     meta = json.loads(out.with_suffix(".meta.json").read_text())
     assert meta["retriever"] == "bm25-recent1000-v1" and meta["sampled"]["test"] == 5
+
+
+def test_train_keeps_rows_that_share_a_cluster_with_later_parts():
+    # Dropping them would let calibration and test labels (the final Duplicate links) pick
+    # the gate's training data.
+    records = [rec(f"J:A-{i}", i, summary=f"issue {i}") for i in range(1, 41)]
+    records[0]["duplicates"] = ["J:A-40"]
+    records[-1]["duplicates"] = ["J:A-1"]
+    c = Corpus.from_records(records)
+    split, _ = query_split(c)
+    assert c.ids.tolist().index("J:A-1") in split.train

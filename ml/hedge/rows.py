@@ -7,9 +7,12 @@ input of ``hedge.calibrate`` and ``hedge.report``.
 
     python -m hedge.rows ../data/corpus.pkl --out ../data/rows.jsonl --per-split 20000
 
-Splits are temporal (train, then calibration, then test, by creation time), made cluster
-disjoint by dropping train rows, and every ticket whose text copies an earlier issue is
-left out of the queries. The retrieval corpus is not split: a test ticket is searched
+Splits are temporal (train, then calibration, then test, by creation time), and every
+ticket whose text copies an earlier issue is left out of the queries. Train is not made
+cluster disjoint here: cluster membership comes from the final Duplicate links, which are
+labels of calibration and test tickets, and Learn then Test needs the gate and its grid to
+be independent of calibration labels. A five-feature logistic gate cannot memorize a
+cluster anyway. A fine-tuned retriever can, so its training set needs a time gap instead. The retrieval corpus is not split: a test ticket is searched
 against everything its project filed before it, as the app would do.
 """
 
@@ -26,18 +29,16 @@ import numpy as np
 
 from .corpus import Corpus
 from .features import gate_features
-from .splits import Split, cluster_disjoint, quantile_temporal_split
+from .splits import Split, quantile_temporal_split
 from .window import K, RETRIEVER, WINDOW, TokenIndex, group_starts, retrieve
 
 
 def query_split(corpus: Corpus, cal_frac: float = 0.15, test_frac: float = 0.15) -> tuple[Split, dict]:
     split = quantile_temporal_split(corpus.created, cal_frac, test_frac)
-    groups = [int(c) if c >= 0 else None for c in corpus.cluster]
-    split, dropped = cluster_disjoint(split, groups)
     keep = lambda part: part[~corpus.copy[part]]  # noqa: E731
     out = Split(keep(split.train), keep(split.calibration), keep(split.test))
     info = {
-        "train_dropped_shared_cluster": dropped["train"],
+        "cut_times": [float(corpus.created[split.calibration].min()), float(corpus.created[split.test].min())],
         "copies_dropped": {n: int(getattr(split, n).size - getattr(out, n).size) for n in ("train", "calibration", "test")},
     }
     return out, info
