@@ -41,10 +41,18 @@ export function windowScores(windowTexts, queryText) {
     const df = tf.reduce((c, m) => c + (m.has(term) ? 1 : 0), 0);
     idf.set(term, Math.log1p((n - df + 0.5) / (df + 0.5)));
   }
+  // Every document sums its terms in the same order. Summing in each document's own word
+  // order made two documents with equal counts differ in the last bits, which broke exact
+  // ties, and a tie decides which issue is offered as the duplicate. Python's matrix
+  // product is order-invariant the same way.
+  const terms = [...query.keys()].sort();
   return tf.map((m, d) => {
     const norm = K1 * (1 - B + (B * lengths[d]) / avg);
     let s = 0;
-    for (const [term, f] of m) s += ((f * (K1 + 1)) / (f + norm)) * idf.get(term) * query.get(term);
+    for (const term of terms) {
+      const f = m.get(term);
+      if (f) s += ((f * (K1 + 1)) / (f + norm)) * idf.get(term) * query.get(term);
+    }
     return s;
   });
 }

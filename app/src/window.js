@@ -4,9 +4,21 @@
 // the ticket's creation time.
 
 import { WINDOW } from './bm25.js';
+import { MAX_DESCRIPTION, codePointPrefix } from './text.js';
 
 export const PAGE_SIZE = 100;
 export const MAX_PAGES = 30;
+// Forge stops a function at 25 s. Stopping the read earlier returns an incomplete window,
+// which the caller turns into "ask", instead of being killed with no answer at all.
+export const DEADLINE_MS = 18000;
+
+// Only the first MAX_DESCRIPTION code points are ever scored, so long descriptions are
+// cut as issues arrive instead of holding a thousand full ones in 256 MB.
+function slim(issue) {
+  const d = issue.fields?.description;
+  if (typeof d !== 'string') return issue;
+  return { ...issue, fields: { ...issue.fields, description: codePointPrefix(d, MAX_DESCRIPTION) } };
+}
 
 export function createdMs(issue) {
   const t = Date.parse(issue?.fields?.created ?? '');
@@ -18,21 +30,22 @@ const byTimeThenKey = (a, b) => a.t - b.t || (a.issue.key < b.issue.key ? -1 : a
 // fetchPage(token) returns { issues, nextPageToken }, issues newest first. Pages are read
 // until WINDOW earlier issues are in hand and the oldest page item is older than the
 // WINDOW-th newest, so ties at the cut are all seen and settled by key like Python.
-// Returns { window, complete }: complete is false when MAX_PAGES ran out first, so the
+// Returns { window, complete }: complete is false when MAX_PAGES or the deadline ran out first, so the
 // caller can refuse to act on a window it could not fully read.
-export async function collectWindow(fetchPage, ticket, size = WINDOW) {
+export async function collectWindow(fetchPage, ticket, size = WINDOW, deadline = Date.now() + DEADLINE_MS) {
   const before = createdMs(ticket);
   if (!Number.isFinite(before)) throw new Error('the ticket has no readable creation time');
   const seen = new Map();
   let token;
   for (let page = 0; page < MAX_PAGES; page += 1) {
+    if (Date.now() > deadline) break;
     const { issues = [], nextPageToken } = await fetchPage(token);
     let oldest = Infinity;
     for (const issue of issues) {
       const t = createdMs(issue);
       if (!Number.isFinite(t)) continue; // unknown time: neither before nor after, like Python
       oldest = Math.min(oldest, t);
-      if (t < before && issue.key !== ticket.key) seen.set(issue.key, { issue, t });
+      if (t < before && issue.key !== ticket.key) seen.set(issue.key, { issue: slim(issue), t });
     }
     const newestFirst = [...seen.values()].sort((a, b) => byTimeThenKey(b, a));
     const cut = newestFirst[size - 1];

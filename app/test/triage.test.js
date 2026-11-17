@@ -98,3 +98,30 @@ test('windowJql bounds the search safely and refuses odd project ids', () => {
   assert.throws(() => windowJql('1 OR 1=1', ticket));
   return assert.rejects(collectWindow(async () => ({ issues: [] }), issue('P-1', 'x', 'not a date')));
 });
+
+test('equal word counts in a different order tie exactly, so the older issue wins', async () => {
+  // Before terms were summed in one fixed order, 16 of these 200 pairs differed in the last
+  // bits, so the newer issue could outrank an identical older one.
+  const { windowScores, topK } = await import('../src/bm25.js');
+  const w = ['crash', 'login', 'cache', 'leak', 'render', 'thread', 'timeout', 'null', 'api'];
+  for (let t = 0; t < 200; t += 1) {
+    const doc = Array.from({ length: 9 + (t % 5) }, (_, i) => w[(i * 5 + t * 3) % w.length]);
+    const rotated = [...doc.slice(t % doc.length), ...doc.slice(0, t % doc.length)].reverse();
+    const s = windowScores([doc.join(' '), rotated.join(' '), 'x y'], w.join(' '));
+    assert.equal(s[0], s[1]);
+    assert.deepEqual(topK(s).slice(0, 2), [0, 1]);
+  }
+});
+
+test('stored window issues keep only the scored part of the description', async () => {
+  const long = issue('P-1', 'a', '2024-01-01T00:00:00.000+0000', 'x'.repeat(50000));
+  const { window: w } = await collectWindow(pages([long], 10), ticket);
+  assert.equal(w[0].fields.description.length, 1000);
+});
+
+test('a read past the deadline is incomplete, so the caller asks', async () => {
+  const all = Array.from({ length: 5 }, (_, i) => issue(`P-${i}`, 'a', `2024-01-0${i + 1}T00:00:00.000+0000`));
+  const late = issue('P-9', 'x', '2024-01-09T00:00:00.000+0000');
+  const { complete } = await collectWindow(pages(all, 1), late, 1000, Date.now() - 1);
+  assert.equal(complete, false);
+});
