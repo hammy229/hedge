@@ -69,3 +69,36 @@ def test_cli_writes_an_importable_policy(tmp_path, capsys):
     body = out.read_text().split("export default ", 1)[1].rstrip().rstrip(";")
     assert json.loads(body)["calibrated"] is True
     assert "acts on" in capsys.readouterr().out
+
+
+def test_grid_comes_from_train_scores_only():
+    import numpy as np
+
+    from hedge.calibrate import train_quantile_grid
+
+    g = train_quantile_grid(np.r_[np.full(90, 0.95), np.linspace(0.0, 1.0, 10)], size=50)
+    assert g.min() >= 0 and g.max() <= 1 and np.all(np.diff(g) > 0)
+    assert (g >= 0.9).mean() < 1  # still spans the low scores
+    with pytest.raises(ValueError):
+        train_quantile_grid([0.5], size=1)
+
+
+def test_certified_threshold_is_a_point_of_the_train_only_grid():
+    import numpy as np
+
+    from hedge.calibrate import train_quantile_grid
+    from hedge.features import to_matrix
+    from hedge.gate import fit_gate
+
+    data = rows(6000)
+    train = [r for r in data if r["split"] == "train"]
+    model = fit_gate(to_matrix(train), [r["right"] for r in train], FEATURE_NAMES)
+    grid = train_quantile_grid(model.predict_proba(to_matrix(train)))
+    policy = build_policy(data, alpha=0.05, delta=0.1, retriever="bm25-v1")
+    assert policy["calibrated"]
+    assert np.isclose(grid, policy["threshold"], rtol=0, atol=1e-12).any()
+
+
+def test_even_grid_is_still_available():
+    policy = build_policy(rows(6000), alpha=0.05, delta=0.1, retriever="bm25-v1", grid_size=None)
+    assert policy["calibrated"] and round(policy["threshold"] * 100) == policy["threshold"] * 100
