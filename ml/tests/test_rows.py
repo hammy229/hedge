@@ -1,6 +1,7 @@
 import json
 
 import numpy as np
+import pytest
 
 from hedge.corpus import Corpus
 from hedge.features import FEATURE_NAMES
@@ -56,9 +57,9 @@ def test_rows_record_creation_time_and_the_top_match_context():
     rows = rows_for(c, ["J:A-3", "J:A-5"])
     a3 = rows["J:A-3"]
     assert a3["created"] == 3.0
-    assert a3["logWindow"] == np.log1p(2)  # A-1 and A-2 came before
+    assert a3["logWindow"] == pytest.approx(np.log1p(2))  # A-1 and A-2 came before
     assert 0 < a3["summaryOverlap"] < 1  # top match A-1 shares login, page
-    assert a3["logTopAgeDays"] == np.log1p(2 / 86400)  # A-1 is two seconds older
+    assert a3["logTopAgeDays"] == pytest.approx(np.log1p(2 / 86400))  # A-1 is two seconds older
     assert rows["J:A-5"]["summaryOverlap"] == 0.0 and rows["J:A-5"]["logTopAgeDays"] == 0.0
 
 
