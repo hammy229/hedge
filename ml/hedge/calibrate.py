@@ -8,8 +8,10 @@ Input is JSON Lines, one ticket per line:
 nothing) is correct. The gate is fit on train rows only and the threshold is certified on
 calibration rows only, so the guarantee is not computed on data the model has seen.
 
-    python -m hedge.calibrate rows.jsonl --retriever bm25-v1 --alpha 0.03 --delta 0.1 \\
-        --out ../app/src/policy.js
+Both actions (``ACTIONS``) are certified, each on its own, and written into one module:
+
+    python -m hedge.calibrate ../data/rows.jsonl --retriever bm25-recent1000-v1 \\
+        --alpha 0.03 --delta 0.1 --exclude-jira Mojang --out ../app/src/policy.js
 """
 
 from __future__ import annotations
@@ -23,7 +25,7 @@ from pathlib import Path
 import numpy as np
 
 from .features import FEATURE_NAMES, to_matrix
-from .gate import fit_gate, policy_dict, write_policy
+from .gate import fit_gate, policy_dict, write_policies
 from .risk import DEFAULT_GRID, ltt_threshold
 
 
@@ -114,22 +116,27 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("rows", type=Path, help="JSON Lines file of feature rows")
     ap.add_argument("--alpha", type=float, default=0.03, help="error budget among acted tickets")
     ap.add_argument("--delta", type=float, default=0.1, help="allowed chance the bound fails")
-    ap.add_argument("--retriever", required=True, help="id of the retriever that produced the scores, e.g. bm25-v1")
-    ap.add_argument("--action", choices=ACTIONS, default="link")
+    ap.add_argument("--retriever", required=True, help="id of the retriever that produced the scores")
+    ap.add_argument("--exclude-jira", action="append", default=[], help="leave a Jira out of fitting and calibration")
     ap.add_argument("--l2", type=float, default=1.0)
     ap.add_argument("--out", type=Path, required=True, help="where to write policy.js")
     args = ap.parse_args(argv)
+    excluded = sorted(set(args.exclude_jira))
     with args.rows.open() as f:
-        rows = [json.loads(line) for line in f if line.strip()]
-    policy = build_policy(rows, args.alpha, args.delta, args.retriever, args.l2, action=args.action)
-    write_policy(policy, args.out)
-    if policy["calibrated"]:
-        print(
-            f"threshold {policy['threshold']:.3f}, acts on "
-            f"{policy['calibrationCoverage']:.1%} of {policy['calibrationSize']} calibration tickets"
-        )
-    else:
-        print("no threshold certified at this budget: the gate will ask about every ticket")
+        rows = [r for line in f if line.strip() and (r := json.loads(line)).get("jira") not in excluded]
+    rows = [r for r in rows if r["split"] in SPLITS]
+    policies = {}
+    for action in ACTIONS:
+        policy = build_policy(rows, args.alpha, args.delta, args.retriever, args.l2, action=action)
+        policies[action] = {**policy, "excludedJiras": excluded}
+        if policy["calibrated"]:
+            print(
+                f"{action}: threshold {policy['threshold']:.3f}, acts on "
+                f"{policy['calibrationCoverage']:.1%} of {policy['calibrationSize']} calibration tickets"
+            )
+        else:
+            print(f"{action}: nothing certified at this budget, so this gate asks about every ticket")
+    write_policies(policies, args.out)
     return 0
 
 

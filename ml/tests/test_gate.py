@@ -6,7 +6,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from hedge.gate import fit_gate, policy_dict, write_policy
+from hedge.gate import fit_gate, policy_dict, write_policies, write_policy
 from hedge.risk import NEVER_ACT, Threshold
 from hedge.window import RETRIEVER
 
@@ -83,3 +83,12 @@ def test_javascript_gate_matches_python(tmp_path):
     py = m.predict_proba(X[:50])
     np.testing.assert_allclose([s for s, _ in js], py, rtol=1e-12, atol=1e-12)
     assert [d for _, d in js] == ["act" if p >= 0.5 else "ask" for p in py]
+
+
+def test_policies_must_sit_under_the_action_they_were_certified_for(tmp_path):
+    X, y = data(300)
+    m = fit_gate(X, y, ["a", "b", "noise"])
+    p = {"action": "link", **policy_dict(m, Threshold(NEVER_ACT, 0.0, 0, 0), 0.03, 0.1, 300, RETRIEVER)}
+    with pytest.raises(ValueError, match="certified for 'link'"):
+        write_policies({"clear": p}, tmp_path / "policy.js")
+    assert write_policies({"link": p}, tmp_path / "policy.js").exists()

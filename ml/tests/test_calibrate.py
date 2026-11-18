@@ -63,14 +63,38 @@ def test_grouped_rows_are_all_used_and_cost_some_coverage():
     assert policy["calibrationActed"] >= policy["calibrationErrors"] >= 0
 
 
-def test_cli_writes_an_importable_policy(tmp_path, capsys):
+def with_answers(data):
+    """Tickets whose top candidate is right have a duplicate; a few others do too."""
+    return [{**r, "has_answer": bool(r["right"]) or i % 50 == 0, "jira": "A" if i % 4 else "B"} for i, r in enumerate(data)]
+
+
+def read_policies(path):
+    return json.loads(path.read_text().split("export default ", 1)[1].rstrip().rstrip(";"))
+
+
+def test_cli_writes_both_actions_into_one_importable_file(tmp_path, capsys):
     path = tmp_path / "rows.jsonl"
-    path.write_text("\n".join(json.dumps(r) for r in rows(4000)) + "\n")
+    path.write_text("\n".join(json.dumps(r) for r in with_answers(rows(4000))) + "\n")
     out = tmp_path / "policy.js"
     assert main([str(path), "--alpha", "0.05", "--retriever", "bm25-v1", "--out", str(out)]) == 0
-    body = out.read_text().split("export default ", 1)[1].rstrip().rstrip(";")
-    assert json.loads(body)["calibrated"] is True
-    assert "acts on" in capsys.readouterr().out
+    policies = read_policies(out)
+    assert set(policies) == {"link", "clear"}
+    assert {p["action"] for p in policies.values()} == {"link", "clear"}
+    assert policies["link"]["calibrated"] is True
+    printed = capsys.readouterr().out
+    assert "link:" in printed and "clear:" in printed
+
+
+def test_cli_can_leave_a_jira_out_and_records_it(tmp_path):
+    path = tmp_path / "rows.jsonl"
+    path.write_text("\n".join(json.dumps(r) for r in with_answers(rows(4000))) + "\n")
+    out = tmp_path / "policy.js"
+    main([str(path), "--retriever", "bm25-v1", "--out", str(out), "--exclude-jira", "B"])
+    policies = read_policies(out)
+    assert policies["clear"]["excludedJiras"] == ["B"]
+    assert policies["clear"]["calibrationSize"] == sum(
+        1 for r in with_answers(rows(4000)) if r["split"] == "calibration" and r["jira"] != "B"
+    )
 
 
 def test_grid_comes_from_train_scores_only():
