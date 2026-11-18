@@ -1,6 +1,6 @@
 # Results
 
-Every number here comes from one run on Nov 17, 2026, reproducible with:
+Every number here comes from runs on Nov 18, 2026 (feature schema 2), reproducible with:
 
 ```bash
 cd ml
@@ -8,9 +8,12 @@ cd ml
 ../.venv/bin/python -m hedge.rows ../data/corpus.pkl --out ../data/rows.jsonl --per-split 20000
 ../.venv/bin/python -m hedge.report ../data/rows.jsonl --out ../data/report.json
 ../.venv/bin/python -m hedge.report ../data/rows.jsonl --out ../data/report-no-mojang.json --exclude-jira Mojang
+../.venv/bin/python -m hedge.report ../data/rows.jsonl --out ../data/mature180.json --exclude-jira Mojang --mature-days 180
+../.venv/bin/python -m hedge.report ../data/rows.jsonl --out ../data/holdout-s0.json --exclude-jira Mojang --holdout-projects 0.25 --seed 0
+../.venv/bin/python -m hedge.calibrate ../data/rows.jsonl --retriever bm25-recent1000-v1 --alpha 0.03 --exclude-jira Mojang --out ../app/src/policy.js
 ```
 
-The corpus build takes 148 s and 4.2 GB of memory. The rows take 122 s: 33 s to tokenize
+The corpus build takes 148 s and 4.2 GB of memory. The rows take 131 s: 37 s to tokenize
 2,685,933 issues, then 60,000 windowed BM25 queries.
 
 ## Setup
@@ -25,6 +28,9 @@ The corpus build takes 148 s and 4.2 GB of memory. The rows take 122 s: 33 s to 
 - **Certification**: Learn then Test, Bonferroni over 200 train-quantile thresholds,
   delta 0.1, errors counted per duplicate cluster with a bound that holds under any
   dependence inside a cluster ([ADR 5](adr/0005-per-ticket-risk-under-clustering.md)).
+- **Gate features** (schema 2, [ADR 6](adr/0006-window-aware-gate-features.md)): top
+  score, margin, entropy, summary length, has description, window size, summary overlap
+  with the top candidate, and the top candidate's age.
 - **Intervals**: 95%, resampling whole projects (1,000 draws).
 
 ## Retrieval baseline (test split)
@@ -50,8 +56,9 @@ All Jiras:
 | Action | Budget | Certified on calibration | Test coverage | Acted | Test error | Within budget |
 |---|---|---|---|---|---|---|
 | link | 1% to 10% | nothing certified | 0% | 0 | n/a | n/a |
-| clear | 1% to 5% | nothing certified | 0% | 0 | n/a | n/a |
-| clear | 10% | acts on 9.4% | 8.5% [6.7%, 11.0%] | 1,699 | 6.8% [1.5%, 13.3%] | unclear |
+| clear | 1% and 3% | nothing certified | 0% | 0 | n/a | n/a |
+| clear | 5% | acts on 50.6% | 44.9% [31.6%, 65.1%] | 8,972 | 4.5% [2.7%, 6.5%] | unclear |
+| clear | 10% | acts on 71.2% | 65.3% [51.6%, 83.7%] | 13,056 | 8.4% [3.3%, 13.7%] | unclear |
 
 Without Mojang:
 
@@ -59,32 +66,71 @@ Without Mojang:
 |---|---|---|---|---|---|---|
 | link | 1% to 10% | nothing certified | 0% | 0 | n/a | n/a |
 | clear | 1% | nothing certified | 0% | 0 | n/a | n/a |
-| clear | 3% | acts on 38.6% | 36.9% [31.8%, 43.0%] | 4,891 | 1.2% [0.7%, 1.9%] | yes |
-| clear | 5% and 10% | acts on 100% | 100% | 13,265 | 2.1% [1.6%, 2.8%] | yes |
+| clear | 3% | acts on 59.9% | 57.8% [52.4%, 63.6%] | 7,671 | 1.4% [1.0%, 1.8%] | yes |
+| clear | 5% and 10% | acts on 100% | 100% | 13,263 | 2.1% [1.6%, 2.8%] | yes |
 
 At 5% and above without Mojang, the duplicate rate (2.1%) is already under the budget, so
-clearing every ticket is certified. The gate earns its keep at 3%.
+clearing every ticket is certified. The gate earns its keep at 3%. The 3% clear policy is
+the one installed in the app (`app/src/policy.js`).
+
+## Ranking: the gate against the raw top score (clear action, test split)
+
+| Data | Hedge gate AURC | BM25 top score AURC | Gate coverage at 3% error | Top score coverage at 3% error |
+|---|---|---|---|---|
+| All Jiras | 0.066 [0.023, 0.124] | 0.133 [0.026, 0.218] | 33.7% [20.2%, 65.1%] | 8.2% [3.7%, 49.2%] |
+| Without Mojang | 0.012 [0.009, 0.016] | 0.012 [0.008, 0.018] | 100% | 100% |
+
+With schema 1 the gate's AURC on all Jiras was 0.132, the same as the top score.
+
+## Do late labels matter? (without Mojang, 3% clear policy)
+
+Labels are Duplicate links as of the dump, so the newest test tickets have had less time
+to be linked. Dropping them shows the size of the effect:
+
+| Test tickets kept | Tickets | Duplicate rate | Test coverage | Test error |
+|---|---:|---:|---|---|
+| All | 13,263 | 2.1% | 57.8% [52.4%, 63.6%] | 1.4% [1.0%, 1.8%] |
+| Filed 90+ days before the dump | 11,279 | 2.3% | 57.7% [52.5%, 63.2%] | 1.5% [1.1%, 2.0%] |
+| Filed 180+ days before the dump | 9,053 | 2.4% | 58.4% [53.4%, 64.2%] | 1.6% [1.1%, 2.1%] |
+
+The error rises by about 0.2 points on settled labels and stays within the 3% budget.
+
+## Projects the gate never saw (without Mojang, 3% clear policy)
+
+A quarter of the projects with test tickets (130) are held out of fitting and calibration,
+along with any duplicate cluster that reaches them, and the test window is cut to them.
+Three random draws:
+
+| Draw | Test tickets | Duplicate rate | Calibration coverage | Test coverage | Test error | Within budget |
+|---|---:|---:|---|---|---|---|
+| 0 | 3,362 | 2.9% | 74.5% | 72.8% [68.9%, 77.9%] | 2.5% [1.8%, 3.2%] | unclear |
+| 1 | 3,365 | 2.6% | 76.2% | 74.6% [72.1%, 78.3%] | 2.1% [1.2%, 2.9%] | yes |
+| 2 | 3,680 | 2.2% | 43.7% | 37.7% [31.8%, 45.6%] | 1.4% [0.7%, 2.2%] | yes |
+
+The point error stays under 3% in every draw, but in draw 0 the interval reaches 3.2%.
+When the held-out projects' duplicate rate sits close to the budget, there is little room,
+and how much the gate acts on swings with which projects are held out (38% to 75%).
 
 ## What this says
 
 1. **Auto-linking duplicates is not safe with BM25 signals.** No budget up to 10% could be
-   certified, on any data. Linking is right for under 3% of tickets, and the gate cannot
-   find a subset where it is right 97% of the time. Week 2's fine-tuned retriever has to
-   change this, or the app should only offer links to a person.
-2. **Clearing new tickets is where the value is.** Outside Mojang, Hedge can take 37% of
-   new tickets off the duplicate-review queue while missing 1.2% of duplicates, under a
+   certified, on any data. Week 2's fine-tuned retriever has to change this, or the app
+   should only offer links to a person.
+2. **Clearing new tickets is where the value is.** Outside Mojang, Hedge can take 58% of
+   new tickets off the duplicate-review queue while missing 1.4% of duplicates, under a
    certified 3% budget.
-3. **The gate does not beat the raw top score yet.** On the clear action both have AURC
-   0.012 without Mojang. The text features add nothing beyond the top BM25 score so far.
-4. **Mojang is a different problem.** 15% of its tickets are duplicates, mostly of hub
-   tickets outside any 1,000-issue window.
+3. **Context features beat the raw score where windows differ.** With Mojang, the gate's
+   ranking error is half the top score's. Without Mojang the ranking is no better, but the
+   certified coverage at 3% rose from 37% to 58%.
+4. **New projects are the open risk.** On held-out projects the budget held at the point
+   estimate in all three draws, and its interval crossed 3% in one.
 
 ## Known biases
 
-- **Label censoring.** Labels are Duplicate links as of the dump, and the newest tickets
-  have had less time to be linked. Without Mojang the duplicate rate falls from 2.5% in
-  the first half of the test window to 1.7% in the second, so the test error of the clear
-  action is probably understated a little.
+- **Label censoring.** Labels are Duplicate links as of the dump. Measured above: settled
+  labels raise the clear error by about 0.2 points.
+- **Copies.** The app asks about copies of issues in its window, but cannot see copies
+  of older issues, which calibration also excluded.
 - **Copies are left out.** Tickets that paste an earlier issue's text are excluded from
   calibration and test, so the numbers describe genuinely new reports.
 - **Independence between clusters.** The bound allows any dependence inside a duplicate

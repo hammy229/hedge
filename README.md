@@ -19,11 +19,14 @@ Only numbers this repo produces. Real-data rows come from [docs/results.md](docs
 
 | Claim | Measured | How it is checked |
 |---|---|---|
-| Clearing new tickets from duplicate review is safe at a 3% budget | without Mojang, 36.9% [31.8, 43.0] of test tickets cleared with 1.2% [0.7, 1.9] of them duplicates; certified on calibration, checked on the later test window | `python -m hedge.report`, [results](docs/results.md) |
+| Clearing new tickets from duplicate review is safe at a 3% budget | without Mojang, 57.8% [52.4, 63.6] of test tickets cleared with 1.4% [1.0, 1.8] of them duplicates; certified on calibration, checked on the later test window. This policy ships in the app | `python -m hedge.report`, [results](docs/results.md) |
+| Context features make the gate beat the raw score | with every Jira, clear AURC 0.066 [0.023, 0.124] for the gate against 0.133 for the top BM25 score; window size, summary overlap and match age lifted certified coverage at 3% from 36.9% to 57.8% without Mojang | same report, [ADR 6](docs/adr/0006-window-aware-gate-features.md) |
+| Late labels barely move it | on test tickets filed 180+ days before the dump, clear error 1.6% [1.1, 2.1] against 1.4% on all | `--mature-days 180` |
+| Unseen projects are the open risk | on held-out projects, test error 2.5% [1.8, 3.2], 2.1% [1.2, 2.9] and 1.4% [0.7, 2.2] in three draws: under 3% at the point, over it at the upper end once | `--holdout-projects 0.25` |
 | Auto-linking duplicates with BM25 signals is not safe | no threshold certified at any budget up to 10%, with or without Mojang; linking the top candidate is right for 2.8% of test tickets | same report |
 | One ticket per cluster certified the wrong quantity | on calibration, duplicates are 15.1% of tickets but 8.2% of clusters; the old test certified 5% and 10% budgets that the test window broke (6.9%, 15.4% error). The per-cluster bound falsely certifies 1.3% of synthetic draws where the old test did 83.7% | `tests/test_risk.py`, [ADR 5](docs/adr/0005-per-ticket-risk-under-clustering.md) |
 | BM25 over the project's last 1,000 issues, the corpus the app can read | recall@1 33.9%, recall@10 51.2%, MRR 0.391 on test tickets with a duplicate (without Mojang); 72.1% of answers fall inside the window | `python -m hedge.rows`, [ADR 4](docs/adr/0004-calibrate-on-the-scores-the-app-computes.md) |
-| The Forge retriever scores exactly like the Python one | 10 of 10 shared cases agree to 1e-9 on texts, scores, top candidates and features, including Unicode and emoji cuts | `fixtures/bm25.json`, read by both test suites |
+| The Forge retriever scores exactly like the Python one | 11 of 11 shared cases agree to 1e-9 on texts, scores, top candidates, features and copy detection, including Unicode and emoji cuts | `fixtures/bm25.json`, read by both test suites |
 | The selective risk guarantee holds | 0 of 400 calibration draws certified a threshold with true error above 10% (allowed: 10% of draws) | `ml/tests/test_risk.py`, synthetic tickets with a known error curve |
 | It still acts on a useful share | 28.6% of tickets certified at a 10% budget, where the best possible is 40% | same test file, 5,000 synthetic tickets |
 | Conformal risk control is tight | mean marginal risk 0.0495 against a 0.05 target over 400 draws | same test file |
