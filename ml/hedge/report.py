@@ -11,6 +11,9 @@ against the raw BM25 top score, the obvious signal an agent would use on its own
 
     python -m hedge.report ../data/rows.jsonl --out ../data/report.json
     python -m hedge.report ../data/rows.jsonl --out ../data/report-no-mojang.json --exclude-jira Mojang
+
+``--mature-days`` checks how much late labels matter, and ``--holdout-projects`` tests on
+projects the gate never saw.
 """
 
 from __future__ import annotations
@@ -43,6 +46,51 @@ def verdict(c: dict) -> str:
     if hi <= c["alpha"]:
         return "yes"
     return "unclear" if point <= c["alpha"] else "no"
+
+
+DAY = 86400.0
+
+
+def mature(rows: list[dict], days: float, last: float | None = None) -> list[dict]:
+    """Drop test tickets created in the last ``days`` before the dump, taken to be ``last``
+    or, if not given, the newest ticket in ``rows``. Pass ``last`` when ``rows`` has been
+    filtered, so leaving out a Jira cannot move the cut.
+
+    Labels are the Duplicate links in the dump. A ticket filed a week before the dump has
+    had a week to be linked, so its "no duplicate" label is less settled than one filed a
+    year before, and the clear action's test error looks lower than it is. Running the
+    report with and without this cut shows how much that matters. Train and calibration
+    tickets are years older and are kept.
+    """
+    if days <= 0:
+        return rows
+    if last is None:
+        last = max(r["created"] for r in rows)
+    cut = last - days * DAY
+    return [r for r in rows if r["split"] != "test" or r["created"] <= cut]
+
+
+def hold_out_projects(rows: list[dict], frac: float, seed: int = 0) -> tuple[list[dict], set[str]]:
+    """Pick ``frac`` of the projects with test tickets at random, keep them out of fitting
+    and calibration, and test only on them.
+
+    The temporal split tests on later tickets from projects the gate has seen. A judge
+    installs Hedge on a site it has never seen, so this split asks the harder question: do
+    the thresholds hold on projects that contributed nothing to them?
+    """
+    if not 0 < frac < 1:
+        raise ValueError("frac must be in (0, 1)")
+    project = lambda r: r["project"] or ""  # noqa: E731
+    projects = sorted({project(r) for r in rows if r["split"] == "test"})
+    rng = np.random.default_rng(seed)
+    n = max(1, round(frac * len(projects)))
+    held = set(rng.choice(projects, size=n, replace=False).tolist())
+    out = [r for r in rows if (project(r) in held) == (r["split"] == "test")]
+    # A duplicate cluster can span projects. Its fitted members would carry information
+    # about its held-out ones, so fitting rows of any cluster that reaches test are dropped.
+    tested = {r["group"] for r in out if r["split"] == "test" and str(r["group"]).startswith("c")}
+    out = [r for r in out if r["split"] == "test" or r["group"] not in tested]
+    return out, held
 
 
 def gate_scores(policy: dict, rows: Sequence[dict]) -> np.ndarray:
@@ -135,13 +183,24 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("rows", type=Path)
     ap.add_argument("--out", type=Path, required=True, help="JSON results; a .md table is written beside it")
     ap.add_argument("--exclude-jira", action="append", default=[], help="drop a Jira from every split")
+    ap.add_argument("--mature-days", type=float, default=0, help="drop test tickets this close to the dump")
+    ap.add_argument("--holdout-projects", type=float, default=0, help="test only on this share of projects, unseen in fitting")
+    ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--delta", type=float, default=0.1)
     ap.add_argument("--n-boot", type=int, default=1000)
     args = ap.parse_args(argv)
     with args.rows.open() as f:
-        rows = [r for line in f if line.strip() and (r := json.loads(line))["jira"] not in args.exclude_jira]
+        rows = [json.loads(line) for line in f if line.strip()]
+    last = max((r["created"] for r in rows), default=None) if args.mature_days else None
+    rows = [r for r in rows if r["jira"] not in args.exclude_jira]
+    rows = mature(rows, args.mature_days, last)
+    held: set[str] = set()
+    if args.holdout_projects:
+        rows, held = hold_out_projects(rows, args.holdout_projects, args.seed)
     result = report(rows, delta=args.delta, n_boot=args.n_boot)
     result["excluded_jiras"] = args.exclude_jira
+    result["mature_days"] = args.mature_days
+    result["held_out_projects"] = sorted(held)
     args.out.write_text(json.dumps(result, indent=2) + "\n")
     md = to_markdown(result)
     args.out.with_suffix(".md").write_text(md)

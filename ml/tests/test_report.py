@@ -2,7 +2,7 @@ import json
 
 import numpy as np
 
-from hedge.report import main, report, to_markdown
+from hedge.report import hold_out_projects, main, mature, report, to_markdown
 
 
 def rows(n=3000, seed=0):
@@ -75,3 +75,39 @@ def test_bootstrap_drops_resamples_where_the_statistic_is_undefined():
 
     point, lo, hi = cluster_bootstrap_ci(risk, clusters=[0, 1, 2, 3], n_boot=200)
     assert point == 1.0 and lo == 1.0 and hi == 1.0  # empty draws never pull it toward 0
+
+
+def test_mature_drops_only_test_tickets_too_new_to_have_their_links():
+    data = rows(300)
+    last = max(r["created"] for r in data)
+    kept = mature(data, days=100 / 86400)
+    assert all(r["split"] != "test" or r["created"] <= last - 100 for r in kept)
+    assert [r for r in kept if r["split"] != "test"] == [r for r in data if r["split"] != "test"]
+    assert len(kept) < len(data)
+    assert mature(data, days=0) == data
+
+
+def test_held_out_projects_never_reach_fitting_and_are_all_test_sees():
+    data = rows(3000)
+    out, held = hold_out_projects(data, frac=0.25, seed=1)
+    assert 0 < len(held) < 40
+    assert all((r["project"] in held) == (r["split"] == "test") for r in out)
+    assert {r["project"] for r in out if r["split"] == "test"} == held
+    again, held_again = hold_out_projects(data, frac=0.25, seed=1)
+    assert held_again == held and again == out
+    result = report(out, alphas=(0.2,), n_boot=20)
+    assert result["test_projects"] == len(held)
+
+
+def test_mature_cut_can_be_pinned_to_the_dump_time():
+    data = rows(300)
+    pinned = mature(data, days=10 / 86400, last=1e9)
+    assert pinned == data  # nothing is within 10 s of a dump far in the future
+
+
+def test_held_out_clusters_leave_fitting_entirely():
+    data = rows(3000)
+    for i, r in enumerate(data):
+        r["group"] = f"c{i % 7}"  # clusters that cross every project
+    out, held = hold_out_projects(data, frac=0.25, seed=1)
+    assert all(r["split"] == "test" for r in out)  # every cluster reached test
