@@ -124,6 +124,9 @@ def main(argv: list[str] | None = None) -> int:
     excluded = sorted(set(args.exclude_jira))
     with args.rows.open() as f:
         rows = [r for line in f if line.strip() and (r := json.loads(line)).get("jira") not in excluded]
+    unknown = {r.get("split") for r in rows} - SPLITS - {"test"}
+    if unknown:
+        raise SystemExit(f"unknown split names {sorted(map(str, unknown))}; nothing was written")
     rows = [r for r in rows if r["split"] in SPLITS]
     policies = {}
     for action in ACTIONS:
