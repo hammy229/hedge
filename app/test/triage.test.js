@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { RETRIEVER } from '../src/bm25.js';
-import policies from '../src/policy.js';
+import installed from '../src/policy.js';
+import { RUNTIME, policyProblem } from '../src/gate.js';
 import { triage } from '../src/triage.js';
 import { collectWindow, windowJql } from '../src/window.js';
 
@@ -19,13 +20,17 @@ const gate = (action, weights, bias, threshold = 0.5) => ({
   model: { bias, weights },
 });
 
+// Gates that never act, so each test turns on only the gate it is about.
+const closed = (action) => ({ action, calibrated: false });
+const policies = { link: closed('link'), clear: closed('clear') };
+
 const window = [
   issue('P-1', 'Login page crashes on submit', '2024-01-01T00:00:00.000+0000'),
   issue('P-2', 'Dark mode colors are wrong', '2024-01-02T00:00:00.000+0000'),
 ];
 const ticket = issue('P-3', 'Crash when submitting the login page', '2024-01-03T00:00:00.000+0000');
 
-test('placeholder policies always ask, and the candidates are still shown', () => {
+test('closed policies always ask, and the candidates are still shown', () => {
   const out = triage({ issue: ticket, window, policies });
   assert.equal(out.decision, 'ask');
   assert.equal(out.candidates[0].key, 'P-1');
@@ -124,4 +129,17 @@ test('a read past the deadline is incomplete, so the caller asks', async () => {
   const late = issue('P-9', 'x', '2024-01-09T00:00:00.000+0000');
   const { complete } = await collectWindow(pages(all, 1), late, 1000, Date.now() - 1);
   assert.equal(complete, false);
+});
+
+test('the installed policies match this build, and only clear is certified', () => {
+  assert.equal(installed.link.calibrated, false);
+  assert.equal(installed.clear.calibrated, true);
+  assert.equal(installed.clear.action, 'clear');
+  assert.equal(policyProblem(installed.clear, RUNTIME), null);
+  assert.ok(installed.clear.alpha <= 0.05, 'the shipped clear budget is strict');
+});
+
+test('the installed clear gate clears a ticket unlike anything in its window', () => {
+  const lonely = issue('P-4', 'Add a keyboard shortcut to export the zebra report', '2024-01-04T00:00:00.000+0000');
+  assert.equal(triage({ issue: lonely, window, policies: installed }).decision, 'clear');
 });
