@@ -8,7 +8,7 @@ const placeholder = policies.link;
 
 const calibrated = {
   calibrated: true,
-  featureSchema: 1,
+  featureSchema: 2,
   retriever: RETRIEVER,
   alpha: 0.03,
   delta: 0.1,

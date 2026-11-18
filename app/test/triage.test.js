@@ -11,7 +11,7 @@ const issue = (key, summary, created, description = '') => ({ key, fields: { sum
 const gate = (action, weights, bias, threshold = 0.5) => ({
   action,
   calibrated: true,
-  featureSchema: 1,
+  featureSchema: 2,
   retriever: RETRIEVER,
   alpha: 0.03,
   delta: 0.1,

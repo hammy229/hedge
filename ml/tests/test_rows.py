@@ -51,6 +51,17 @@ def test_rows_carry_every_gate_feature_and_a_cluster_group():
     assert rows["J:A-3"]["hasDescription"] == 0.0
 
 
+def test_rows_record_creation_time_and_the_top_match_context():
+    c = small()
+    rows = rows_for(c, ["J:A-3", "J:A-5"])
+    a3 = rows["J:A-3"]
+    assert a3["created"] == 3.0
+    assert a3["logWindow"] == np.log1p(2)  # A-1 and A-2 came before
+    assert 0 < a3["summaryOverlap"] < 1  # top match A-1 shares login, page
+    assert a3["logTopAgeDays"] == np.log1p(2 / 86400)  # A-1 is two seconds older
+    assert rows["J:A-5"]["summaryOverlap"] == 0.0 and rows["J:A-5"]["logTopAgeDays"] == 0.0
+
+
 def test_query_split_drops_copies_from_every_part():
     records = [rec(f"J:A-{i}", i, summary=f"issue {i}") for i in range(1, 41)]
     records.append(rec("J:A-99", 99, summary="issue 1"))  # copy of A-1, lands in test

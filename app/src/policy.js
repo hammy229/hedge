@@ -3,7 +3,7 @@ export default {
   "link": {
     "action": "link",
     "calibrated": false,
-    "featureSchema": 1,
+    "featureSchema": 2,
     "retriever": "bm25-recent1000-v1",
     "alpha": 0.03,
     "delta": 0.1,
@@ -13,13 +13,16 @@ export default {
     "calibrationActed": 0,
     "calibrationErrors": 0,
     "model": {
-      "bias": -4.303018715616295,
+      "bias": -5.21063187605334,
       "weights": {
-        "top1": 0.0019429831704690253,
-        "margin": 0.007168614448212987,
-        "entropy": -3.3171090245400845,
-        "summaryWords": -0.000429171346845495,
-        "hasDescription": -0.3127110939111887
+        "top1": 0.0015015241091435563,
+        "margin": 0.00484411592863284,
+        "entropy": -3.01151672681838,
+        "summaryWords": 0.0012537335900369244,
+        "hasDescription": 0.17088919960630067,
+        "logWindow": 0.11525550717440479,
+        "summaryOverlap": 1.5582878563802802,
+        "logTopAgeDays": -0.15098834391351848
       }
     },
     "excludedJiras": [
@@ -29,23 +32,26 @@ export default {
   "clear": {
     "action": "clear",
     "calibrated": true,
-    "featureSchema": 1,
+    "featureSchema": 2,
     "retriever": "bm25-recent1000-v1",
     "alpha": 0.03,
     "delta": 0.1,
     "calibrationSize": 14133,
-    "threshold": 0.9708411826475413,
-    "calibrationCoverage": 0.38647137904195855,
-    "calibrationActed": 5462,
-    "calibrationErrors": 115,
+    "threshold": 0.9643427390954834,
+    "calibrationCoverage": 0.5988820491049317,
+    "calibrationActed": 8464,
+    "calibrationErrors": 195,
     "model": {
-      "bias": 3.8485605235850637,
+      "bias": 5.456966814419808,
       "weights": {
-        "top1": -0.0026529250436322155,
-        "margin": -0.0018927647725957887,
-        "entropy": 0.8048187807419815,
-        "summaryWords": -0.012697464683099862,
-        "hasDescription": -0.22721063768673785
+        "top1": -0.001970462377027151,
+        "margin": -0.0019720603759358943,
+        "entropy": 0.7677228051577921,
+        "summaryWords": -0.011770815081937594,
+        "hasDescription": -0.2978576311583968,
+        "logWindow": -0.2747445920061414,
+        "summaryOverlap": -0.15680300851725662,
+        "logTopAgeDays": 0.06341491588286603
       }
     },
     "excludedJiras": [

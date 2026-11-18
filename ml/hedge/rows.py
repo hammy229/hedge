@@ -64,9 +64,11 @@ def make_rows(
             labels = set(corpus.labels(i).tolist())
             ranked = got.rows.tolist()
             rank = next((r for r, j in enumerate(ranked, start=1) if j in labels), None)
+            top = ranked[0] if ranked else None
             yield {
                 "split": name,
                 "id": corpus.ids[i],
+                "created": float(corpus.created[i]),
                 "jira": corpus.jira[i],
                 "project": corpus.group[i],
                 "group": f"c{corpus.cluster[i]}" if corpus.cluster[i] >= 0 else f"r{i}",
@@ -75,7 +77,14 @@ def make_rows(
                 "answer_in_window": got.answer_in_window,
                 "rank": rank,
                 "window": got.window,
-                **gate_features(got.scores, corpus.summary[i], description(corpus.text[i])),
+                **gate_features(
+                    got.scores,
+                    corpus.summary[i],
+                    description(corpus.text[i]),
+                    window=got.window,
+                    top_summary=None if top is None else corpus.summary[top],
+                    age_seconds=None if top is None else float(corpus.created[i] - corpus.created[top]),
+                ),
             }
 
 

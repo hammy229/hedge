@@ -43,7 +43,7 @@ def test_text_features_match_the_forge_app():
 
 
 def test_matrix_uses_canonical_order():
-    row = gate_features([4.0, 1.0], "Crash on save", "details")
+    row = gate_features([4.0, 1.0], "Crash on save", "details", 2, "Crash when saving", 3600.0)
     m = to_matrix([row, row])
     assert m.shape == (2, len(FEATURE_NAMES))
     np.testing.assert_array_equal(m[0], [row[n] for n in FEATURE_NAMES])
@@ -53,3 +53,27 @@ def test_non_finite_scores_give_nan_features():
     f = score_features([5.0, 4.0, float("nan")] + [1.0] * 10)
     assert all(math.isnan(v) for v in f.values())
     assert math.isnan(score_features([float("inf"), 1.0])["top1"])
+
+
+def test_context_features_describe_the_window_and_the_top_match():
+    from hedge.features import context_features
+
+    f = context_features(window=999, summary="Login page crashes", top_summary="login crashes on submit", age_seconds=86400 * 3)
+    assert f["logWindow"] == pytest.approx(math.log(1000))
+    assert f["summaryOverlap"] == pytest.approx(2 / 5)  # {login, crashes} of {login, page, crashes, on, submit}
+    assert f["logTopAgeDays"] == pytest.approx(math.log(4))
+
+
+def test_context_features_without_a_candidate_are_zero_not_missing():
+    from hedge.features import context_features
+
+    f = context_features(window=0, summary="anything", top_summary=None, age_seconds=None)
+    assert f == {"logWindow": 0.0, "summaryOverlap": 0.0, "logTopAgeDays": 0.0}
+
+
+def test_context_features_fail_closed_on_a_bad_age():
+    from hedge.features import context_features
+
+    f = context_features(window=5, summary="a", top_summary="a", age_seconds=math.nan)
+    assert math.isnan(f["logTopAgeDays"])
+    assert context_features(5, "a", "a", -10.0)["logTopAgeDays"] == 0.0  # same-second ties

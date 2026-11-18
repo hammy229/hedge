@@ -6,8 +6,9 @@ export const K = 10;
 
 // The feature definitions and the retriever this build computes scores with. A policy
 // carries the values it was trained under; the gate refuses to act on a mismatch.
-export const FEATURE_SCHEMA = 1;
+export const FEATURE_SCHEMA = 2;
 export { RETRIEVER } from './bm25.js';
+import { tokenize } from './bm25.js';
 
 // Jira Cloud returns descriptions as Atlassian Document Format: a tree of nodes whose
 // leaves carry text.
@@ -60,6 +61,32 @@ export function scoreFeatures(scores, k = K) {
   return { top1: s[0], margin, entropy: h / Math.log(k) };
 }
 
-export function gateFeatures(issue, scores) {
-  return { ...scoreFeatures(scores), ...featurize(issue) };
+const DAY = 86400;
+
+// What the scores alone miss: how many issues were searched, how much the top candidate's
+// summary shares with the ticket's (Jaccard over BM25 token sets), and how old it is.
+// Same definitions as context_features() in ml/hedge/features.py. With no candidate,
+// overlap and age are 0; an age that is not a finite number gives NaN, so the gates ask.
+export function contextFeatures({ window, summary, topSummary, ageSeconds }) {
+  const logWindow = Math.log1p(window);
+  if (topSummary === null || topSummary === undefined) return { logWindow, summaryOverlap: 0, logTopAgeDays: 0 };
+  const a = new Set(tokenize(summary));
+  const b = new Set(tokenize(topSummary));
+  let shared = 0;
+  for (const t of a) if (b.has(t)) shared += 1;
+  const union = a.size + b.size - shared;
+  const ok = typeof ageSeconds === 'number' && Number.isFinite(ageSeconds);
+  return {
+    logWindow,
+    summaryOverlap: union > 0 ? shared / union : 0,
+    logTopAgeDays: ok ? Math.log1p(Math.max(ageSeconds, 0) / DAY) : NaN,
+  };
+}
+
+export function gateFeatures(issue, scores, context) {
+  return {
+    ...scoreFeatures(scores),
+    ...featurize(issue),
+    ...contextFeatures({ ...context, summary: issue?.fields?.summary ?? '' }),
+  };
 }

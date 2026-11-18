@@ -23,6 +23,8 @@ def rows(n=3000, seed=0):
             "right": int(dup and margin > 2),
             "top1": top1, "margin": margin, "entropy": float(np.exp(-margin)),
             "summaryWords": 8.0, "hasDescription": 1.0,
+            "logWindow": float(np.log1p(1000)), "summaryOverlap": float(dup) * 0.5, "logTopAgeDays": 1.0,
+            "created": float(i),
         })
     return out
 

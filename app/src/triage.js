@@ -8,7 +8,7 @@
 // are the ones the threshold was certified on.
 
 import { K, topK, windowScores } from './bm25.js';
-import { featurize, scoreFeatures } from './features.js';
+import { contextFeatures, featurize, scoreFeatures } from './features.js';
 import { RUNTIME, decide } from './gate.js';
 import { copyKey, retrievalParts, retrievalText } from './text.js';
 
@@ -19,9 +19,16 @@ export function triage({ issue, window, projectKeys = [], policies, runtime = RU
   const texts = window.map((w) => retrievalText(w?.fields?.summary, w?.fields?.description, projectKeys));
   const scores = windowScores(texts, `${q.summary}\n${q.description}`);
   const top = topK(scores, K);
+  const best = top.length > 0 ? window[top[0]] : null;
   const features = {
     ...scoreFeatures(top.map((i) => scores[i]), K),
     ...featurize({ fields: { summary: q.summary, description: q.description } }),
+    ...contextFeatures({
+      window: window.length,
+      summary: q.summary,
+      topSummary: best ? retrievalParts(best.fields?.summary, '', projectKeys).summary : null,
+      ageSeconds: best ? (Date.parse(issue?.fields?.created) - Date.parse(best.fields?.created)) / 1000 : null,
+    }),
   };
   const candidates = top.slice(0, SHOWN).map((i) => ({ key: window[i].key, score: scores[i] }));
   const copy = copyOf(texts, `${q.summary}\n${q.description}`, projectKeys);

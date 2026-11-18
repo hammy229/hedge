@@ -1,12 +1,15 @@
 {
   "about": "Shared Python and JavaScript feature cases, read by ml/tests/test_feature_contract.py and app/test/features.test.js. When a definition changes, regenerate expected values from hedge.features and bump featureSchema.",
-  "featureSchema": 1,
+  "featureSchema": 2,
   "featureNames": [
     "top1",
     "margin",
     "entropy",
     "summaryWords",
-    "hasDescription"
+    "hasDescription",
+    "logWindow",
+    "summaryOverlap",
+    "logTopAgeDays"
   ],
   "k": 10,
   "cases": [
@@ -44,7 +47,15 @@
         "margin": 18.0,
         "entropy": 2.525664728219909e-07,
         "summaryWords": 3.0,
-        "hasDescription": 1.0
+        "hasDescription": 1.0,
+        "logWindow": 6.90875477931522,
+        "summaryOverlap": 0.5,
+        "logTopAgeDays": 1.252762968495368
+      },
+      "context": {
+        "window": 1000,
+        "topSummary": "FileSystem.open throws NPE",
+        "ageSeconds": 216000.0
       }
     },
     {
@@ -83,7 +94,15 @@
         "margin": 0.0,
         "entropy": 0.9999999999999998,
         "summaryWords": 2.0,
-        "hasDescription": 1.0
+        "hasDescription": 1.0,
+        "logWindow": 2.5649493574615367,
+        "summaryOverlap": 0.5,
+        "logTopAgeDays": 0.040821994520255124
+      },
+      "context": {
+        "window": 12,
+        "topSummary": "Login fails on Safari",
+        "ageSeconds": 3600.0
       }
     },
     {
@@ -114,7 +133,15 @@
         "margin": 0.0,
         "entropy": 0.30102999566398114,
         "summaryWords": 2.0,
-        "hasDescription": 1.0
+        "hasDescription": 1.0,
+        "logWindow": 6.90875477931522,
+        "summaryOverlap": 0.0,
+        "logTopAgeDays": 1.252762968495368
+      },
+      "context": {
+        "window": 1000,
+        "topSummary": "FileSystem.open throws NPE",
+        "ageSeconds": 216000.0
       }
     },
     {
@@ -130,7 +157,15 @@
         "margin": 0.0,
         "entropy": 0.0,
         "summaryWords": 3.0,
-        "hasDescription": 0.0
+        "hasDescription": 0.0,
+        "logWindow": 2.5649493574615367,
+        "summaryOverlap": 0.16666666666666666,
+        "logTopAgeDays": 0.040821994520255124
+      },
+      "context": {
+        "window": 12,
+        "topSummary": "Login fails on Safari",
+        "ageSeconds": 3600.0
       }
     },
     {
@@ -144,7 +179,15 @@
         "margin": 0.0,
         "entropy": 1.0,
         "summaryWords": 3.0,
-        "hasDescription": 0.0
+        "hasDescription": 0.0,
+        "logWindow": 6.90875477931522,
+        "summaryOverlap": 0.0,
+        "logTopAgeDays": 1.252762968495368
+      },
+      "context": {
+        "window": 1000,
+        "topSummary": "FileSystem.open throws NPE",
+        "ageSeconds": 216000.0
       }
     },
     {
@@ -194,7 +237,15 @@
         "margin": 0.5,
         "entropy": 0.5826420757868422,
         "summaryWords": 3.0,
-        "hasDescription": 1.0
+        "hasDescription": 1.0,
+        "logWindow": 2.5649493574615367,
+        "summaryOverlap": 0.0,
+        "logTopAgeDays": 0.040821994520255124
+      },
+      "context": {
+        "window": 12,
+        "topSummary": "Login fails on Safari",
+        "ageSeconds": 3600.0
       }
     },
     {
@@ -226,7 +277,15 @@
         "margin": 5.0,
         "entropy": 0.018746959425238314,
         "summaryWords": 2.0,
-        "hasDescription": 0.0
+        "hasDescription": 0.0,
+        "logWindow": 6.90875477931522,
+        "summaryOverlap": 0.0,
+        "logTopAgeDays": 1.252762968495368
+      },
+      "context": {
+        "window": 1000,
+        "topSummary": "FileSystem.open throws NPE",
+        "ageSeconds": 216000.0
       }
     },
     {
@@ -257,7 +316,15 @@
         "margin": 1.0,
         "entropy": 0.2528475975370711,
         "summaryWords": 3.0,
-        "hasDescription": 1.0
+        "hasDescription": 1.0,
+        "logWindow": 2.5649493574615367,
+        "summaryOverlap": 0.16666666666666666,
+        "logTopAgeDays": 0.040821994520255124
+      },
+      "context": {
+        "window": 12,
+        "topSummary": "Login fails on Safari",
+        "ageSeconds": 3600.0
       }
     },
     {
@@ -289,7 +356,15 @@
         "margin": 1.0,
         "entropy": 0.2528475975370711,
         "summaryWords": 1.0,
-        "hasDescription": 1.0
+        "hasDescription": 1.0,
+        "logWindow": 6.90875477931522,
+        "summaryOverlap": 0.0,
+        "logTopAgeDays": 1.252762968495368
+      },
+      "context": {
+        "window": 1000,
+        "topSummary": "FileSystem.open throws NPE",
+        "ageSeconds": 216000.0
       }
     },
     {
@@ -320,7 +395,15 @@
         "margin": 2.0,
         "entropy": 0.15866247731681654,
         "summaryWords": 1.0,
-        "hasDescription": 1.0
+        "hasDescription": 1.0,
+        "logWindow": 2.5649493574615367,
+        "summaryOverlap": 0.0,
+        "logTopAgeDays": 0.040821994520255124
+      },
+      "context": {
+        "window": 12,
+        "topSummary": "Login fails on Safari",
+        "ageSeconds": 3600.0
       }
     },
     {
@@ -351,7 +434,15 @@
         "margin": 2.0,
         "entropy": 0.15866247731681654,
         "summaryWords": 1.0,
-        "hasDescription": 0.0
+        "hasDescription": 0.0,
+        "logWindow": 6.90875477931522,
+        "summaryOverlap": 0.0,
+        "logTopAgeDays": 1.252762968495368
+      },
+      "context": {
+        "window": 1000,
+        "topSummary": "FileSystem.open throws NPE",
+        "ageSeconds": 216000.0
       }
     },
     {
@@ -382,7 +473,15 @@
         "margin": 2.0,
         "entropy": 0.15866247731681654,
         "summaryWords": 2.0,
-        "hasDescription": 1.0
+        "hasDescription": 1.0,
+        "logWindow": 2.5649493574615367,
+        "summaryOverlap": 0.0,
+        "logTopAgeDays": 0.040821994520255124
+      },
+      "context": {
+        "window": 12,
+        "topSummary": "Login fails on Safari",
+        "ageSeconds": 3600.0
       }
     },
     {
@@ -399,7 +498,76 @@
         "margin": 2.0,
         "entropy": 0.15866247731681654,
         "summaryWords": 3.0,
-        "hasDescription": 1.0
+        "hasDescription": 1.0,
+        "logWindow": 6.90875477931522,
+        "summaryOverlap": 0.0,
+        "logTopAgeDays": 1.252762968495368
+      },
+      "context": {
+        "window": 1000,
+        "topSummary": "FileSystem.open throws NPE",
+        "ageSeconds": 216000.0
+      }
+    },
+    {
+      "name": "no candidate in an empty window",
+      "summary": "First issue ever",
+      "description": "",
+      "descriptionAdf": null,
+      "scores": [],
+      "context": {
+        "window": 0,
+        "topSummary": null,
+        "ageSeconds": null
+      },
+      "expected": {
+        "top1": 0.0,
+        "margin": 0.0,
+        "entropy": 1.0,
+        "summaryWords": 3.0,
+        "hasDescription": 0.0,
+        "logWindow": 0.0,
+        "summaryOverlap": 0.0,
+        "logTopAgeDays": 0.0
+      }
+    },
+    {
+      "name": "overlap counts distinct tokens, dotted names whole",
+      "summary": "crash crash in FileSystem.open",
+      "description": "x",
+      "descriptionAdf": {
+        "type": "doc",
+        "version": 1,
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "x"
+              }
+            ]
+          }
+        ]
+      },
+      "scores": [
+        3.0,
+        1.0
+      ],
+      "context": {
+        "window": 1,
+        "topSummary": "FileSystem.open CRASH",
+        "ageSeconds": 0.0
+      },
+      "expected": {
+        "top1": 3.0,
+        "margin": 2.0,
+        "entropy": 0.15866247731681654,
+        "summaryWords": 4.0,
+        "hasDescription": 1.0,
+        "logWindow": 0.6931471805599453,
+        "summaryOverlap": 0.6666666666666666,
+        "logTopAgeDays": 0.0
       }
     }
   ]

@@ -21,7 +21,8 @@ def test_names_match():
 
 @pytest.mark.parametrize("case", CONTRACT["cases"], ids=lambda c: c["name"])
 def test_case(case):
-    got = gate_features(case["scores"], case["summary"], case["description"])
+    x = case["context"]
+    got = gate_features(case["scores"], case["summary"], case["description"], x["window"], x["topSummary"], x["ageSeconds"])
     assert got == pytest.approx(case["expected"], abs=1e-12)
 
 

@@ -23,6 +23,9 @@ def rows(n, seed=0, signal=3.0):
                 "entropy": float(np.exp(-margin)),
                 "summaryWords": float(rng.integers(3, 15)),
                 "hasDescription": float(rng.uniform() < 0.8),
+                "logWindow": float(np.log1p(rng.integers(0, 1001))),
+                "summaryOverlap": float(rng.uniform()),
+                "logTopAgeDays": float(np.log1p(rng.exponential(30.0))),
             }
         )
     return out

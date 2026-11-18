@@ -12,12 +12,23 @@ from collections.abc import Sequence
 
 import numpy as np
 
-FEATURE_NAMES = ("top1", "margin", "entropy", "summaryWords", "hasDescription")
+from .bm25 import tokenize
+
+FEATURE_NAMES = (
+    "top1",
+    "margin",
+    "entropy",
+    "summaryWords",
+    "hasDescription",
+    "logWindow",
+    "summaryOverlap",
+    "logTopAgeDays",
+)
 
 # Bump whenever a feature's definition changes, and regenerate fixtures/features.json. A
 # policy trained on one schema must not score features computed under another, so the
 # version travels inside the policy and the Forge gate checks it.
-FEATURE_SCHEMA = 1
+FEATURE_SCHEMA = 2
 
 
 def score_features(scores: Sequence[float], k: int = 10) -> dict[str, float]:
@@ -60,8 +71,47 @@ def text_features(summary: str, description: str) -> dict[str, float]:
     }
 
 
-def gate_features(scores: Sequence[float], summary: str, description: str) -> dict[str, float]:
-    return {**score_features(scores), **text_features(summary, description)}
+DAY = 86400.0
+
+
+def context_features(window: int, summary: str, top_summary: str | None, age_seconds: float | None) -> dict[str, float]:
+    """What the scores alone miss. Same definitions as contextFeatures() in app/src/features.js.
+
+    logWindow       log(1 + issues searched). BM25 scores grow with the window: in a
+                    two-issue window an exact copy scores lower than a weak match in a full
+                    one, so top1 means little without it.
+    summaryOverlap  Jaccard overlap of the token sets (BM25 tokens) of the ticket's summary
+                    and the top candidate's. Duplicates tend to restate the title.
+    logTopAgeDays   log(1 + days between the top candidate and the ticket). Duplicates of a
+                    fresh bug arrive within days.
+
+    With no candidate, overlap and age are 0: top1 = 0 already says nothing matched. An age
+    that is not a finite number gives NaN, so both gates ask.
+    """
+    if top_summary is None:
+        return {"logWindow": math.log1p(window), "summaryOverlap": 0.0, "logTopAgeDays": 0.0}
+    a, b = set(tokenize(summary)), set(tokenize(top_summary))
+    overlap = len(a & b) / len(a | b) if a | b else 0.0
+    if age_seconds is None or not math.isfinite(age_seconds):
+        age = math.nan
+    else:
+        age = math.log1p(max(age_seconds, 0.0) / DAY)
+    return {"logWindow": math.log1p(window), "summaryOverlap": overlap, "logTopAgeDays": age}
+
+
+def gate_features(
+    scores: Sequence[float],
+    summary: str,
+    description: str,
+    window: int,
+    top_summary: str | None,
+    age_seconds: float | None,
+) -> dict[str, float]:
+    return {
+        **score_features(scores),
+        **text_features(summary, description),
+        **context_features(window, summary, top_summary, age_seconds),
+    }
 
 
 def to_matrix(rows: Sequence[dict[str, float]]) -> np.ndarray:

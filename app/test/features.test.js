@@ -10,7 +10,7 @@ const contract = JSON.parse(
 for (const c of contract.cases) {
   test(`matches the Python features: ${c.name}`, () => {
     const issue = { fields: { summary: c.summary, description: c.descriptionAdf } };
-    const got = gateFeatures(issue, c.scores);
+    const got = gateFeatures(issue, c.scores, c.context);
     assert.deepEqual(Object.keys(got).sort(), [...contract.featureNames].sort());
     for (const name of contract.featureNames) {
       assert.ok(
