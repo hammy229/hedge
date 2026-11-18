@@ -143,3 +143,14 @@ test('the installed clear gate clears a ticket unlike anything in its window', (
   const lonely = issue('P-4', 'Add a keyboard shortcut to export the zebra report', '2024-01-04T00:00:00.000+0000');
   assert.equal(triage({ issue: lonely, window, policies: installed }).decision, 'clear');
 });
+
+test('a copy of a window issue is never cleared, because copies were not calibrated', () => {
+  const open = gate('clear', { top1: 0 }, 5); // would clear anything
+  const copy = issue('P-5', 'LOGIN page crashes, on submit!', '2024-01-05T00:00:00.000+0000');
+  const out = triage({ issue: copy, window, policies: { link: closed('link'), clear: open } });
+  assert.equal(out.decision, 'ask');
+  assert.equal(out.copyOf, 'P-1');
+  assert.match(out.gates.clear.reason, /repeats the text of P-1/);
+  const fresh = issue('P-6', 'Login page crashes on submit with a long password', '2024-01-06T00:00:00.000+0000');
+  assert.equal(triage({ issue: fresh, window, policies: { link: closed('link'), clear: open } }).decision, 'clear');
+});

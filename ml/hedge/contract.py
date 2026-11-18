@@ -17,6 +17,7 @@ from pathlib import Path
 
 from .corpus import MAX_DESCRIPTION, retrieval_parts
 from .features import score_features
+from .leakage import normalize
 from .window import B, K, K1, RETRIEVER, WINDOW, TokenIndex, top_k, window_scores
 
 PATH = Path(__file__).resolve().parents[2] / "fixtures" / "bm25.json"
@@ -63,6 +64,11 @@ CASES = [
         _issue("render loop"),
         _issue("ui ui ui widget"),
     ]),
+    ("a pasted copy is found through case, punctuation and keys", _issue("Login page CRASHES, on submit!", "Steps: HADOOP-7"), [
+        _issue("login page crashes on submit", "steps"),
+        _issue("Login page crashes on submit"),
+        _issue("totally different"),
+    ]),
     ("dotted and underscored names are single tokens", _issue("max_len breaks FileSystem.open"), [
         _issue("max len breaks file system open"),
         _issue("max_len and FileSystem.open"),
@@ -88,6 +94,9 @@ def case(name: str, query: dict, window: list[dict]) -> dict:
             "scores": scores.tolist(),
             "top": top.tolist(),
             "features": score_features(scores[top], K),
+            # window issues whose normalized text equals the ticket's: copies, which the
+            # calibration set left out (hedge.corpus.earlier_copies)
+            "copies": [j for j in range(len(window)) if (q := normalize(texts[-1], keys)) and normalize(texts[j], keys) == q],
         },
     }
 

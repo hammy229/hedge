@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { K, RETRIEVER, WINDOW, topK, windowScores } from '../src/bm25.js';
-import { MAX_DESCRIPTION, codePointPrefix, retrievalText } from '../src/text.js';
+import { MAX_DESCRIPTION, codePointPrefix, copyKey, retrievalText } from '../src/text.js';
 import { scoreFeatures } from '../src/features.js';
 
 const contract = JSON.parse(readFileSync(new URL('../../fixtures/bm25.json', import.meta.url), 'utf8'));
@@ -29,6 +29,9 @@ for (const c of contract.cases) {
     for (const [name, want] of Object.entries(c.expected.features)) {
       assert.ok(close(features[name], want), `${name}: js ${features[name]} vs python ${want}`);
     }
+    const q = copyKey(texts.at(-1), contract.projectKeys);
+    const copies = texts.slice(0, -1).flatMap((t, i) => (q && copyKey(t, contract.projectKeys) === q ? [i] : []));
+    assert.deepEqual(copies, c.expected.copies);
   });
 }
 

@@ -51,7 +51,8 @@
           "top1": 3.1720435416549444,
           "margin": 0.0,
           "entropy": 0.0
-        }
+        },
+        "copies": []
       }
     },
     {
@@ -88,7 +89,8 @@
           "top1": 1.0137006432518842,
           "margin": 0.8532576732732041,
           "entropy": 0.26483338280999735
-        }
+        },
+        "copies": []
       }
     },
     {
@@ -125,7 +127,8 @@
           "top1": 3.2036214227560498,
           "margin": 0.9388831100354365,
           "entropy": 0.25797684747741173
-        }
+        },
+        "copies": []
       }
     },
     {
@@ -168,7 +171,11 @@
           "top1": 0.940007258491471,
           "margin": 0.0,
           "entropy": 0.30102999566398114
-        }
+        },
+        "copies": [
+          0,
+          1
+        ]
       }
     },
     {
@@ -202,7 +209,8 @@
           "top1": 0.0,
           "margin": 0.0,
           "entropy": 1.0
-        }
+        },
+        "copies": []
       }
     },
     {
@@ -222,7 +230,8 @@
           "top1": 0.0,
           "margin": 0.0,
           "entropy": 1.0
-        }
+        },
+        "copies": []
       }
     },
     {
@@ -258,7 +267,8 @@
           "top1": 2.2261661273458095,
           "margin": 0.0,
           "entropy": 0.0
-        }
+        },
+        "copies": []
       }
     },
     {
@@ -302,7 +312,10 @@
           "top1": 1.4472055908585735,
           "margin": 0.8852447298038896,
           "entropy": 0.4351384449878886
-        }
+        },
+        "copies": [
+          0
+        ]
       }
     },
     {
@@ -339,7 +352,54 @@
           "top1": 2.4077744166819155,
           "margin": 1.3911585518606624,
           "entropy": 0.21685330896894356
+        },
+        "copies": []
+      }
+    },
+    {
+      "name": "a pasted copy is found through case, punctuation and keys",
+      "query": {
+        "summary": "Login page CRASHES, on submit!",
+        "description": "Steps: HADOOP-7"
+      },
+      "window": [
+        {
+          "summary": "login page crashes on submit",
+          "description": "steps"
+        },
+        {
+          "summary": "Login page crashes on submit",
+          "description": ""
+        },
+        {
+          "summary": "totally different",
+          "description": ""
         }
+      ],
+      "expected": {
+        "texts": [
+          "login page crashes on submit\nsteps",
+          "Login page crashes on submit\n",
+          "totally different\n",
+          "Login page CRASHES, on submit!\nSteps:"
+        ],
+        "scores": [
+          2.8780131606729773,
+          2.2108723349388217,
+          0.0
+        ],
+        "top": [
+          0,
+          1
+        ],
+        "features": {
+          "top1": 2.8780131606729773,
+          "margin": 0.6671408257341556,
+          "entropy": 0.2781489519426714
+        },
+        "copies": [
+          0
+        ]
       }
     },
     {
@@ -376,7 +436,8 @@
           "top1": 1.6051829444546102,
           "margin": 0.9952134255618582,
           "entropy": 0.2532557831918304
-        }
+        },
+        "copies": []
       }
     }
   ]

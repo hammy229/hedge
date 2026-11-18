@@ -54,6 +54,18 @@ export function stripAnswerText(text, projectKeys = []) {
   return t.replace(SPACE_RUN, ' ').replace(/^ | $/g, '');
 }
 
+// The form two texts must share to count as copies: normalize() in ml/hedge/leakage.py.
+// Lowercase, drop issue keys and everything but ASCII letters and digits. Calibration left
+// out every ticket whose text copies an earlier issue (hedge.corpus.earlier_copies), so the
+// certified thresholds say nothing about copies.
+export function copyKey(text, projectKeys = []) {
+  const known = new Set([...projectKeys].map((k) => String(k).toUpperCase()));
+  return stripKeys(String(text ?? ''), known)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
 // Python slices strings by code point. String.prototype.slice counts UTF-16 units, which
 // would cut an emoji-heavy description at half the length.
 export function codePointPrefix(text, n) {
