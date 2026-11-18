@@ -95,6 +95,39 @@ def binomial_p_value(errors: int, acted: int, alpha: float) -> float:
 
 
 _LAMBDAS = np.geomspace(1e-4, 50.0, 400)
+_BISECTIONS = 60
+
+
+def _worst_case_log_mgf(sizes: np.ndarray, counts: np.ndarray, budget: float) -> np.ndarray:
+    """For each lam in ``_LAMBDAS``, the largest sum over clusters of log(1 - q_c x_c), with
+    x_c = 1 - exp(-lam A_c), over cluster error rates q_c in [0, 1] whose errors add up to
+    ``budget`` (sum of q_c A_c). ``counts[s]`` clusters have ``sizes[s]`` acted tickets.
+
+    The objective is concave in q, so equal-sized clusters share one q, and the optimum
+    solves the stationarity condition q_s = 1 / x_s - t / A_s (clipped to [0, 1]) for the
+    t at which the errors meet the budget. The errors fall as t grows, so t is found by
+    bisection, for every lam at once.
+    """
+    lam = _LAMBDAS[:, None]
+    a = sizes[None, :]
+    x = -np.expm1(-lam * a)  # 1 - exp(-lam A), accurate for small lam A
+
+    def q_at(t):
+        return np.clip(1.0 / x - t / a, 0.0, 1.0)
+
+    lo = np.zeros((lam.size, 1))
+    hi = np.full((lam.size, 1), float((sizes / x).max()))
+    for _ in range(_BISECTIONS):
+        mid = (lo + hi) / 2
+        over = (q_at(mid) * a * counts).sum(axis=1, keepdims=True) >= budget
+        lo, hi = np.where(over, mid, lo), np.where(over, hi, mid)
+    # q at hi is at or below the optimum in every cluster (q falls as t grows), so its
+    # objective is at least the optimum's: rounding errs toward a larger p-value.
+    q = q_at(hi)
+    # log(1 - q x) = log((1 - q) + q exp(-lam A)), finite even when exp underflows
+    with np.errstate(divide="ignore"):
+        per = np.logaddexp(np.log1p(-q), np.log(q) - lam * a)
+    return (per * counts).sum(axis=1)
 
 
 def clustered_p_value(errors, acted, alpha: float) -> float:
@@ -106,10 +139,14 @@ def clustered_p_value(errors, acted, alpha: float) -> float:
     its acted count and E_c its errors, so E_c lies in [0, A_c]. By convexity,
     E[exp(-lam E_c)] <= 1 - q_c (1 - exp(-lam A_c)) with q_c = E[E_c] / A_c: the worst case
     is a cluster that is all right or all wrong together. Under the null the q_c average
-    at least alpha, weighted by A_c, and the bound's maximum over such q_c is a fractional
-    knapsack that puts the error mass on the largest clusters first. A Chernoff bound over
-    a fixed grid of lam then gives P(total errors <= observed) <= p. With every cluster of
-    size one this is the Poisson Chernoff bound, a little looser than the exact binomial.
+    at least alpha, weighted by A_c, and a Chernoff bound over a fixed grid of lam, taking
+    the worst such q_c for each lam (``_worst_case_log_mgf``), gives P(total errors <=
+    observed) <= p.
+
+    When every cluster is a single ticket the p-value is the exact binomial tail instead.
+    Independent tickets whose error rates average at least alpha have a lower tail no
+    heavier than Binomial(n, alpha) whenever errors <= n alpha - 1 (Hoeffding, 1956);
+    closer to the budget than that the p-value is 1.
     """
     e = np.asarray(errors, dtype=float)
     a = np.asarray(acted, dtype=float)
@@ -119,11 +156,12 @@ def clustered_p_value(errors, acted, alpha: float) -> float:
     total, observed = a.sum(), e.sum()
     if total == 0 or observed >= alpha * total:
         return 1.0
-    a = np.sort(a)[::-1]
-    budget = alpha * total
-    before = np.concatenate([[0.0], np.cumsum(a)[:-1]])
-    q = np.clip((budget - before) / a, 0.0, 1.0)
-    log_p = _LAMBDAS * observed - (1 - np.exp(-np.outer(_LAMBDAS, a))) @ q
+    if np.all(a == 1):
+        if observed > alpha * total - 1:
+            return 1.0
+        return binomial_p_value(int(observed), int(total), alpha)
+    sizes, counts = np.unique(a, return_counts=True)
+    log_p = _LAMBDAS * observed + _worst_case_log_mgf(sizes, counts.astype(float), alpha * total)
     return float(min(1.0, np.exp(log_p.min())))
 
 

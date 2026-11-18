@@ -230,11 +230,54 @@ def test_clustered_bound_holds_on_equal_clusters_too():
 
 
 @pytest.mark.parametrize("errors,acted", [(0, 50), (2, 100), (10, 400), (30, 1000)])
-def test_clustered_p_value_on_singletons_bounds_the_binomial_tail(errors, acted):
+def test_clustered_p_value_on_singletons_is_the_exact_binomial_tail(errors, acted):
     e = np.r_[np.ones(errors), np.zeros(acted - errors)]
     p = clustered_p_value(e, np.ones(acted), 0.1)
-    assert binomial_p_value(errors, acted, 0.1) <= p <= 1.0
-    assert p < 0.5  # and is not vacuous
+    assert p == pytest.approx(binomial_p_value(errors, acted, 0.1), rel=1e-12)
+
+
+def test_clustered_p_value_on_singletons_gives_up_near_the_budget():
+    # Hoeffding's comparison with the binomial needs errors <= n alpha - 1; between that and
+    # n alpha the p-value is 1, which costs nothing because no test rejects there.
+    assert clustered_p_value(np.r_[np.ones(9), np.zeros(91)], np.ones(100), 0.095) == 1.0
+
+
+def poisson_chernoff(errors, acted, alpha):
+    """The bound before Nov 18: 1 - x <= exp(-x) on every cluster, then a linear knapsack."""
+    e, a = np.asarray(errors, float), np.asarray(acted, float)
+    a, e = a[a > 0], e[a > 0]
+    total, observed = a.sum(), e.sum()
+    if observed >= alpha * total:
+        return 1.0
+    a = np.sort(a)[::-1]
+    before = np.concatenate([[0.0], np.cumsum(a)[:-1]])
+    q = np.clip((alpha * total - before) / a, 0.0, 1.0)
+    lam = np.geomspace(1e-4, 50.0, 400)
+    log_p = lam * observed - (1 - np.exp(-np.outer(lam, a))) @ q
+    return float(min(1.0, np.exp(log_p.min())))
+
+
+@pytest.mark.parametrize("seed", range(5))
+def test_clustered_p_value_is_never_looser_than_the_poisson_bound(seed):
+    rng = np.random.default_rng(seed)
+    acted = np.r_[np.ones(400), rng.integers(2, 40, size=30)].astype(float)
+    errors = np.where(acted == 1, rng.uniform(size=acted.size) < 0.01, 0.0) * acted
+    new, old = clustered_p_value(errors, acted, 0.05), poisson_chernoff(errors, acted, 0.05)
+    assert new <= old + 1e-12
+    assert new < 0.9 * old  # and the gain is real, not rounding
+
+
+def test_clustered_p_value_is_valid_for_all_or_nothing_clusters_at_the_budget():
+    """The worst case the bound allows: clusters that are wholly right or wrong, with a
+    per-ticket error rate exactly alpha. P(p <= level) must stay at or under level."""
+    rng = np.random.default_rng(7)
+    acted = np.r_[np.ones(300), np.full(20, 10.0)]
+    alpha, level, trials = 0.1, 0.05, 2000
+    hits = 0
+    for _ in range(trials):
+        errors = acted * (rng.uniform(size=acted.size) < alpha)
+        hits += clustered_p_value(errors, acted, alpha) <= level
+    assert hits / trials <= level + 0.015
 
 
 def test_clustered_p_value_is_stricter_when_tickets_bunch():
