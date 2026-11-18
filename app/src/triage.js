@@ -27,19 +27,26 @@ export function triage({ issue, window, projectKeys = [], policies, runtime = RU
       window: window.length,
       summary: q.summary,
       topSummary: best ? retrievalParts(best.fields?.summary, '', projectKeys).summary : null,
-      ageSeconds: best ? (Date.parse(issue?.fields?.created) - Date.parse(best.fields?.created)) / 1000 : null,
+      ageSeconds: best ? jiraSeconds(issue?.fields?.created) - jiraSeconds(best.fields?.created) : null,
     }),
   };
   const candidates = top.slice(0, SHOWN).map((i) => ({ key: window[i].key, score: scores[i] }));
   const copy = copyOf(texts, `${q.summary}\n${q.description}`, projectKeys);
-  const link = decide(features, checked(policies?.link, 'link'), runtime);
-  const clear =
-    copy === -1
-      ? decide(features, checked(policies?.clear, 'clear'), runtime)
-      : {
-          decision: 'ask',
-          reason: `This ticket repeats the text of ${window[copy].key}. Copies were left out of calibration, so clearing it is not covered.`,
-        };
+  // Every feature must be a finite number, not only the ones a policy weighs: a policy
+  // that happens to give a feature no weight must not let a broken input through.
+  const broken = Object.keys(features).filter((name) => !Number.isFinite(features[name]));
+  const refuse = (reason) => ({ decision: 'ask', reason });
+  const guard = (action) => {
+    if (broken.length > 0) return refuse(`Missing features: ${broken.join(', ')}.`);
+    if (copy !== -1) {
+      return refuse(
+        `This ticket repeats the text of ${window[copy].key}. Copies were left out of calibration, so ${action === 'link' ? 'linking' : 'clearing'} it is not covered.`,
+      );
+    }
+    return decide(features, checked(policies?.[action], action), runtime);
+  };
+  const link = guard('link');
+  const clear = guard('clear');
   const facts = { searched: window.length, candidates, gates: { link, clear } };
   if (copy !== -1) facts.copyOf = window[copy].key;
 
@@ -53,6 +60,13 @@ export function triage({ issue, window, projectKeys = [], policies, runtime = RU
     return { decision: 'clear', reason: clear.reason, ...facts };
   }
   return { decision: 'ask', reason: `Link: ${link.reason} Clear: ${clear.reason}`, ...facts };
+}
+
+// Jira timestamps, e.g. 2024-01-01T00:00:00.000+0000, in seconds. Anything else is NaN:
+// Date.parse alone would read 5 or '2024' as a date.
+const JIRA_TIME = /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?(?:Z|[+-]\d\d:?\d\d)$/;
+function jiraSeconds(created) {
+  return typeof created === 'string' && JIRA_TIME.test(created) ? Date.parse(created) / 1000 : NaN;
 }
 
 // Index of the first window issue whose text the ticket copies, or -1.

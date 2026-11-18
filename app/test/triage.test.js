@@ -154,3 +154,22 @@ test('a copy of a window issue is never cleared, because copies were not calibra
   const fresh = issue('P-6', 'Login page crashes on submit with a long password', '2024-01-06T00:00:00.000+0000');
   assert.equal(triage({ issue: fresh, window, policies: { link: closed('link'), clear: open } }).decision, 'clear');
 });
+
+test('a missing or odd creation time makes both gates ask, whatever the policy weighs', () => {
+  const open = { link: closed('link'), clear: gate('clear', { top1: 0 }, 5) };
+  for (const created of [undefined, '', 5, '2024', 'yesterday']) {
+    const t = { key: 'P-7', fields: { summary: 'Login crashes on submit page now', description: '', created } };
+    const out = triage({ issue: t, window, policies: open });
+    assert.equal(out.decision, 'ask', String(created));
+    assert.match(out.reason, /logTopAgeDays/);
+  }
+  const fine = issue('P-8', 'Login crashes on submit page now', '2024-01-08T10:00:00.000-0500');
+  assert.equal(triage({ issue: fine, window, policies: open }).decision, 'clear');
+});
+
+test('a copy is never linked either, since copies were never calibrated', () => {
+  const copy = issue('P-5', 'Login page crashes on submit', '2024-01-05T00:00:00.000+0000');
+  const out = triage({ issue: copy, window, policies: { link: gate('link', { top1: 0 }, 5), clear: closed('clear') } });
+  assert.equal(out.decision, 'ask');
+  assert.match(out.gates.link.reason, /repeats the text of P-1/);
+});
