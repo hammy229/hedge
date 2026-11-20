@@ -287,3 +287,38 @@ def test_clustered_p_value_is_stricter_when_tickets_bunch():
     assert clustered_p_value([5], [10], 0.1) == 1.0  # observed rate above alpha
     with pytest.raises(ValueError):
         clustered_p_value([3], [2], 0.1)
+
+
+# The admin dial certifies every budget at the full delta (ADR 7). That is valid because
+# a p-value that only falls as the budget grows turns each grid test into an upper
+# confidence bound on that threshold's error, so one event covers every budget at once.
+@pytest.mark.parametrize("errors,acted", [(0, 10), (3, 50), (40, 1000), (129, 6136)])
+def test_binomial_p_value_never_rises_with_the_budget(errors, acted):
+    from hedge.risk import binomial_p_value
+
+    ps = [binomial_p_value(errors, acted, a) for a in np.linspace(0.001, 0.5, 200)]
+    assert all(b <= a + 1e-12 for a, b in zip(ps, ps[1:]))
+
+
+def test_clustered_p_value_never_rises_with_the_budget():
+    from hedge.risk import clustered_p_value
+
+    rng = np.random.default_rng(3)
+    for _ in range(20):
+        acted = rng.integers(1, 6, size=300).astype(float)
+        errors = np.minimum(acted, rng.binomial(acted.astype(int), 0.04)).astype(float)
+        ps = [clustered_p_value(errors, acted, a) for a in np.linspace(0.005, 0.3, 120)]
+        assert all(b <= a + 1e-12 for a, b in zip(ps, ps[1:]))
+
+
+def test_every_budget_at_full_delta_holds_at_once():
+    """P(any budget in the table certifies a threshold above its budget) <= delta."""
+    rng = np.random.default_rng(7)
+    budgets, delta, trials = (0.05, 0.08, 0.1, 0.15, 0.2), 0.1, 400
+    any_broken = 0
+    for _ in range(trials):
+        s, w = synthetic(500, rng)
+        thresholds = [ltt_threshold(s, w, alpha=a, delta=delta).threshold for a in budgets]
+        if any(t != NEVER_ACT and true_selective_risk(t) > a for a, t in zip(budgets, thresholds)):
+            any_broken += 1
+    assert any_broken / trials <= delta + 0.03
