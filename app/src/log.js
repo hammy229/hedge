@@ -1,7 +1,8 @@
 // A short audit trail of Hedge's decisions, kept in Forge storage so it never leaves
 // Atlassian. Each entry says what Hedge did, why, at which budget and threshold, and
 // whether the call came from the issue panel or an agent over MCP. Ticket text is not
-// copied: the key points back to Jira, which already controls who may read it.
+// copied, only the key. Keys and reasons still span every project, so only the admin
+// page may read the log (resolver.js).
 //
 // The log is one capped list. Two triages finishing at the same moment can drop one
 // entry; that is accepted for a recent-activity view, and a full audit store would use

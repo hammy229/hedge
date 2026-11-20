@@ -18,8 +18,16 @@ export const handlers = {
   triage: ({ context }) => runTriage(context?.extension?.issue?.key, 'panel'),
   settings,
   setBudget,
-  log: () => readLog(store),
+  // The log names tickets from every project, so only the admin page may read it.
+  log: ({ context } = {}) => {
+    adminOnly(context, 'The decision log can only be read from the admin page.');
+    return readLog(store);
+  },
 };
+
+function adminOnly(context, message) {
+  if (context?.moduleKey !== ADMIN_MODULE) throw new Error(message);
+}
 
 for (const [name, fn] of Object.entries(handlers)) resolver.define(name, fn);
 
@@ -33,7 +41,7 @@ async function settings() {
 
 // Only the admin page, which Jira shows to site admins alone, may move the dial.
 async function setBudget({ payload, context }) {
-  if (context?.moduleKey !== ADMIN_MODULE) throw new Error('The budget can only be changed from the admin page.');
+  adminOnly(context, 'The budget can only be changed from the admin page.');
   await saveBudget(store, policies, payload?.action, payload?.alpha);
   return readBudgets(store, policies);
 }

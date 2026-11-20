@@ -25,3 +25,10 @@ test('the panel refuses a context without an issue key', async () => {
   const out = await handlers.triage({ context: {} });
   assert.match(out.error, /PROJ-123/);
 });
+
+test('only the admin page may read the decision log', async () => {
+  for (const context of [{ moduleKey: 'hedge-panel' }, {}, undefined]) {
+    assert.throws(() => handlers.log({ context }), /admin page/);
+  }
+  assert.throws(() => handlers.log(), /admin page/);
+});
