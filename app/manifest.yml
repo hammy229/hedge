@@ -27,11 +27,35 @@ modules:
       description: >
         Describe the error-rate guarantee of the installed act-or-ask policy: the error
         budget, the confidence level and the calibration set size.
+  jira:issuePanel:
+    - key: hedge-panel
+      title: Hedge
+      icon: resource:static;icon.svg
+      resource: panel
+      resolver:
+        function: resolver-fn
+      render: native
+  jira:adminPage:
+    - key: hedge-admin
+      title: Hedge error budget
+      resource: admin
+      resolver:
+        function: resolver-fn
+      render: native
   function:
+    - key: resolver-fn
+      handler: resolver.handler
     - key: triage-fn
       handler: index.triageIssue
     - key: explain-fn
       handler: index.explainPolicy
+resources:
+  - key: panel
+    path: src/frontend/panel.jsx
+  - key: admin
+    path: src/frontend/admin.jsx
+  - key: static
+    path: static
 app:
   runtime:
     name: nodejs24.x
@@ -42,3 +66,4 @@ app:
 permissions:
   scopes:
     - read:jira-work
+    - storage:app
