@@ -111,3 +111,18 @@ def test_held_out_clusters_leave_fitting_entirely():
         r["group"] = f"c{i % 7}"  # clusters that cross every project
     out, held = hold_out_projects(data, frac=0.25, seed=1)
     assert all(r["split"] == "test" for r in out)  # every cluster reached test
+
+
+def test_min_window_rule_reaches_test_tickets_too():
+    data = rows()
+    for i, r in enumerate(data):
+        r["window"] = 5 if i % 5 == 0 else 1000
+    result = report(data, alphas=(0.2,), n_boot=20, min_window=30)
+    assert result["min_window"] == 30
+    small = sum(r["window"] < 30 for r in data if r["split"] == "test")
+    for action in ("link", "clear"):
+        c = result["actions"][action]["certified"][0]
+        if c["calibrated"]:
+            # Small-window test tickets are never acted on, so they cap coverage.
+            assert c["test_acted"] <= result["n_test"] - small
+            assert c["test_coverage"][0] <= 1 - small / result["n_test"] + 1e-9

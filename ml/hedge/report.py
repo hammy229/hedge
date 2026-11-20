@@ -105,7 +105,9 @@ def baseline_scores(action: str, rows: Sequence[dict]) -> np.ndarray:
     return top1 if action == "link" else -top1
 
 
-def report(rows: list[dict], alphas=ALPHAS, delta: float = 0.1, n_boot: int = 1000, seed: int = 0) -> dict:
+def report(
+    rows: list[dict], alphas=ALPHAS, delta: float = 0.1, n_boot: int = 1000, seed: int = 0, min_window: int = 0
+) -> dict:
     fit_rows = [r for r in rows if r["split"] != "test"]
     test = [r for r in rows if r["split"] == "test"]
     if not test:
@@ -115,15 +117,17 @@ def report(rows: list[dict], alphas=ALPHAS, delta: float = 0.1, n_boot: int = 10
         "n_test": len(test),
         "test_projects": len(set(projects)),
         "delta": delta,
+        "min_window": min_window,
         "alphas": list(alphas),
         "actions": {},
     }
+    windows = np.array([r.get("window", 0) if min_window else 0 for r in test])
     for action in ACTIONS:
         wrong = np.array([1 - r["right"] for r in for_action(test, action)], dtype=float)
         certified = []
         probs = None
         for alpha in alphas:
-            policy = build_policy(fit_rows, alpha, delta, RETRIEVER, action=action)
+            policy = build_policy(fit_rows, alpha, delta, RETRIEVER, action=action, min_window=min_window)
             probs = gate_scores(policy, test)  # same model for every alpha
             row = {
                 "alpha": alpha,
@@ -134,7 +138,8 @@ def report(rows: list[dict], alphas=ALPHAS, delta: float = 0.1, n_boot: int = 10
             }
             if policy["calibrated"]:
                 t = policy["threshold"]
-                act = probs >= t
+                # The app asks below the minimum window whatever the score (ADR 8).
+                act = (probs >= t) & (windows >= min_window)
 
                 def risk(i, act=act):
                     a = act[i]
@@ -188,6 +193,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--delta", type=float, default=0.1)
     ap.add_argument("--n-boot", type=int, default=1000)
+    ap.add_argument("--min-window", type=int, default=0, help="ask about tickets that searched fewer earlier issues (ADR 8)")
     args = ap.parse_args(argv)
     with args.rows.open() as f:
         rows = [json.loads(line) for line in f if line.strip()]
@@ -197,7 +203,7 @@ def main(argv: list[str] | None = None) -> int:
     held: set[str] = set()
     if args.holdout_projects:
         rows, held = hold_out_projects(rows, args.holdout_projects, args.seed)
-    result = report(rows, delta=args.delta, n_boot=args.n_boot)
+    result = report(rows, delta=args.delta, n_boot=args.n_boot, min_window=args.min_window)
     result["excluded_jiras"] = args.exclude_jira
     result["mature_days"] = args.mature_days
     result["held_out_projects"] = sorted(held)
