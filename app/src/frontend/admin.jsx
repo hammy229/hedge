@@ -3,6 +3,7 @@ import ForgeReconciler, {
   BarChart, Button, DynamicTable, Heading, Label, ProgressBar, RadioGroup, SectionMessage, Spinner, Stack, Text, Textfield,
 } from '@forge/react';
 import { invoke } from '@forge/bridge';
+import { runSeed } from '../seedloop.js';
 import { dialView, logRows, seedView } from '../view.js';
 
 const HEAD = {
@@ -40,17 +41,18 @@ function SampleData({ minWindow }) {
     setError(null);
     setRunning(true);
     try {
-      let s = await invoke('seed', { projectKey });
-      setStatus(s);
-      while (!s.done) {
-        s = await invoke('seed', { projectKey });
-        setStatus(s);
-      }
+      await runSeed(() => invoke('seed', { projectKey }), setStatus);
     } catch (e) {
       setError(e?.message ?? 'unknown error');
     } finally {
       setRunning(false);
     }
+  };
+
+  // Show saved progress for the typed key, so a reload mid-seed offers Continue.
+  const lookUp = () => {
+    if (projectKey.trim() === '') return;
+    invoke('seedStatus', { projectKey }).then(setStatus, () => setStatus(null));
   };
 
   const v = seedView(status, running);
@@ -61,7 +63,7 @@ function SampleData({ minWindow }) {
         {`Hedge asks about every ticket until a project has ${minWindow} earlier issues. To see it act on an empty site, add 150 real issues from Atlassian's public Jira Software Server tracker (Public Jira Dataset, CC BY 4.0) to a project you choose. Five of them are known duplicates of earlier ones.`}
       </Text>
       <Label labelFor="seed-project">Project key</Label>
-      <Textfield id="seed-project" name="seed-project" placeholder="DEMO" value={projectKey} onChange={(e) => setProjectKey(e.target.value)} />
+      <Textfield id="seed-project" name="seed-project" placeholder="DEMO" value={projectKey} onChange={(e) => setProjectKey(e.target.value)} onBlur={lookUp} />
       <Button appearance="primary" isDisabled={running || v.done || projectKey.trim() === ''} onClick={run}>{v.button}</Button>
       {status ? <ProgressBar value={v.progress} ariaLabel="Sample issues created" /> : null}
       {v.text ? <Text>{v.text}</Text> : null}
