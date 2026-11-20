@@ -25,6 +25,48 @@ export default {
         "logTopAgeDays": -0.15098834391351848
       }
     },
+    "budgets": [
+      {
+        "alpha": 0.02,
+        "calibrated": false,
+        "threshold": null,
+        "calibrationCoverage": 0.0,
+        "calibrationActed": 0,
+        "calibrationErrors": 0
+      },
+      {
+        "alpha": 0.025,
+        "calibrated": false,
+        "threshold": null,
+        "calibrationCoverage": 0.0,
+        "calibrationActed": 0,
+        "calibrationErrors": 0
+      },
+      {
+        "alpha": 0.03,
+        "calibrated": false,
+        "threshold": null,
+        "calibrationCoverage": 0.0,
+        "calibrationActed": 0,
+        "calibrationErrors": 0
+      },
+      {
+        "alpha": 0.035,
+        "calibrated": false,
+        "threshold": null,
+        "calibrationCoverage": 0.0,
+        "calibrationActed": 0,
+        "calibrationErrors": 0
+      },
+      {
+        "alpha": 0.05,
+        "calibrated": false,
+        "threshold": null,
+        "calibrationCoverage": 0.0,
+        "calibrationActed": 0,
+        "calibrationErrors": 0
+      }
+    ],
     "excludedJiras": [
       "Mojang"
     ]
@@ -54,6 +96,48 @@ export default {
         "logTopAgeDays": 0.06341491588286603
       }
     },
+    "budgets": [
+      {
+        "alpha": 0.02,
+        "calibrated": true,
+        "threshold": 0.9791963293923979,
+        "calibrationCoverage": 0.14922521757588622,
+        "calibrationActed": 2109,
+        "calibrationErrors": 22
+      },
+      {
+        "alpha": 0.025,
+        "calibrated": true,
+        "threshold": 0.9731205693043965,
+        "calibrationCoverage": 0.2964692563503856,
+        "calibrationActed": 4190,
+        "calibrationErrors": 67
+      },
+      {
+        "alpha": 0.03,
+        "calibrated": true,
+        "threshold": 0.9643427390954834,
+        "calibrationCoverage": 0.5988820491049317,
+        "calibrationActed": 8464,
+        "calibrationErrors": 195
+      },
+      {
+        "alpha": 0.035,
+        "calibrated": true,
+        "threshold": 0.9549269256091968,
+        "calibrationCoverage": 0.8527559612255006,
+        "calibrationActed": 12052,
+        "calibrationErrors": 345
+      },
+      {
+        "alpha": 0.05,
+        "calibrated": true,
+        "threshold": 0.4824313310490456,
+        "calibrationCoverage": 0.9999292436142362,
+        "calibrationActed": 14132,
+        "calibrationErrors": 472
+      }
+    ],
     "excludedJiras": [
       "Mojang"
     ]
