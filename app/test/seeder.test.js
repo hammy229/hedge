@@ -9,16 +9,16 @@ const memory = () => {
 
 const items = Array.from({ length: 5 }, (_, i) => ({ summary: `issue ${i}`, description: `body ${i}`, duplicateOf: [] }));
 
-function fakeJira({ failOn = () => null } = {}) {
+function fakeJira({ failOn = () => null, projectId = '10000' } = {}) {
   const created = [];
   const jira = async (path, options) => {
     if (path === '/rest/api/2/project/DEMO') {
-      return { id: '10000', issueTypes: [{ id: '3', name: 'Task', subtask: false }, { id: '5', name: 'Sub-task', subtask: true }] };
+      return { id: projectId, issueTypes: [{ id: '3', name: 'Task', subtask: false }, { id: '5', name: 'Sub-task', subtask: true }] };
     }
     if (path === '/rest/api/2/issue' && options?.method === 'POST') {
       const { fields } = JSON.parse(options.body);
       const err = failOn(fields, created.length);
-      if (err) throw new Error(err);
+      if (err) throw Object.assign(new Error(err.message ?? err), { jiraBody: err.body ?? null });
       created.push(fields);
       return { key: `DEMO-${created.length}` };
     }
@@ -62,12 +62,58 @@ test('stops at the deadline and resumes where it stopped', async () => {
 });
 
 test('a project without a Labels field is seeded without the label', async () => {
-  const { jira, created } = fakeJira({ failOn: (f) => (f.labels ? 'Jira returned 400: Field labels cannot be set' : null) });
+  const labelsRejected = { message: 'Jira returned 400', body: { errors: { labels: "Field 'labels' cannot be set." } } };
+  let calls = 0;
+  const { jira, created } = fakeJira({ failOn: (f) => (f.labels && ++calls ? labelsRejected : null) });
   const store = memory();
   const out = await seedStep({ jira, store, projectKey: 'DEMO', items });
   assert.equal(out.done, true);
   assert.equal(created.length, 5);
   assert.ok(created.every((f) => !('labels' in f)));
+  assert.equal(calls, 1, 'the label is dropped once and the choice is remembered');
+});
+
+test('an error that merely mentions labels in its text does not drop the label', async () => {
+  const { jira } = fakeJira({ failOn: () => ({ message: 'Jira returned 400: labels are fine, summary is too long', body: { errors: { summary: 'x' } } }) });
+  await assert.rejects(seedStep({ jira, store: memory(), projectKey: 'DEMO', items }), /summary is too long/);
+});
+
+test('a second caller holding no lease gets busy and creates nothing', async () => {
+  const { jira, created } = fakeJira();
+  const store = memory();
+  await store.set('seed-lease:DEMO', { owner: 'someone-else', until: Date.now() + 60000 });
+  const out = await seedStep({ jira, store, projectKey: 'DEMO', items });
+  assert.equal(out.busy, true);
+  assert.equal(created.length, 0);
+  await store.set('seed-lease:DEMO', { owner: 'someone-else', until: Date.now() - 1 });
+  assert.equal((await seedStep({ jira, store, projectKey: 'DEMO', items })).done, true, 'an expired lease is taken over');
+  assert.equal(store.m.get('seed-lease:DEMO'), null, 'the lease is released');
+});
+
+test('progress never moves backwards when another writer got further', async () => {
+  const { jira } = fakeJira();
+  const store = memory();
+  const realSet = store.set;
+  let bumped = false;
+  store.set = async (k, v) => {
+    await realSet(k, v);
+    if (!bumped && k === 'seed:DEMO' && v.next === 1) {
+      bumped = true;
+      await realSet(k, { ...v, next: 3 }); // a stray writer that already made three
+    }
+  };
+  const out = await seedStep({ jira, store, projectKey: 'DEMO', items });
+  assert.equal(out.done, true);
+  assert.equal(store.m.get('seed:DEMO').next, 5);
+});
+
+test('a project created again under the same key is seeded from the start', async () => {
+  const store = memory();
+  await seedStep({ jira: fakeJira().jira, store, projectKey: 'DEMO', items });
+  const again = fakeJira({ projectId: '20000' });
+  const out = await seedStep({ jira: again.jira, store, projectKey: 'DEMO', items });
+  assert.equal(out.done, true);
+  assert.equal(again.created.length, 5);
 });
 
 test('any other create error stops the step and keeps the progress', async () => {
@@ -75,6 +121,7 @@ test('any other create error stops the step and keeps the progress', async () =>
   const store = memory();
   await assert.rejects(seedStep({ jira, store, projectKey: 'DEMO', items }), /403/);
   assert.deepEqual(await seedStatus(store, 'DEMO'), { projectKey: 'DEMO', created: 2, total: 150, done: false });
+  assert.equal(store.m.get('seed-lease:DEMO'), null, 'a failed step still releases its lease');
 });
 
 test('bad project keys and projects without a usable type are refused', async () => {
@@ -103,11 +150,15 @@ test('fields carry the summary and the plain-text description that v2 scores', (
   assert.ok(!('labels' in issueFields({ summary: 's', description: 'd' }, 7, 3, false)));
 });
 
-test('Jira errors keep a short, single-line body so the label fallback can see the field', async () => {
+test('seeder errors carry the parsed body and a short single-line message', async () => {
   const { jiraError } = await import('../src/index.js');
   const res = (status, text) => ({ status, text: async () => text });
-  assert.equal(await jiraError(res(400, '{"errors":\n{"labels":"Field \'labels\' cannot be set."}}')), 'Jira returned 400: {"errors": {"labels":"Field \'labels\' cannot be set."}}');
-  assert.equal((await jiraError(res(500, 'x'.repeat(1000)))).length, 'Jira returned 500: '.length + 200);
-  assert.equal(await jiraError(res(404, '')), 'Jira returned 404');
-  assert.equal(await jiraError({ status: 502, text: async () => { throw new Error('gone'); } }), 'Jira returned 502');
+  const labels = await jiraError(res(400, '{"errors":\n{"labels":"Field \'labels\' cannot be set."}}'));
+  assert.equal(labels.message, 'Jira returned 400: {"errors": {"labels":"Field \'labels\' cannot be set."}}');
+  assert.deepEqual(labels.jiraBody, { errors: { labels: "Field 'labels' cannot be set." } });
+  assert.equal((await jiraError(res(500, 'x'.repeat(1000)))).message.length, 'Jira returned 500: '.length + 200);
+  assert.equal((await jiraError(res(404, ''))).message, 'Jira returned 404');
+  const gone = await jiraError({ status: 502, text: async () => { throw new Error('gone'); } });
+  assert.equal(gone.message, 'Jira returned 502');
+  assert.equal(gone.jiraBody, null);
 });

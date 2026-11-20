@@ -16,22 +16,37 @@ const ISSUE_KEY = /^[A-Z][A-Z0-9_]+-\d+$/;
 // v3 returns Atlassian Document Format, a different text distribution.
 const FIELDS = ['summary', 'description', 'created', 'project'];
 
+// Triage only says the status: its reason reaches every panel viewer, MCP agents and the
+// decision log, so Jira's response body stays out of it.
 async function jira(path, options) {
   const res = await api.asUser().requestJira(path, options);
-  if (!res.ok) throw new Error(await jiraError(res));
+  if (!res.ok) throw new Error(`Jira returned ${res.status}`);
   return res.json();
 }
 
-// Jira's error body says which field it rejected (the seeder needs that), cut short
-// because the panel shows the message.
+// The seeder, which only the admin page calls, needs the body: Jira names the field it
+// rejected there. The message is cut short; the parsed body rides along as jiraBody.
+async function jiraWithBody(path, options) {
+  const res = await api.asUser().requestJira(path, options);
+  if (!res.ok) throw await jiraError(res);
+  return res.json();
+}
+
 export async function jiraError(res) {
-  let body = '';
+  let text = '';
   try {
-    body = (await res.text()).replace(/\s+/g, ' ').trim().slice(0, 200);
+    text = await res.text();
   } catch {
-    body = '';
+    text = '';
   }
-  return body ? `Jira returned ${res.status}: ${body}` : `Jira returned ${res.status}`;
+  const short = text.replace(/\s+/g, ' ').trim().slice(0, 200);
+  const error = new Error(short ? `Jira returned ${res.status}: ${short}` : `Jira returned ${res.status}`);
+  try {
+    error.jiraBody = JSON.parse(text);
+  } catch {
+    error.jiraBody = null;
+  }
+  return error;
 }
 
 async function projectKeys() {
@@ -73,7 +88,7 @@ async function triageAt(issueKey, active) {
 // Admin page: create the next sample issues as the admin, who must be able to create
 // issues in the project. Jira's own permissions decide, not Hedge.
 export function seedProject(projectKey) {
-  return seedStep({ jira, store, projectKey, route });
+  return seedStep({ jira: jiraWithBody, store, projectKey, route });
 }
 
 export function seedProgress(projectKey) {
