@@ -19,6 +19,7 @@ test('settings fall back to the certified defaults when storage is unreachable',
   assert.ok(s.clear.options.some((o) => o.isDefault && o.certified));
   assert.match(s.clear.guarantee, /at most 3\.0% are wrong/);
   assert.match(s.link.guarantee, /asks a person about every ticket/);
+  assert.equal(s.clear.minWindow, policies.clear.minWindow);
 });
 
 test('the panel refuses a context without an issue key', async () => {

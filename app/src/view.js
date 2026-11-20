@@ -57,3 +57,16 @@ export function logRows(log) {
     ],
   }));
 }
+
+// The sample-data section of the admin page, for a seedStatus or seedStep result.
+export function seedView(status, running = false) {
+  const total = Number.isInteger(status?.total) && status.total > 0 ? status.total : 0;
+  const created = Number.isInteger(status?.created) ? Math.min(Math.max(status.created, 0), total) : 0;
+  const done = total > 0 && created >= total;
+  let text;
+  if (done) text = `All ${total} sample issues are in ${status.projectKey}.`;
+  else if (running) text = `Creating sample issues in ${status?.projectKey ?? 'the project'}: ${created} of ${total}.`;
+  else if (created > 0) text = `${created} of ${total} sample issues are in ${status.projectKey}. Continue to add the rest.`;
+  else text = '';
+  return { progress: total > 0 ? created / total : 0, text, done, button: created > 0 && !done ? 'Continue adding sample issues' : `Add ${total || 150} sample issues` };
+}

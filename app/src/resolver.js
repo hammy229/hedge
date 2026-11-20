@@ -44,7 +44,10 @@ async function settings() {
   const budgets = await readBudgets(store, policies);
   const active = activePolicies(policies, budgets);
   return Object.fromEntries(
-    ACTIONS.map((a) => [a, { budget: budgets[a], options: budgetOptions(policies[a]), guarantee: describePolicy(active[a]).guarantee }]),
+    ACTIONS.map((a) => [
+      a,
+      { budget: budgets[a], options: budgetOptions(policies[a]), guarantee: describePolicy(active[a]).guarantee, minWindow: policies[a]?.minWindow },
+    ]),
   );
 }
 

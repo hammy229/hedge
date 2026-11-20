@@ -48,3 +48,20 @@ test('log rows format time, score and budget and tolerate gaps', () => {
   assert.equal(rows[1].cells[3].content, '');
   assert.deepEqual(logRows(null), []);
 });
+
+test('seed view reports progress, resumption and completion', async () => {
+  const { seedView } = await import('../src/view.js');
+  const fresh = seedView({ projectKey: 'DEMO', created: 0, total: 150 });
+  assert.equal(fresh.text, '');
+  assert.equal(fresh.button, 'Add 150 sample issues');
+  const part = seedView({ projectKey: 'DEMO', created: 40, total: 150 });
+  assert.equal(part.progress, 40 / 150);
+  assert.match(part.text, /40 of 150 sample issues are in DEMO/);
+  assert.equal(part.button, 'Continue adding sample issues');
+  assert.match(seedView({ projectKey: 'DEMO', created: 40, total: 150 }, true).text, /Creating sample issues in DEMO: 40 of 150/);
+  const done = seedView({ projectKey: 'DEMO', created: 150, total: 150 });
+  assert.equal(done.done, true);
+  assert.equal(done.progress, 1);
+  assert.equal(seedView(null).progress, 0);
+  assert.equal(seedView({ created: 999, total: 150, projectKey: 'X' }).progress, 1);
+});
