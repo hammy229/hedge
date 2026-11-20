@@ -134,7 +134,7 @@ def build_policy(
     size = len(cal)
     if budgets is None:
         threshold = ltt_threshold(scores, wrong, alpha=alpha, delta=delta, grid=grid, groups=groups)
-        return {"action": action, **policy_dict(model, threshold, alpha, delta, size, retriever), "minWindow": min_window}
+        return {"action": action, **policy_dict(model, threshold, alpha, delta, size, retriever, min_window)}
     table = []
     for a in budgets:
         t = ltt_threshold(scores, wrong, alpha=a, delta=delta, grid=grid, groups=groups)
@@ -151,8 +151,8 @@ def build_policy(
         )
         if a == alpha:
             default = t
-    policy = policy_dict(model, default, alpha, delta, size, retriever)
-    return {"action": action, **policy, "minWindow": min_window, "budgets": table}
+    policy = policy_dict(model, default, alpha, delta, size, retriever, min_window)
+    return {"action": action, **policy, "budgets": table}
 
 
 def check_budgets(budgets: Sequence[float], alpha: float) -> tuple[float, ...]:

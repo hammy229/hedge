@@ -76,6 +76,7 @@ def policy_dict(
     delta: float,
     calibration_size: int,
     retriever: str,
+    min_window: int = 0,
 ) -> dict:
     """The policy object the Forge gate reads. An uncertified threshold keeps the gate closed.
 
@@ -93,6 +94,8 @@ def policy_dict(
         "alpha": alpha,
         "delta": delta,
         "calibrationSize": int(calibration_size),
+        # The app asks below this many earlier issues and rejects a policy without it (ADR 8).
+        "minWindow": int(min_window),
         "threshold": float(threshold.threshold) if calibrated else None,
         "calibrationCoverage": threshold.coverage,
         "calibrationActed": threshold.acted,
