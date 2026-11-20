@@ -19,7 +19,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from pathlib import Path
 
 import numpy as np
@@ -75,6 +75,7 @@ def build_policy(
     l2: float = 1.0,
     grid_size: int | None = GRID_SIZE,
     action: str = "link",
+    budgets: Sequence[float] | None = None,
 ) -> dict:
     """Fit on train rows, certify on calibration rows, for one action (see ``ACTIONS``).
 
@@ -85,7 +86,15 @@ def build_policy(
     does, errors are counted per group and tested with a bound that holds under any
     dependence inside a group (``risk.clustered_p_value``). Rows without a group count as
     their own group.
+
+    Pass ``budgets`` to also certify a table of error budgets for the admin's dial. Each
+    budget gets ``delta / len(budgets)``, so by a union bound every threshold in the table
+    holds at once with probability 1 - delta, and the admin may pick any of them after
+    seeing the table (ADR 7). ``alpha`` must be one of them: it is the default, and the
+    top-level threshold is its table entry.
     """
+    if budgets is not None:
+        budgets = check_budgets(budgets, alpha)
     rows = list(rows)
     for i, r in enumerate(rows):
         if action == "clear" and not isinstance(r.get("has_answer"), bool):
@@ -106,9 +115,43 @@ def build_policy(
     groups = None
     if any("group" in r for r in cal):
         groups = [str(r.get("group", f"__row{i}")) for i, r in enumerate(cal)]
-    threshold = ltt_threshold(scores, wrong, alpha=alpha, delta=delta, grid=grid, groups=groups)
     size = len(cal)
-    return {"action": action, **policy_dict(model, threshold, alpha, delta, size, retriever)}
+    if budgets is None:
+        threshold = ltt_threshold(scores, wrong, alpha=alpha, delta=delta, grid=grid, groups=groups)
+        return {"action": action, **policy_dict(model, threshold, alpha, delta, size, retriever)}
+    each = delta / len(budgets)
+    table = []
+    for a in budgets:
+        t = ltt_threshold(scores, wrong, alpha=a, delta=each, grid=grid, groups=groups)
+        calibrated = bool(np.isfinite(t.threshold))
+        table.append(
+            {
+                "alpha": a,
+                "calibrated": calibrated,
+                "threshold": float(t.threshold) if calibrated else None,
+                "calibrationCoverage": t.coverage,
+                "calibrationActed": t.acted,
+                "calibrationErrors": t.errors,
+            }
+        )
+        if a == alpha:
+            default = t
+    policy = policy_dict(model, default, alpha, delta, size, retriever)
+    return {"action": action, **policy, "deltaPerBudget": each, "budgets": table}
+
+
+def check_budgets(budgets: Sequence[float], alpha: float) -> tuple[float, ...]:
+    """Budgets must be distinct, increasing, inside (0, 1) and include the default alpha."""
+    b = tuple(float(x) for x in budgets)
+    if not b:
+        raise ValueError("budgets must not be empty")
+    if any(not 0 < x < 1 for x in b):
+        raise ValueError(f"every budget must be inside (0, 1), got {b}")
+    if any(y <= x for x, y in zip(b, b[1:])):
+        raise ValueError(f"budgets must be strictly increasing, got {b}")
+    if alpha not in b:
+        raise ValueError(f"the default alpha {alpha} must be one of the budgets {b}")
+    return b
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -118,6 +161,12 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--delta", type=float, default=0.1, help="allowed chance the bound fails")
     ap.add_argument("--retriever", required=True, help="id of the retriever that produced the scores")
     ap.add_argument("--exclude-jira", action="append", default=[], help="leave a Jira out of fitting and calibration")
+    ap.add_argument(
+        "--budgets",
+        type=lambda v: tuple(float(x) for x in v.split(",")),
+        default=None,
+        help="comma-separated budgets for the admin dial, e.g. 0.01,0.02,0.03,0.05,0.1 (must include --alpha)",
+    )
     ap.add_argument("--l2", type=float, default=1.0)
     ap.add_argument("--out", type=Path, required=True, help="where to write policy.js")
     args = ap.parse_args(argv)
@@ -130,7 +179,9 @@ def main(argv: list[str] | None = None) -> int:
     rows = [r for r in rows if r["split"] in SPLITS]
     policies = {}
     for action in ACTIONS:
-        policy = build_policy(rows, args.alpha, args.delta, args.retriever, args.l2, action=action)
+        policy = build_policy(
+            rows, args.alpha, args.delta, args.retriever, args.l2, action=action, budgets=args.budgets
+        )
         policies[action] = {**policy, "excludedJiras": excluded}
         if policy["calibrated"]:
             print(

@@ -131,3 +131,46 @@ def test_certified_threshold_is_a_point_of_the_train_only_grid():
 def test_even_grid_is_still_available():
     policy = build_policy(rows(6000), alpha=0.05, delta=0.1, retriever="bm25-v1", grid_size=None)
     assert policy["calibrated"] and round(policy["threshold"] * 100) == policy["threshold"] * 100
+
+
+def test_budget_table_certifies_each_budget_with_a_split_delta():
+    budgets = (0.02, 0.05, 0.10)
+    policy = build_policy(rows(6000), alpha=0.05, delta=0.1, retriever="bm25-v1", budgets=budgets)
+    table = policy["budgets"]
+    assert [b["alpha"] for b in table] == list(budgets)
+    assert policy["deltaPerBudget"] == pytest.approx(0.1 / 3)
+    # The default budget is the table's own entry, so the dial and the default agree.
+    entry = next(b for b in table if b["alpha"] == 0.05)
+    assert entry["threshold"] == policy["threshold"]
+    # A looser budget never acts on fewer tickets.
+    covered = [b["calibrationCoverage"] for b in table]
+    assert covered == sorted(covered)
+    for b in table:
+        if b["calibrated"]:
+            assert b["calibrationErrors"] <= b["calibrationActed"]
+
+
+def test_budget_table_costs_coverage_against_a_single_budget():
+    single = build_policy(rows(6000), alpha=0.05, delta=0.1, retriever="bm25-v1")
+    table = build_policy(rows(6000), alpha=0.05, delta=0.1, retriever="bm25-v1", budgets=(0.02, 0.05, 0.10))
+    assert table["calibrationCoverage"] <= single["calibrationCoverage"]
+
+
+def test_default_budget_must_be_in_the_table():
+    with pytest.raises(ValueError, match="alpha"):
+        build_policy(rows(600), alpha=0.03, delta=0.1, retriever="bm25-v1", budgets=(0.02, 0.05))
+
+
+@pytest.mark.parametrize("budgets", [(), (0.05, 0.05), (0.05, 0.02), (0.0, 0.05), (0.05, 1.0)])
+def test_bad_budget_tables_are_errors(budgets):
+    with pytest.raises(ValueError):
+        build_policy(rows(600), alpha=0.05, delta=0.1, retriever="bm25-v1", budgets=budgets)
+
+
+def test_cli_writes_the_budget_table(tmp_path):
+    path = tmp_path / "rows.jsonl"
+    path.write_text("\n".join(json.dumps(r) for r in with_answers(rows(4000))) + "\n")
+    out = tmp_path / "policy.js"
+    main([str(path), "--alpha", "0.05", "--budgets", "0.02,0.05,0.1", "--retriever", "bm25-v1", "--out", str(out)])
+    policies = read_policies(out)
+    assert [b["alpha"] for b in policies["clear"]["budgets"]] == [0.02, 0.05, 0.1]
