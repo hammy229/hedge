@@ -127,6 +127,8 @@ def build_policy(
         # Too-small windows score 0 and the grid starts above 0, so no threshold acts on them.
         scores = np.where([r["window"] < min_window for r in cal], 0.0, scores)
         grid = grid[grid > 0]
+        if grid.size == 0:  # every train score underflowed to 0: nothing can be certified
+            grid = np.array([1.0])
     wrong = 1 - np.asarray([r["right"] for r in cal])
     groups = None
     if any("group" in r for r in cal):

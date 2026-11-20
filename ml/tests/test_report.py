@@ -126,3 +126,14 @@ def test_min_window_rule_reaches_test_tickets_too():
             # Small-window test tickets are never acted on, so they cap coverage.
             assert c["test_acted"] <= result["n_test"] - small
             assert c["test_coverage"][0] <= 1 - small / result["n_test"] + 1e-9
+
+
+def test_min_window_needs_a_window_on_every_test_row():
+    import pytest
+
+    data = rows()
+    for r in data:
+        r["window"] = 1000
+    next(r for r in data if r["split"] == "test").pop("window")
+    with pytest.raises(ValueError, match="integer window on every test row"):
+        report(data, alphas=(0.2,), n_boot=10, min_window=30)

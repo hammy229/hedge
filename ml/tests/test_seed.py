@@ -72,3 +72,14 @@ def test_main_writes_an_importable_module_with_attribution(tmp_path):
     body = json.loads(text.split("export default ", 1)[1].rstrip().rstrip(";"))
     assert body["source"]["project"] == "P" and len(body["issues"]) == 10
     assert body["issues"][-1]["source"] == "P-30" and body["issues"][-1]["duplicateOf"] == [7]
+
+
+def test_same_second_issues_sort_by_key_number_so_originals_come_first():
+    issues = [rec("P-10", 5.0, ["P-9"]), rec("P-9", 5.0), rec("P-1", 1.0)]
+    span = pick_span(issues, size=3, min_duplicates=1)
+    assert [r["key"] for r in span] == ["P-1", "P-9", "P-10"]
+
+
+def test_a_summary_that_scrubs_to_nothing_is_an_error():
+    with pytest.raises(ValueError, match="summaries empty"):
+        seed_records([rec("P-1", 1.0, summary="P-12")])

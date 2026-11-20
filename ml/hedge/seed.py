@@ -38,6 +38,11 @@ def _key(r: dict) -> str:
     return r["id"].split(":", 1)[-1] if "id" in r else r["key"]
 
 
+def _number(key: str) -> int:
+    tail = key.rpartition("-")[2]
+    return int(tail) if tail.isdigit() else -1
+
+
 def _earlier_duplicates(span: list[dict]) -> list[list[int]]:
     pos = {_key(r): i for i, r in enumerate(span)}
     out = []
@@ -49,7 +54,9 @@ def _earlier_duplicates(span: list[dict]) -> list[list[int]]:
 
 def pick_span(issues: list[dict], size: int, min_duplicates: int) -> list[dict]:
     """The latest ``size`` consecutive issues holding ``min_duplicates`` in-span duplicates."""
-    ordered = sorted(issues, key=lambda r: (r["created"], _key(r)))
+    # Same-second issues go in key-number order, so an original is never placed after a
+    # duplicate filed in the same second (a string sort puts P-10 before P-9).
+    ordered = sorted(issues, key=lambda r: (r["created"], _key(r).rpartition("-")[0], _number(_key(r))))
     for start in range(len(ordered) - size, -1, -1):
         span = ordered[start : start + size]
         if sum(1 for d in _earlier_duplicates(span) if d) >= min_duplicates:
@@ -72,7 +79,7 @@ def scrub(text: str, project_keys) -> str:
 def seed_records(span: list[dict]) -> list[dict]:
     projects = sorted({r["project"] for r in span})
     dupes = _earlier_duplicates(span)
-    return [
+    out = [
         {
             "source": _key(r),
             "summary": scrub(r.get("summary") or "", projects).strip(),
@@ -81,6 +88,10 @@ def seed_records(span: list[dict]) -> list[dict]:
         }
         for r, d in zip(span, dupes)
     ]
+    empty = [r["source"] for r in out if not r["summary"]]
+    if empty:
+        raise ValueError(f"summaries empty after scrubbing, which Jira rejects: {empty}")
+    return out
 
 
 def main(argv: list[str] | None = None) -> int:

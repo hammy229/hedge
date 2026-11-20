@@ -121,7 +121,9 @@ def report(
         "alphas": list(alphas),
         "actions": {},
     }
-    windows = np.array([r.get("window", 0) if min_window else 0 for r in test])
+    if min_window and any(isinstance(r.get("window"), bool) or not isinstance(r.get("window"), int) for r in test):
+        raise ValueError("a minimum window needs an integer window on every test row")
+    windows = np.array([r["window"] if min_window else 0 for r in test])
     for action in ACTIONS:
         wrong = np.array([1 - r["right"] for r in for_action(test, action)], dtype=float)
         certified = []
@@ -151,8 +153,9 @@ def report(
                 row["test_acted"] = int(act.sum())
             certified.append(row)
         ranking = {
-            "Hedge gate": evaluate_method(probs, wrong, projects, alphas, n_boot=n_boot, seed=seed),
-            "BM25 top score": evaluate_method(baseline_scores(action, test), wrong, projects, alphas, n_boot=n_boot, seed=seed),
+            # Both signals rank tickets below the minimum window last, as the app never acts on them.
+            "Hedge gate": evaluate_method(np.where(windows >= min_window, probs, -np.inf), wrong, projects, alphas, n_boot=n_boot, seed=seed),
+            "BM25 top score": evaluate_method(np.where(windows >= min_window, baseline_scores(action, test), -np.inf), wrong, projects, alphas, n_boot=n_boot, seed=seed),
         }
         out["actions"][action] = {"base_error": float(wrong.mean()), "certified": certified, "ranking": ranking}
     return out
