@@ -5,7 +5,7 @@ import pytest
 
 from hedge.corpus import Corpus
 from hedge.features import FEATURE_NAMES
-from hedge.rows import main, make_rows, query_split
+from hedge.rows import fresh_part, main, make_rows, query_split
 from hedge.window import TokenIndex
 
 
@@ -95,3 +95,32 @@ def test_train_keeps_rows_that_share_a_cluster_with_later_parts():
     c = Corpus.from_records(records)
     split, _ = query_split(c)
     assert c.ids.tolist().index("J:A-1") in split.train
+
+
+def test_fresh_part_drops_old_tickets_and_their_whole_clusters():
+    c = small()
+    part = np.arange(len(c))
+    a1 = c.ids.tolist().index("J:A-1")
+    old = [{"id": "J:A-1", "group": f"c{c.cluster[a1]}"}, {"id": "J:A-2", "group": "r1"}]
+    left = {c.ids[i] for i in fresh_part(c, part, old)}
+    # A-3 shares A-1's cluster, A-2 is an old ticket; A-4 and A-5 are untouched.
+    assert left == {"J:A-4", "J:A-5"}
+
+
+def test_main_fresh_calibration_keeps_train_and_test_and_redraws_calibration(tmp_path):
+    records = [rec(f"J:A-{i}", i, summary=f"bug {i} in module {i % 5}") for i in range(1, 201)]
+    Corpus.from_records(records).save(tmp_path / "c.pkl")
+    first = tmp_path / "rows.jsonl"
+    assert main([str(tmp_path / "c.pkl"), "--out", str(first), "--per-split", "10"]) == 0
+    second = tmp_path / "rows2.jsonl"
+    assert main([str(tmp_path / "c.pkl"), "--out", str(second), "--per-split", "10", "--seed", "1",
+                 "--fresh-calibration", str(first)]) == 0
+    a = [json.loads(line) for line in first.read_text().splitlines()]
+    b = [json.loads(line) for line in second.read_text().splitlines()]
+    keep = lambda rows: [r for r in rows if r["split"] != "calibration"]  # noqa: E731
+    assert keep(a) == keep(b)
+    old = {r["id"] for r in a if r["split"] == "calibration"}
+    new = {r["id"] for r in b if r["split"] == "calibration"}
+    assert len(new) == 10 and not old & new
+    meta = json.loads(second.with_suffix(".meta.json").read_text())
+    assert meta["fresh_from"] == str(first) and meta["calibration_left_after_exclusion"] > 0

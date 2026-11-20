@@ -50,6 +50,21 @@ def sample(part: np.ndarray, n: int | None, rng: np.random.Generator) -> np.ndar
     return np.sort(rng.choice(part, size=n, replace=False))
 
 
+def fresh_part(corpus: Corpus, part: np.ndarray, old_rows: list[dict]) -> np.ndarray:
+    """The tickets of ``part`` that share no ticket and no duplicate cluster with ``old_rows``.
+
+    A rule picked by looking at one calibration sample must be certified on data that
+    played no part in picking it (ADR 8). Dropping shared clusters, not only shared tickets,
+    keeps a bug's other reports out too, since they are not independent of the old sample.
+    """
+    ids = {r["id"] for r in old_rows}
+    clusters = {int(g[1:]) for r in old_rows if (g := r.get("group", "")).startswith("c")}
+    keep = np.array(
+        [corpus.ids[i] not in ids and int(corpus.cluster[i]) not in clusters for i in part.tolist()], dtype=bool
+    )
+    return part[keep] if part.size else part
+
+
 def description(text: str) -> str:
     return text.partition("\n")[2]
 
@@ -94,6 +109,12 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--out", type=Path, required=True)
     ap.add_argument("--per-split", type=int, default=20000, help="queries sampled per split (0 = all)")
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument(
+        "--fresh-calibration",
+        type=Path,
+        default=None,
+        help="copy train and test rows from this rows file and draw a new calibration sample disjoint from its one",
+    )
     args = ap.parse_args(argv)
     start = time.monotonic()
     corpus = Corpus.load(args.corpus)
@@ -102,8 +123,20 @@ def main(argv: list[str] | None = None) -> int:
     split, info = query_split(corpus)
     rng = np.random.default_rng(args.seed)
     n = args.per_split or None
-    queries = {name: sample(getattr(split, name), n, rng) for name in ("train", "calibration", "test")}
+    kept: list[dict] = []
+    if args.fresh_calibration is None:
+        queries = {name: sample(getattr(split, name), n, rng) for name in ("train", "calibration", "test")}
+    else:
+        with args.fresh_calibration.open() as f:
+            old = [json.loads(line) for line in f if line.strip()]
+        kept = [r for r in old if r["split"] in ("train", "test")]
+        fresh = fresh_part(corpus, split.calibration, [r for r in old if r["split"] == "calibration"])
+        info["fresh_from"] = str(args.fresh_calibration)
+        info["calibration_left_after_exclusion"] = int(fresh.size)
+        queries = {"calibration": sample(fresh, n, rng)}
     with args.out.open("w") as f:
+        for r in kept:
+            f.write(json.dumps(r) + "\n")
         for r in make_rows(corpus, index, queries):
             f.write(json.dumps(r) + "\n")
     meta = {
