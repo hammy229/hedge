@@ -84,3 +84,11 @@ test('the shipped clear policy offers its budgets in order', () => {
   assert.ok(alphas.includes(policies.clear.alpha));
   assert.deepEqual(alphas, [...alphas].sort((a, b) => a - b));
 });
+
+test('a certified row opens the gate even when the default budget certified nothing', () => {
+  const strict = { ...policy, calibrated: false, threshold: null, alpha: 0.01 };
+  const p = atBudget(strict, 0.05);
+  assert.equal(p.calibrated, true);
+  assert.equal(p.threshold, 0.6);
+  assert.equal(decide({ margin: 9 }, p).decision, 'act');
+});

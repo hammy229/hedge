@@ -15,8 +15,11 @@ export function atBudget(policy, alpha) {
   if (!row) return closed(policy, `No threshold was certified for a ${pct(alpha)} budget.`);
   if (row.calibrated !== true) return closed(policy, `Nothing was certified at a ${pct(alpha)} budget.`);
   // gate.policyProblem checks the threshold range, so a bad one closes the gate there.
+  // The row was certified on its own, so it opens the gate even when the default
+  // budget certified nothing.
   return {
     ...policy,
+    calibrated: true,
     alpha: row.alpha,
     threshold: row.threshold,
     calibrationCoverage: row.calibrationCoverage,
