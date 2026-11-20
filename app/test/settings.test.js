@@ -1,0 +1,46 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { activePolicies, readBudgets, saveBudget } from '../src/settings.js';
+import policies from '../src/policy.js';
+
+const memory = () => {
+  const m = new Map();
+  return { get: async (k) => m.get(k), set: async (k, v) => void m.set(k, v), m };
+};
+
+test('with nothing saved, each action runs at its certified default', async () => {
+  const budgets = await readBudgets(memory(), policies);
+  assert.deepEqual(budgets, { link: policies.link.alpha, clear: policies.clear.alpha });
+});
+
+test('a saved certified budget is read back and applied', async () => {
+  const store = memory();
+  const alpha = policies.clear.budgets.find((b) => b.calibrated && b.alpha !== policies.clear.alpha).alpha;
+  await saveBudget(store, policies, 'clear', alpha);
+  const active = activePolicies(policies, await readBudgets(store, policies));
+  assert.equal(active.clear.alpha, alpha);
+  assert.equal(active.clear.threshold, policies.clear.budgets.find((b) => b.alpha === alpha).threshold);
+  assert.deepEqual(active.link, policies.link);
+});
+
+test('saving a budget outside the table is refused and stores nothing', async () => {
+  const store = memory();
+  for (const [action, alpha] of [['clear', 0.04], ['clear', '0.03'], ['route', 0.03], ['clear', NaN]]) {
+    await assert.rejects(saveBudget(store, policies, action, alpha), /budget|action/);
+  }
+  assert.equal(store.m.size, 0);
+});
+
+test('a stored value that no longer matches the table falls back to the default', async () => {
+  const store = memory();
+  store.m.set('budget:clear', 0.0421);
+  store.m.set('budget:link', 'junk');
+  const budgets = await readBudgets(store, policies);
+  assert.deepEqual(budgets, { link: policies.link.alpha, clear: policies.clear.alpha });
+});
+
+test('a storage failure falls back to the defaults instead of throwing', async () => {
+  const broken = { get: async () => { throw new Error('kvs down'); } };
+  const budgets = await readBudgets(broken, policies);
+  assert.equal(budgets.clear, policies.clear.alpha);
+});
