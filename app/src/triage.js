@@ -9,7 +9,7 @@
 
 import { K, topK, windowScores } from './bm25.js';
 import { contextFeatures, featurize, scoreFeatures } from './features.js';
-import { RUNTIME, decide } from './gate.js';
+import { RUNTIME, decide, policyProblem } from './gate.js';
 import { copyKey, retrievalParts, retrievalText } from './text.js';
 
 const SHOWN = 3;
@@ -43,7 +43,15 @@ export function triage({ issue, window, projectKeys = [], policies, runtime = RU
         `This ticket repeats the text of ${window[copy].key}. Copies were left out of calibration, so ${action === 'link' ? 'linking' : 'clearing'} it is not covered.`,
       );
     }
-    return decide(features, checked(policies?.[action], action), runtime);
+    const policy = checked(policies?.[action], action);
+    // Below the minimum window the gate extrapolates past what calibration covered, so the
+    // policy certified asking there (ADR 8). A broken policy is reported by decide() instead.
+    if (!policyProblem(policy, runtime) && window.length < policy.minWindow) {
+      return refuse(
+        `This project has ${window.length} earlier issue${window.length === 1 ? '' : 's'}. Hedge needs at least ${policy.minWindow} to compare against before it acts.`,
+      );
+    }
+    return decide(features, policy, runtime);
   };
   const link = guard('link');
   const clear = guard('clear');

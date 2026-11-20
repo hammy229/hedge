@@ -13,6 +13,7 @@ const calibrated = {
   alpha: 0.03,
   delta: 0.1,
   calibrationSize: 2000,
+  minWindow: 0,
   threshold: 0.8,
   model: { bias: -1, weights: { margin: 4 } },
 };
@@ -101,4 +102,17 @@ test('inherited properties never count as features', () => {
   const policy = { ...calibrated, model: { bias: 5, weights: { toString: 1 } } };
   assert.equal(decide({}, policy).decision, 'ask');
   assert.equal(decide(Object.create({ margin: 1 }), calibrated).decision, 'ask');
+});
+
+test('a policy without a valid minimum window never acts', () => {
+  for (const minWindow of [undefined, null, -1, 2.5, '30', NaN]) {
+    const out = decide({ margin: 1 }, { ...calibrated, minWindow });
+    assert.equal(out.decision, 'ask', String(minWindow));
+    assert.match(out.reason, /minimum window/);
+  }
+});
+
+test('the guarantee names the minimum window when there is one', () => {
+  assert.doesNotMatch(describePolicy(calibrated).guarantee, /earlier issues/);
+  assert.match(describePolicy({ ...calibrated, minWindow: 30 }).guarantee, /fewer than 30 earlier issues/);
 });

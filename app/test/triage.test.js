@@ -16,6 +16,7 @@ const gate = (action, weights, bias, threshold = 0.5) => ({
   alpha: 0.03,
   delta: 0.1,
   calibrationSize: 1000,
+  minWindow: 0,
   threshold,
   model: { bias, weights },
 });
@@ -139,9 +140,54 @@ test('the installed policies match this build, and only clear is certified', () 
   assert.ok(installed.clear.alpha <= 0.05, 'the shipped clear budget is strict');
 });
 
-test('the installed clear gate clears a ticket unlike anything in its window', () => {
+// Forty unrelated earlier issues, one a minute: a project with enough history to act on.
+const TOPICS = ['login', 'export', 'search', 'avatar', 'email', 'dashboard', 'sprint', 'backlog', 'filter', 'webhook'];
+const history = Array.from({ length: 40 }, (_, i) =>
+  issue(`H-${i + 1}`, `${TOPICS[i % 10]} problem number ${i + 1} in area ${Math.floor(i / 10)}`, new Date(Date.UTC(2024, 0, 1, 0, i)).toISOString().replace('Z', '+0000')),
+);
+
+test('the installed clear gate asks below its minimum window and clears above it', () => {
+  assert.ok(installed.clear.minWindow > 0, 'the shipped policy has a minimum window');
   const lonely = issue('P-4', 'Add a keyboard shortcut to export the zebra report', '2024-01-04T00:00:00.000+0000');
-  assert.equal(triage({ issue: lonely, window, policies: installed }).decision, 'clear');
+  const small = triage({ issue: lonely, window, policies: installed });
+  assert.equal(small.decision, 'ask');
+  assert.match(small.gates.clear.reason, /has 2 earlier issues\. Hedge needs at least \d+/);
+  const later = issue('H-99', 'Add a keyboard shortcut to export the zebra report', '2024-01-02T00:00:00.000+0000');
+  assert.equal(triage({ issue: later, window: history, policies: installed }).decision, 'clear');
+});
+
+// The judge guide's walkthrough: ten tickets, then one restating the first. Before the
+// minimum window, the gate cleared the restated ticket as new (ADR 8).
+test('a restated ticket in a ten-issue project is never cleared by the installed policy', () => {
+  const titles = [
+    'Login page times out on Safari', 'Export to CSV drops the last row', 'Dark mode toggle does not persist after reload',
+    'Search results show deleted projects', 'Avatar upload fails for PNG files over 2 MB', 'Email notifications sent twice for comments',
+    'Dashboard gadgets overlap on small screens', 'Time zone wrong on sprint report', 'Cannot reorder backlog items with keyboard',
+    'API returns 500 when the filter name has an emoji', "Safari users can't log in, the page just spins",
+  ];
+  const all = titles.map((t, i) => issue(`DEMO-${i + 1}`, t, new Date(Date.UTC(2026, 11, 1, 0, i)).toISOString().replace('Z', '+0000')));
+  for (let i = 0; i < all.length; i += 1) {
+    const out = triage({ issue: all[i], window: all.slice(0, i), projectKeys: ['DEMO'], policies: installed });
+    assert.equal(out.decision, 'ask', all[i].key);
+  }
+  const restated = triage({ issue: all[10], window: all.slice(0, 10), projectKeys: ['DEMO'], policies: installed });
+  assert.equal(restated.candidates[0].key, 'DEMO-1');
+});
+
+test('a policy with a minimum window asks below it and decides normally at it', () => {
+  const open = { ...gate('clear', { top1: 0 }, 5), minWindow: 3 };
+  const two = triage({ issue: ticket, window, policies: { link: closed('link'), clear: open } });
+  assert.equal(two.decision, 'ask');
+  assert.match(two.gates.clear.reason, /has 2 earlier issues\. Hedge needs at least 3/);
+  const extra = issue('P-0', 'Webhook retries never stop', '2023-12-31T00:00:00.000+0000');
+  const three = triage({ issue: ticket, window: [extra, ...window], policies: { link: closed('link'), clear: open } });
+  assert.equal(three.decision, 'clear');
+});
+
+test('one earlier issue is named in the singular', () => {
+  const open = { ...gate('clear', { top1: 0 }, 5), minWindow: 30 };
+  const out = triage({ issue: ticket, window: window.slice(0, 1), policies: { link: closed('link'), clear: open } });
+  assert.match(out.gates.clear.reason, /has 1 earlier issue\. /);
 });
 
 test('a copy of a window issue is never cleared, because copies were not calibrated', () => {

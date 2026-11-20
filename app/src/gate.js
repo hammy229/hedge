@@ -38,6 +38,9 @@ export function policyProblem(policy, runtime = RUNTIME) {
   if (!isNumber(policy.threshold) || policy.threshold <= 0 || policy.threshold > 1) {
     return 'The policy threshold is not a probability in (0, 1].';
   }
+  if (!Number.isInteger(policy.minWindow) || policy.minWindow < 0) {
+    return 'The policy has no valid minimum window.';
+  }
   const model = policy.model;
   const weights = model?.weights;
   if (!isNumber(model?.bias) || !weights || typeof weights !== 'object' || Array.isArray(weights)) {
@@ -91,15 +94,19 @@ export function describePolicy(policy) {
   if (!policy?.calibrated) {
     return { calibrated: false, guarantee: 'None yet. Hedge asks a person about every ticket.' };
   }
-  const { alpha, delta, calibrationSize } = policy;
+  const { alpha, delta, calibrationSize, minWindow } = policy;
+  const history = Number.isInteger(minWindow) && minWindow > 0
+    ? ` It asks about every ticket whose project has fewer than ${minWindow} earlier issues.`
+    : '';
   return {
     calibrated: true,
     alpha,
     delta,
     calibrationSize,
+    minWindow,
     guarantee:
       `Among tickets Hedge acts on, at most ${(alpha * 100).toFixed(1)}% are wrong, ` +
       `with probability ${((1 - delta) * 100).toFixed(0)}% over a calibration set of ` +
-      `${calibrationSize} tickets, assuming new tickets look like the calibration set.`,
+      `${calibrationSize} tickets, assuming new tickets look like the calibration set.${history}`,
   };
 }

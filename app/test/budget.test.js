@@ -22,6 +22,7 @@ const policy = {
   alpha: 0.03,
   delta: 0.1,
   calibrationSize: 1000,
+  minWindow: 0,
   threshold: 0.9,
   calibrationCoverage: 0.5,
   model: { bias: -1, weights: { margin: 4 } },
