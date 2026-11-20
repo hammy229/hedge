@@ -97,14 +97,15 @@ def test_train_keeps_rows_that_share_a_cluster_with_later_parts():
     assert c.ids.tolist().index("J:A-1") in split.train
 
 
-def test_fresh_part_drops_old_tickets_and_their_whole_clusters():
+def test_fresh_part_drops_old_tickets_and_optionally_their_clusters():
     c = small()
     part = np.arange(len(c))
     a1 = c.ids.tolist().index("J:A-1")
     old = [{"id": "J:A-1", "group": f"c{c.cluster[a1]}"}, {"id": "J:A-2", "group": "r1"}]
-    left = {c.ids[i] for i in fresh_part(c, part, old)}
-    # A-3 shares A-1's cluster, A-2 is an old ticket; A-4 and A-5 are untouched.
-    assert left == {"J:A-4", "J:A-5"}
+    # By default only the old tickets go: A-3 stays although it shares A-1's cluster.
+    assert {c.ids[i] for i in fresh_part(c, part, old)} == {"J:A-3", "J:A-4", "J:A-5"}
+    # With drop_clusters, A-3 goes too.
+    assert {c.ids[i] for i in fresh_part(c, part, old, drop_clusters=True)} == {"J:A-4", "J:A-5"}
 
 
 def test_main_fresh_calibration_keeps_train_and_test_and_redraws_calibration(tmp_path):

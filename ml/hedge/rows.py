@@ -50,15 +50,18 @@ def sample(part: np.ndarray, n: int | None, rng: np.random.Generator) -> np.ndar
     return np.sort(rng.choice(part, size=n, replace=False))
 
 
-def fresh_part(corpus: Corpus, part: np.ndarray, old_rows: list[dict]) -> np.ndarray:
-    """The tickets of ``part`` that share no ticket and no duplicate cluster with ``old_rows``.
+def fresh_part(corpus: Corpus, part: np.ndarray, old_rows: list[dict], drop_clusters: bool = False) -> np.ndarray:
+    """The tickets of ``part`` that are not in ``old_rows``.
 
     A rule picked by looking at one calibration sample must be certified on data that
-    played no part in picking it (ADR 8). Dropping shared clusters, not only shared tickets,
-    keeps a bug's other reports out too, since they are not independent of the old sample.
+    played no part in picking it (ADR 8). Only the old tickets are dropped by default.
+    ``drop_clusters`` also drops every ticket sharing a duplicate cluster with them, but
+    which clusters a sample touches depends on the labels: big clusters are hit far more
+    often, so the rest of the part is left with fewer duplicates (2.95% per ticket against
+    3.34% on the real data) and certifies optimistically.
     """
     ids = {r["id"] for r in old_rows}
-    clusters = {int(g[1:]) for r in old_rows if (g := r.get("group", "")).startswith("c")}
+    clusters = {int(g[1:]) for r in old_rows if (g := r.get("group", "")).startswith("c")} if drop_clusters else set()
     keep = np.array(
         [corpus.ids[i] not in ids and int(corpus.cluster[i]) not in clusters for i in part.tolist()], dtype=bool
     )
