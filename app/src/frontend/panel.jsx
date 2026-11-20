@@ -8,7 +8,12 @@ function Panel() {
   const [failed, setFailed] = useState(null);
 
   useEffect(() => {
-    invoke('triage').then(setResult, (e) => setFailed(e?.message ?? 'unknown error'));
+    // Forge stops a function at 25 s; past that, say so instead of spinning forever.
+    const timer = setTimeout(() => setFailed('Hedge took too long to answer'), 30000);
+    invoke('triage')
+      .then(setResult, (e) => setFailed(e?.message ?? 'unknown error'))
+      .finally(() => clearTimeout(timer));
+    return () => clearTimeout(timer);
   }, []);
 
   if (failed) {

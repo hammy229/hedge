@@ -39,10 +39,17 @@ export async function readLog(store) {
   }
 }
 
+// Same ticket, outcome, budget and caller as an earlier entry: the panel re-runs triage
+// each time someone opens the ticket, and a view is not a new decision.
+const same = (a, b) =>
+  a.issueKey === b.issueKey && a.decision === b.decision && a.budget === b.budget && a.via === b.via;
+
 export async function record(store, result, meta) {
   try {
     const log = await readLog(store);
-    await store.set(KEY, [entryFor(result, meta), ...log].slice(0, LOG_SIZE));
+    const entry = entryFor(result, meta);
+    if (log.some((e) => same(e, entry))) return;
+    await store.set(KEY, [entry, ...log].slice(0, LOG_SIZE));
   } catch {
     // The log is a record of decisions, not part of them.
   }

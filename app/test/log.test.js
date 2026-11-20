@@ -61,3 +61,16 @@ test('a malformed stored log reads as empty', async () => {
   store.m.set('log:decisions', { not: 'a list' });
   assert.deepEqual(await readLog(store), []);
 });
+
+test('reopening a ticket with the same outcome does not add a second entry', async () => {
+  const store = memory();
+  const meta = { budgets: { clear: 0.03 }, via: 'panel' };
+  await record(store, result, { ...meta, at: '1' });
+  await record(store, result, { ...meta, at: '2' });
+  assert.equal((await readLog(store)).length, 1);
+  // A new outcome, a new budget or a different caller is a new entry.
+  await record(store, { ...result, decision: 'ask' }, { ...meta, at: '3' });
+  await record(store, result, { budgets: { clear: 0.025 }, via: 'panel', at: '4' });
+  await record(store, result, { ...meta, via: 'mcp', at: '5' });
+  assert.equal((await readLog(store)).length, 4);
+});
