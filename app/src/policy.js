@@ -7,7 +7,7 @@ export default {
     "retriever": "bm25-recent1000-v1",
     "alpha": 0.03,
     "delta": 0.1,
-    "calibrationSize": 14133,
+    "calibrationSize": 15543,
     "threshold": null,
     "calibrationCoverage": 0.0,
     "calibrationActed": 0,
@@ -25,6 +25,7 @@ export default {
         "logTopAgeDays": -0.15098834391351848
       }
     },
+    "minWindow": 30,
     "budgets": [
       {
         "alpha": 0.02,
@@ -78,11 +79,11 @@ export default {
     "retriever": "bm25-recent1000-v1",
     "alpha": 0.03,
     "delta": 0.1,
-    "calibrationSize": 14133,
-    "threshold": 0.9643427390954834,
-    "calibrationCoverage": 0.5988820491049317,
-    "calibrationActed": 8464,
-    "calibrationErrors": 195,
+    "calibrationSize": 15543,
+    "threshold": 0.9599157726852418,
+    "calibrationCoverage": 0.738403139677025,
+    "calibrationActed": 11477,
+    "calibrationErrors": 274,
     "model": {
       "bias": 5.456966814419808,
       "weights": {
@@ -96,46 +97,47 @@ export default {
         "logTopAgeDays": 0.06341491588286603
       }
     },
+    "minWindow": 30,
     "budgets": [
       {
         "alpha": 0.02,
-        "calibrated": true,
-        "threshold": 0.9791963293923979,
-        "calibrationCoverage": 0.14922521757588622,
-        "calibrationActed": 2109,
-        "calibrationErrors": 22
+        "calibrated": false,
+        "threshold": null,
+        "calibrationCoverage": 0.0,
+        "calibrationActed": 0,
+        "calibrationErrors": 0
       },
       {
         "alpha": 0.025,
         "calibrated": true,
-        "threshold": 0.9731205693043965,
-        "calibrationCoverage": 0.2964692563503856,
-        "calibrationActed": 4190,
-        "calibrationErrors": 67
+        "threshold": 0.9687657968710123,
+        "calibrationCoverage": 0.42057517853696197,
+        "calibrationActed": 6537,
+        "calibrationErrors": 119
       },
       {
         "alpha": 0.03,
         "calibrated": true,
-        "threshold": 0.9643427390954834,
-        "calibrationCoverage": 0.5988820491049317,
-        "calibrationActed": 8464,
-        "calibrationErrors": 195
+        "threshold": 0.9599157726852418,
+        "calibrationCoverage": 0.738403139677025,
+        "calibrationActed": 11477,
+        "calibrationErrors": 274
       },
       {
         "alpha": 0.035,
         "calibrated": true,
-        "threshold": 0.9549269256091968,
-        "calibrationCoverage": 0.8527559612255006,
-        "calibrationActed": 12052,
-        "calibrationErrors": 345
+        "threshold": 0.9091150773475104,
+        "calibrationCoverage": 0.9828218490638873,
+        "calibrationActed": 15276,
+        "calibrationErrors": 443
       },
       {
         "alpha": 0.05,
         "calibrated": true,
         "threshold": 0.4824313310490456,
-        "calibrationCoverage": 0.9999292436142362,
-        "calibrationActed": 14132,
-        "calibrationErrors": 472
+        "calibrationCoverage": 0.9913787557099659,
+        "calibrationActed": 15409,
+        "calibrationErrors": 458
       }
     ],
     "excludedJiras": [
