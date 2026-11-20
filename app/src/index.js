@@ -1,6 +1,7 @@
 import api, { route } from '@forge/api';
 import { kvs } from '@forge/kvs';
 import { describePolicy } from './gate.js';
+import { seedStatus, seedStep } from './seeder.js';
 import { record } from './log.js';
 import policies from './policy.js';
 import { activePolicies, readBudgets } from './settings.js';
@@ -17,8 +18,20 @@ const FIELDS = ['summary', 'description', 'created', 'project'];
 
 async function jira(path, options) {
   const res = await api.asUser().requestJira(path, options);
-  if (!res.ok) throw new Error(`Jira returned ${res.status}`);
+  if (!res.ok) throw new Error(await jiraError(res));
   return res.json();
+}
+
+// Jira's error body says which field it rejected (the seeder needs that), cut short
+// because the panel shows the message.
+export async function jiraError(res) {
+  let body = '';
+  try {
+    body = (await res.text()).replace(/\s+/g, ' ').trim().slice(0, 200);
+  } catch {
+    body = '';
+  }
+  return body ? `Jira returned ${res.status}: ${body}` : `Jira returned ${res.status}`;
 }
 
 async function projectKeys() {
@@ -55,6 +68,16 @@ async function triageAt(issueKey, active) {
   } catch (e) {
     return { issueKey, decision: 'ask', reason: `Hedge could not triage this ticket (${e.message}), so a person decides.` };
   }
+}
+
+// Admin page: create the next sample issues as the admin, who must be able to create
+// issues in the project. Jira's own permissions decide, not Hedge.
+export function seedProject(projectKey) {
+  return seedStep({ jira, store, projectKey, route });
+}
+
+export function seedProgress(projectKey) {
+  return seedStatus(store, projectKey);
 }
 
 // MCP tool: may an agent act on this ticket (link it as a duplicate, or clear it as new),

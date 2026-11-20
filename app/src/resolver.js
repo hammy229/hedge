@@ -2,7 +2,7 @@
 import ResolverModule from '@forge/resolver';
 import { budgetOptions } from './budget.js';
 import { describePolicy } from './gate.js';
-import { runTriage, store } from './index.js';
+import { runTriage, seedProgress, seedProject, store } from './index.js';
 import { readLog } from './log.js';
 import policies from './policy.js';
 import { ACTIONS, activePolicies, readBudgets, saveBudget } from './settings.js';
@@ -22,6 +22,15 @@ export const handlers = {
   log: ({ context } = {}) => {
     adminOnly(context, 'The decision log can only be read from the admin page.');
     return readLog(store);
+  },
+  // Sample data writes issues, so only the admin page may start it.
+  seed: ({ payload, context } = {}) => {
+    adminOnly(context, 'Sample data can only be added from the admin page.');
+    return seedProject(payload?.projectKey);
+  },
+  seedStatus: ({ payload, context } = {}) => {
+    adminOnly(context, 'Sample data can only be added from the admin page.');
+    return seedProgress(payload?.projectKey);
   },
 };
 

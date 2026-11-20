@@ -32,3 +32,10 @@ test('only the admin page may read the decision log', async () => {
   }
   assert.throws(() => handlers.log(), /admin page/);
 });
+
+test('only the admin page may add sample data', async () => {
+  for (const context of [{ moduleKey: 'hedge-panel' }, {}, undefined]) {
+    assert.throws(() => handlers.seed({ payload: { projectKey: 'DEMO' }, context }), /admin page/);
+    assert.throws(() => handlers.seedStatus({ payload: { projectKey: 'DEMO' }, context }), /admin page/);
+  }
+});
