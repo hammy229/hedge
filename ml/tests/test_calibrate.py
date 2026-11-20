@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from hedge.calibrate import build_policy, main
-from hedge.features import FEATURE_NAMES
+from hedge.features import FEATURE_NAMES, to_matrix
 
 
 def rows(n, seed=0, signal=3.0):
@@ -174,3 +174,67 @@ def test_cli_writes_the_budget_table(tmp_path):
     main([str(path), "--alpha", "0.05", "--budgets", "0.02,0.05,0.1", "--retriever", "bm25-v1", "--out", str(out)])
     policies = read_policies(out)
     assert [b["alpha"] for b in policies["clear"]["budgets"]] == [0.02, 0.05, 0.1]
+
+
+def small_window_rows(n, seed=0, small=0.3):
+    """rows(), with a share of tickets searching tiny windows and always wrong there."""
+    out = rows(n, seed=seed)
+    rng = np.random.default_rng(seed + 1)
+    for r in out:
+        r["window"] = int(rng.integers(0, 10)) if rng.uniform() < small else int(rng.integers(30, 1001))
+        if r["window"] < 30:
+            r["right"] = 0
+    return out
+
+
+def test_min_window_never_acts_on_a_small_window_ticket():
+    data = small_window_rows(6000)
+    policy = build_policy(data, alpha=0.05, delta=0.1, retriever="bm25-v1", min_window=30)
+    assert policy["minWindow"] == 30
+    assert policy["calibrated"] is True
+    cal = [r for r in data if r["split"] == "calibration"]
+    m = policy["model"]
+    z = to_matrix(cal) @ np.array([m["weights"][n] for n in FEATURE_NAMES]) + m["bias"]
+    scores = 1 / (1 + np.exp(-z))
+    acted = [r for r, s in zip(cal, scores) if s >= policy["threshold"] and r["window"] >= 30]
+    # Exactly the big-window tickets over the threshold are acted on; coverage is over all.
+    assert policy["calibrationActed"] == len(acted)
+    assert policy["calibrationCoverage"] == pytest.approx(len(acted) / len(cal))
+    assert policy["calibrationErrors"] == sum(1 - r["right"] for r in acted)
+
+
+def test_min_window_zero_is_the_old_policy_plus_the_field():
+    data = small_window_rows(4000)
+    old = build_policy(data, alpha=0.05, delta=0.1, retriever="bm25-v1")
+    assert old["minWindow"] == 0
+    assert old["threshold"] == build_policy(data, alpha=0.05, delta=0.1, retriever="bm25-v1", min_window=0)["threshold"]
+
+
+def test_min_window_counts_small_windows_as_asked_in_every_budget():
+    data = small_window_rows(6000)
+    policy = build_policy(
+        data, alpha=0.05, delta=0.1, retriever="bm25-v1", budgets=(0.03, 0.05, 0.1), min_window=30
+    )
+    big = sum(r["window"] >= 30 for r in data if r["split"] == "calibration")
+    assert all(b["calibrationActed"] <= big for b in policy["budgets"])
+    assert policy["minWindow"] == 30
+
+
+@pytest.mark.parametrize("bad", [-1, 2.5, True, "30"])
+def test_bad_min_window_is_an_error(bad):
+    with pytest.raises(ValueError, match="min_window"):
+        build_policy(rows(200), alpha=0.05, delta=0.1, retriever="bm25-v1", min_window=bad)
+
+
+def test_min_window_needs_a_window_on_every_row():
+    with pytest.raises(ValueError, match="integer window"):
+        build_policy(rows(200), alpha=0.05, delta=0.1, retriever="bm25-v1", min_window=30)
+
+
+def test_cli_records_the_min_window(tmp_path):
+    src = tmp_path / "rows.jsonl"
+    src.write_text("".join(json.dumps(r) + "\n" for r in with_answers(small_window_rows(2000))))
+    out = tmp_path / "policy.js"
+    assert main([str(src), "--retriever", "bm25-v1", "--alpha", "0.05", "--min-window", "30", "--out", str(out)]) == 0
+    body = read_policies(out)
+    assert body["link"]["minWindow"] == 30 and body["clear"]["minWindow"] == 30

@@ -76,6 +76,7 @@ def build_policy(
     grid_size: int | None = GRID_SIZE,
     action: str = "link",
     budgets: Sequence[float] | None = None,
+    min_window: int = 0,
 ) -> dict:
     """Fit on train rows, certify on calibration rows, for one action (see ``ACTIONS``).
 
@@ -94,7 +95,14 @@ def build_policy(
     The admin may pick any row after seeing the table, with no split of delta (ADR 7).
     ``alpha`` must be one of the budgets: it is the default, and the top-level threshold
     is its table entry.
+
+    ``min_window`` makes the gate ask about every ticket that searched fewer earlier issues
+    than that, whatever its score (ADR 8). The rule is applied before certification: those
+    calibration tickets count as asked, never as acted, so the certified error rate is the
+    error rate of the rule the app runs. The policy records it as ``minWindow``.
     """
+    if isinstance(min_window, bool) or not isinstance(min_window, int) or min_window < 0:
+        raise ValueError(f"min_window must be a non-negative integer, got {min_window!r}")
     if budgets is not None:
         budgets = check_budgets(budgets, alpha)
     rows = list(rows)
@@ -105,6 +113,8 @@ def build_policy(
             raise ValueError(f"row {i}: split must be one of {sorted(SPLITS)}, got {r.get('split')!r}")
         if r.get("right") not in (0, 1):
             raise ValueError(f"row {i}: right must be 0 or 1, got {r.get('right')!r}")
+        if min_window > 0 and (isinstance(r.get("window"), bool) or not isinstance(r.get("window"), int)):
+            raise ValueError(f"row {i}: a minimum window needs an integer window, got {r.get('window')!r}")
     rows = for_action(rows, action)
     train = [r for r in rows if r["split"] == "train"]
     cal = [r for r in rows if r["split"] == "calibration"]
@@ -113,6 +123,10 @@ def build_policy(
     model = fit_gate(to_matrix(train), [r["right"] for r in train], FEATURE_NAMES, l2=l2)
     grid = DEFAULT_GRID if grid_size is None else train_quantile_grid(model.predict_proba(to_matrix(train)), grid_size)
     scores = model.predict_proba(to_matrix(cal))
+    if min_window > 0:
+        # Too-small windows score 0 and the grid starts above 0, so no threshold acts on them.
+        scores = np.where([r["window"] < min_window for r in cal], 0.0, scores)
+        grid = grid[grid > 0]
     wrong = 1 - np.asarray([r["right"] for r in cal])
     groups = None
     if any("group" in r for r in cal):
@@ -120,7 +134,7 @@ def build_policy(
     size = len(cal)
     if budgets is None:
         threshold = ltt_threshold(scores, wrong, alpha=alpha, delta=delta, grid=grid, groups=groups)
-        return {"action": action, **policy_dict(model, threshold, alpha, delta, size, retriever)}
+        return {"action": action, **policy_dict(model, threshold, alpha, delta, size, retriever), "minWindow": min_window}
     table = []
     for a in budgets:
         t = ltt_threshold(scores, wrong, alpha=a, delta=delta, grid=grid, groups=groups)
@@ -138,7 +152,7 @@ def build_policy(
         if a == alpha:
             default = t
     policy = policy_dict(model, default, alpha, delta, size, retriever)
-    return {"action": action, **policy, "budgets": table}
+    return {"action": action, **policy, "minWindow": min_window, "budgets": table}
 
 
 def check_budgets(budgets: Sequence[float], alpha: float) -> tuple[float, ...]:
@@ -168,6 +182,7 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="comma-separated budgets for the admin dial, e.g. 0.01,0.02,0.03,0.05,0.1 (must include --alpha)",
     )
+    ap.add_argument("--min-window", type=int, default=0, help="ask about tickets that searched fewer earlier issues (ADR 8)")
     ap.add_argument("--l2", type=float, default=1.0)
     ap.add_argument("--out", type=Path, required=True, help="where to write policy.js")
     args = ap.parse_args(argv)
@@ -181,7 +196,8 @@ def main(argv: list[str] | None = None) -> int:
     policies = {}
     for action in ACTIONS:
         policy = build_policy(
-            rows, args.alpha, args.delta, args.retriever, args.l2, action=action, budgets=args.budgets
+            rows, args.alpha, args.delta, args.retriever, args.l2, action=action, budgets=args.budgets,
+            min_window=args.min_window,
         )
         policies[action] = {**policy, "excludedJiras": excluded}
         if policy["calibrated"]:
