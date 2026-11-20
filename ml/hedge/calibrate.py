@@ -87,11 +87,13 @@ def build_policy(
     dependence inside a group (``risk.clustered_p_value``). Rows without a group count as
     their own group.
 
-    Pass ``budgets`` to also certify a table of error budgets for the admin's dial. Each
-    budget gets ``delta / len(budgets)``, so by a union bound every threshold in the table
-    holds at once with probability 1 - delta, and the admin may pick any of them after
-    seeing the table (ADR 7). ``alpha`` must be one of them: it is the default, and the
-    top-level threshold is its table entry.
+    Pass ``budgets`` to also certify a table of error budgets for the admin's dial, every
+    one at the full ``delta``. The grid tests are Bonferroni-corrected and each p-value only
+    falls as the budget grows, so each grid test is an upper confidence bound on that
+    threshold's error, and one event of probability 1 - delta covers every budget at once.
+    The admin may pick any row after seeing the table, with no split of delta (ADR 7).
+    ``alpha`` must be one of the budgets: it is the default, and the top-level threshold
+    is its table entry.
     """
     if budgets is not None:
         budgets = check_budgets(budgets, alpha)
@@ -119,10 +121,9 @@ def build_policy(
     if budgets is None:
         threshold = ltt_threshold(scores, wrong, alpha=alpha, delta=delta, grid=grid, groups=groups)
         return {"action": action, **policy_dict(model, threshold, alpha, delta, size, retriever)}
-    each = delta / len(budgets)
     table = []
     for a in budgets:
-        t = ltt_threshold(scores, wrong, alpha=a, delta=each, grid=grid, groups=groups)
+        t = ltt_threshold(scores, wrong, alpha=a, delta=delta, grid=grid, groups=groups)
         calibrated = bool(np.isfinite(t.threshold))
         table.append(
             {
@@ -137,7 +138,7 @@ def build_policy(
         if a == alpha:
             default = t
     policy = policy_dict(model, default, alpha, delta, size, retriever)
-    return {"action": action, **policy, "deltaPerBudget": each, "budgets": table}
+    return {"action": action, **policy, "budgets": table}
 
 
 def check_budgets(budgets: Sequence[float], alpha: float) -> tuple[float, ...]:
