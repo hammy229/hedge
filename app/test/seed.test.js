@@ -37,17 +37,21 @@ test('the seed is 150 attributed issues with five in-span duplicates', () => {
   }
 });
 
-test('at the default 3% budget Hedge clears 118 and misses 3 of the 5 duplicates', () => {
+test('at the default 3% budget Hedge clears 119 and misses 3 of the 5 duplicates', () => {
   const r = replay(0.03);
-  assert.deepEqual(r.counts, { link: 0, clear: 118, ask: 32 });
+  assert.deepEqual(r.counts, { link: 0, clear: 119, ask: 31 });
   assert.deepEqual(r.wrongClears, ['DEMO-37', 'DEMO-50', 'DEMO-51']);
   assert.deepEqual(r.asked, ['DEMO-15', 'DEMO-29']);
 });
 
-test('tightening the dial to 2.5% sends more tickets and one of the misses to a person', () => {
+test('tightening the dial to 2.5% sends five more tickets to a person but no extra duplicate', () => {
   const r = replay(0.025);
-  assert.deepEqual(r.counts, { link: 0, clear: 103, ask: 47 });
-  assert.deepEqual(r.wrongClears, ['DEMO-50', 'DEMO-51']);
+  assert.deepEqual(r.counts, { link: 0, clear: 114, ask: 36 });
+  assert.deepEqual(r.wrongClears, ['DEMO-37', 'DEMO-50', 'DEMO-51']);
+});
+
+test('at 2% nothing was certified, so every sample ticket is asked about', () => {
+  assert.deepEqual(replay(0.02).counts, { link: 0, clear: 0, ask: 150 });
 });
 
 test('the first 30 seeded issues are always asked about', () => {
