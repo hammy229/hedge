@@ -11,7 +11,7 @@ new**, including the restated one, whose top candidate was the right earlier tic
 
 The cause is the window size feature. The clear gate gives `logWindow` a weight of -0.27,
 so a ten-issue window adds about +1.2 to the logit against a full one. In the data this
-is right: on the fresh calibration sample below, the 134 tickets (0.9%) that searched fewer
+is right: on the fresh calibration sample below, the 87 tickets (0.6%) that searched fewer
 than 30 earlier issues have no duplicates at all, since a project that young has little to
 duplicate. A judge's site is not that population. A judge plants a duplicate on purpose,
 and the gate is extrapolating from a corner calibration barely covers (in the old calibration
@@ -33,8 +33,16 @@ The cut was picked while looking at the old calibration sample. A cut of 100 was
 tried there and dropped the certified share at 3% from 59.9% to 43.4%. Picking between
 two rules on the data that certifies one of them would spend the guarantee's delta. So
 the rule is certified on a **fresh calibration draw**: `rows.py --fresh-calibration`
-samples 20,000 new calibration tickets (15,543 without Mojang) that share no ticket and no
-duplicate cluster with the old sample. Train and test rows are copied unchanged.
+samples 20,000 new calibration tickets (14,107 without Mojang) from the same period that
+are not in the old sample. Train and test rows are copied unchanged.
+
+The first fresh draw also dropped every ticket sharing a duplicate cluster with the old
+sample. That looked stricter but biased the draw: which clusters a sample touches depends
+on the labels, big clusters are hit far more often, and the draw was left with 2.95%
+duplicates per ticket against 3.34% in the old sample, so it certified optimistically
+(the review caught it before release). Dropping only the old tickets gives 3.09%. A few
+tickets still share a cluster with the old sample; under 5% of calibration tickets are in
+any cluster at all.
 
 Paying for the choice by certifying at delta / 2 on the old sample was the alternative.
 It costs as much as ADR 7's split: at 3% the certified share fell from 59.9% to 44.5%.
@@ -43,12 +51,12 @@ It costs as much as ADR 7's split: at 3% the certified share fell from 59.9% to 
 
 | Rule | Certified at 3% (calibration) | Test coverage | Test error |
 |---|---|---|---|
-| No minimum window | 79.7% | 76.8% [71.3%, 81.4%] | 1.7% [1.3%, 2.3%] |
-| Minimum window 30 (installed) | 73.8% | 71.3% [65.7%, 76.3%] | 1.6% [1.2%, 2.1%] |
+| No minimum window | 83.4% | 80.4% [75.1%, 84.6%] | 1.8% [1.3%, 2.3%] |
+| Minimum window 30 (installed) | 82.8% | 79.6% [74.4%, 83.8%] | 1.8% [1.3%, 2.3%] |
 
-The rule asks about only 0.8% of test tickets, but it costs 5.5 points of coverage: those
-tickets were always right, and without them the 3% budget needs the next grid threshold
-(0.9599 against 0.9579). The 2% row no longer certifies anything.
+The rule asks about 0.8% of test tickets and costs 0.8 points of coverage. Those tickets
+were always right, so the 3% budget no longer leans on them. The 2% row certifies nothing
+with or without the rule.
 
 ## Consequences
 

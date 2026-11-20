@@ -4,8 +4,8 @@
 
 The app ships the clear policy from [ADR 8](adr/0008-ask-below-a-minimum-window.md): it
 asks about every ticket whose project has fewer than 30 earlier issues, and it was
-certified on a fresh calibration draw (15,543 tickets without Mojang) that shares no
-ticket or duplicate cluster with the sample the rule was chosen on. Train and test are the
+certified on a fresh calibration draw (14,107 tickets without Mojang, 3.09% duplicates)
+that shares no ticket with the sample the rule was chosen on. Train and test are the
 Nov 18 rows unchanged.
 
 ```bash
@@ -13,22 +13,41 @@ cd ml
 ../.venv/bin/python -m hedge.rows ../data/corpus.pkl --out ../data/rows-fresh.jsonl --per-split 20000 --seed 1 --fresh-calibration ../data/rows.jsonl
 ../.venv/bin/python -m hedge.report ../data/rows-fresh.jsonl --out ../data/report3-no-mojang-mw30.json --exclude-jira Mojang --min-window 30
 ../.venv/bin/python -m hedge.calibrate ../data/rows-fresh.jsonl --retriever bm25-recent1000-v1 --alpha 0.03 --delta 0.1 --exclude-jira Mojang --budgets 0.02,0.025,0.03,0.035,0.05 --min-window 30 --out ../app/src/policy.js
+../.venv/bin/python -m hedge.seed ../data/issues.jsonl.gz --jira Jira --project JSWSERVER --size 150 --min-duplicates 4 --out ../app/src/seed.js
 ```
 
 | Action | Budget | Certified on calibration | Test coverage | Acted | Test error | Within budget |
 |---|---|---|---|---|---|---|
 | link | 1% to 10% | nothing certified | 0% | 0 | n/a | n/a |
 | clear | 1% | nothing certified | 0% | 0 | n/a | n/a |
-| clear | 3% | acts on 73.8% | 71.3% [65.7%, 76.3%] | 9,460 | 1.6% [1.2%, 2.1%] | yes |
-| clear | 5% and 10% | acts on 99.1% | 99.2% [98.8%, 99.4%] | 13,156 | 2.2% [1.6%, 2.8%] | yes |
+| clear | 3% | acts on 82.8% | 79.6% [74.4%, 83.8%] | 10,556 | 1.8% [1.3%, 2.3%] | yes |
+| clear | 5% and 10% | acts on 99.4% | 99.2% [98.8%, 99.4%] | 13,156 | 2.2% [1.6%, 2.8%] | yes |
 
-The admin dial's rows (calibration share cleared): 2% nothing certified, 2.5% 42.1%,
-3% 73.8%, 3.5% 98.3%, 5% 99.1%.
+The admin dial's rows (calibration share cleared): 2% nothing certified, 2.5% 61.8%,
+3% 82.8%, 3.5% 96.5%, 5% 99.4%.
 
-The same fresh draw with no minimum window certifies 79.7% and covers 76.8% [71.3%, 81.4%]
-of test tickets with 1.7% error. The old draw certified 59.9% for the same rule-free
-policy, so the sections below, all on the old draw, understate coverage by about that
-much; their error rates are the ones to compare.
+The same fresh draw with no minimum window certifies 83.4% and covers 80.4% [75.1%, 84.6%]
+of test tickets with 1.8% error. The old draw certified 59.9% for that rule-free policy:
+gate scores bunch between 0.95 and 0.97, so coverage swings with the draw while the error
+stays put. The sections below are all on the old draw; compare their error rates, not
+their coverage.
+
+### Sample data (150 Jira Software Server issues, `app/test/seed.test.js`)
+
+The latest 150 consecutive JSWSERVER issues with at least four in-span duplicates
+(JSWSERVER-20774 to 20937, Nov 2020 to May 2021), created in order on an empty project
+and replayed through the app's triage:
+
+| Budget | Cleared | Asked | Duplicates cleared by mistake (of 5) |
+|---|---:|---:|---:|
+| 2% | 0 | 150 | 0 |
+| 2.5% | 114 | 36 | 3 |
+| 3% (default) | 119 | 31 | 3 |
+| 3.5% | 120 | 30 | 3 |
+
+The first 30 are always asked about (minimum window). The two duplicates Hedge asks about
+fall inside those 30, so on this sample the gate itself caught none of the five. Each
+missed one has its right original as the top candidate, which the panel shows.
 
 ## Nov 18 runs
 
