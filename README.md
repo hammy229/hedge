@@ -7,9 +7,9 @@
 
 **Links:** [Plan](docs/PLAN.md) · [Results](docs/results.md) · [Data](docs/data.md) · [Design decisions](docs/adr/) · [arhamdoshi.dev](https://arhamdoshi.dev) · [linkedin.com/in/arhamdoshi](https://linkedin.com/in/arhamdoshi)
 
-> Status: in progress for Atlassian Codegeist 2026 (due Dec 22, 2026). The threshold math, the
-> BM25 baseline on 2.7M real issues and the Forge retrieval path are done. The certified policy
-> is not installed in the app yet, so it still asks a person about every ticket, by design.
+> Status: in progress for Atlassian Codegeist 2026 (due Dec 22, 2026). The certified 3% clear
+> policy ships in the app, with an issue panel, an admin error-budget dial and a decision log.
+> Next: deploying to a Forge site. Judges' steps are in [docs/TESTING.md](docs/TESTING.md).
 > See [docs/PLAN.md](docs/PLAN.md).
 
 ## Results
@@ -19,6 +19,7 @@ Only numbers this repo produces. Real-data rows come from [docs/results.md](docs
 
 | Claim | Measured | How it is checked |
 |---|---|---|
+| An admin can move the budget without breaking the guarantee | every dial row is certified at the full delta, valid for all rows at once ([ADR 7](docs/adr/0007-one-delta-for-every-dial-budget.md)); clear acts on 14.9% of calibration tickets at 2%, 29.6% at 2.5%, 59.9% at 3%, 85.3% at 3.5%. Only 1 of 400 synthetic calibration draws had any of five budgets certify a threshold above its budget (allowed: 10%) | `python -m hedge.calibrate --budgets`, `ml/tests/test_risk.py` |
 | Clearing new tickets from duplicate review is safe at a 3% budget | without Mojang, 57.8% [52.4, 63.6] of test tickets cleared with 1.4% [1.0, 1.8] of them duplicates; certified on calibration, checked on the later test window. This policy ships in the app | `python -m hedge.report`, [results](docs/results.md) |
 | Context features make the gate beat the raw score | with every Jira, clear AURC 0.066 [0.023, 0.124] for the gate against 0.133 for the top BM25 score; window size, summary overlap and match age lifted certified coverage at 3% from 36.9% to 57.8% without Mojang | same report, [ADR 6](docs/adr/0006-window-aware-gate-features.md) |
 | Late labels barely move it | on test tickets filed 180+ days before the dump, clear error 1.6% [1.1, 2.1] against 1.4% on all | `--mature-days 180` |
@@ -34,7 +35,6 @@ Only numbers this repo produces. Real-data rows come from [docs/results.md](docs
 | The Forge gate scores exactly like the Python model | 50 of 50 tickets match to 1e-12 | `ml/tests/test_gate.py` runs `app/src/gate.js` under Node |
 | The Forge app computes the same features as training | 13 of 13 shared cases agree to 1e-12, including Unicode whitespace edge cases | `fixtures/features.json`, read by both test suites |
 | The real dataset streams without a database | 2,686,223 issues and 271,185 Duplicate pairs in 261 s from the 5.8 GB zip | `python -m hedge.extract`, counts in [docs/data.md](docs/data.md) |
-| The gate beats the raw BM25 top score | not yet: both have AURC 0.012 on the clear action | same report |
 | Hedge beats the agent's own stated confidence | not measured yet | week 3: LLM baseline on the same test tickets |
 
 ## Why it matters
@@ -106,6 +106,10 @@ cd app && npm install
 forge register              # then put the printed app id in manifest.yml
 forge deploy && forge install --demo-site
 ```
+
+An existing install needs `forge install --upgrade` after a deploy that adds a scope (the
+issue panel and dial added `storage:app`), or storage calls fail and the dial cannot save.
+Judges' steps on a fresh site are in [docs/TESTING.md](docs/TESTING.md).
 
 To reach the tools from an external MCP client, turn on "Expose tools via external MCP
 endpoint" for the app under Atlassian Administration, Apps, Sites, Connected apps. Then add
