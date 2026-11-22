@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Hedge, local preview</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header class="top">
+    <div class="brand">
+      <span class="mark" aria-hidden="true"></span>
+      <span class="name">Hedge</span>
+      <span class="tag">Local preview</span>
+    </div>
+    <nav class="tabs" aria-label="Views">
+      <button type="button" data-view="issues" aria-pressed="true">Issues</button>
+      <button type="button" data-view="admin" aria-pressed="false">Error budget</button>
+    </nav>
+  </header>
+  <p class="intro">
+    The 150 sample issues from the admin page, replayed in order through the gate, policy and wording the Jira app ships.
+    No Jira needed. Each issue also shows the known answer from the dataset, so you can see where Hedge was wrong.
+  </p>
+  <main id="app" aria-live="polite"><p class="muted">Replaying the sample project.</p></main>
+  <footer class="foot" id="foot"></footer>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>
