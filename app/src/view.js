@@ -5,15 +5,66 @@ import { LABELS } from './act.js';
 const LOZENGE = {
   link: { text: 'Duplicate', appearance: 'moved' },
   clear: { text: 'New report', appearance: 'success' },
-  ask: { text: 'Needs a person', appearance: 'default' },
+  ask: { text: 'Needs a person', appearance: 'inprogress' },
 };
 
 const trimPct = (x) => `${+(x * 100).toFixed(2)}%`;
+const sentence = (s) => {
+  const t = String(s ?? '').trim();
+  return t === '' || /[.!?]$/.test(t) ? t : `${t}.`;
+};
+
+// Fixed words on the issue panel.
+export const PANEL_TEXT = Object.freeze({
+  loading: 'Comparing this ticket with earlier issues in the project.',
+  timeout: 'Hedge took too long to answer',
+  failedTitle: 'Hedge could not run',
+  nextStepTitle: 'What to do next',
+  whyTitle: 'Why',
+  budgetTitle: 'Error budget',
+  candidatesTitle: 'Closest earlier issues',
+  candidatesNote: 'Match score is BM25 word overlap with this ticket. Higher means more words in common.',
+  match: "Hedge's match",
+  verdictQuestion: 'Was this call right?',
+  verdictLabel: "Review Hedge's call",
+});
+
+// The panel's message when the triage call itself failed or timed out.
+export function panelFailure(message) {
+  return {
+    title: PANEL_TEXT.failedTitle,
+    text: `${sentence(message || 'Unknown error')} A person decides this ticket.`,
+  };
+}
+
+// An ask's reason covers both gates ("Link: ... Clear: ..."). Split it so each reads on
+// its own line, and say it once when both gates gave the same reason.
+function reasonParts(reason) {
+  const text = String(reason ?? '').trim();
+  const m = /^Link: (.+?) Clear: (.+)$/s.exec(text);
+  if (!m) return text === '' ? [] : [{ label: null, text }];
+  if (m[1].trim() === m[2].trim()) return [{ label: null, text: m[1].trim() }];
+  return [
+    { label: 'Duplicate check', text: m[1].trim() },
+    { label: 'New report check', text: m[2].trim() },
+  ];
+}
 
 // What the issue panel shows for one triage result.
 export function panelView(result) {
   if (!result || result.error) {
-    return { lozenge: LOZENGE.ask, headline: result?.error ?? 'Hedge did not return a decision.', lines: [], candidates: [] };
+    return {
+      kind: 'error',
+      lozenge: LOZENGE.ask,
+      headline: result?.error ?? 'Hedge did not return a decision.',
+      carriedOut: null,
+      budget: null,
+      nextStep: 'A person decides this ticket.',
+      reasons: [],
+      notes: [],
+      candidates: [],
+      verdictCounts: false,
+    };
   }
   const decision = LOZENGE[result.decision] ? result.decision : 'ask';
   const budgets = result.budgets ?? {};
@@ -26,44 +77,158 @@ export function panelView(result) {
       : decision === 'clear'
         ? "Hedge's call: a new report, so nobody needs to check it for duplicates."
         : 'Hedge is not sure enough to act, so a person should check this ticket.';
-  const lines = [];
   const labels = Array.isArray(result.labels) ? result.labels : [];
-  if (acting && labels.includes(LABELS[acting])) {
-    lines.push(`Hedge carried this out when the issue was filed (label ${LABELS[acting]}).`);
+  let carriedOut = null;
+  if (acting === 'clear' && labels.includes(LABELS.clear)) {
+    carriedOut = `Hedge carried this out when the issue was filed (label ${LABELS.clear}).`;
+  } else if (acting === 'link' && labels.includes(LABELS.link)) {
+    // The trigger only labels a likely duplicate. A person makes the link.
+    carriedOut = `Hedge added the label ${LABELS.link} when the issue was filed. It did not link the issues.`;
+  } else if (!acting && labels.includes(LABELS.ask)) {
+    carriedOut = `This ticket is in the queue waiting for a person (label ${LABELS.ask}).`;
   }
+  let budget = null;
   if (acting && Number.isFinite(budgets[acting])) {
-    lines.push(`Error budget: at most ${trimPct(budgets[acting])} of these actions are wrong (certified on held-out tickets).`);
+    const pct = trimPct(budgets[acting]);
+    const verb = acting === 'link' ? 'links' : 'clears';
+    budget = { value: pct, text: `At most ${pct} of the tickets Hedge ${verb} this way are wrong, certified on held-out tickets.` };
   }
-  if (Number.isFinite(result.searched)) lines.push(`Searched the ${result.searched} most recent earlier issues in this project.`);
-  if (result.copyOf) lines.push(`Repeats the text of ${result.copyOf}.`);
-  const candidates = (result.candidates ?? []).map((c) => ({ key: c.key, score: Number(c.score).toFixed(2) }));
-  return { lozenge: LOZENGE[decision], headline, reason: result.reason ?? '', lines, candidates };
+  const candidates = (Array.isArray(result.candidates) ? result.candidates : []).map((c) => ({
+    key: c.key,
+    score: Number(c.score).toFixed(2),
+    href: `/browse/${c.key}`,
+    isMatch: decision === 'link' && c.key === result.duplicateOf,
+  }));
+  let nextStep = null;
+  if (decision === 'link') {
+    nextStep = `Open ${result.duplicateOf} and check that it reports the same problem. If it does, link this ticket to it as a duplicate.`;
+  } else if (decision === 'ask') {
+    nextStep =
+      candidates.length > 0
+        ? 'Compare this ticket with the closest earlier issues below. If one reports the same problem, link this ticket as its duplicate. If none does, treat it as a new report.'
+        : 'Hedge found no earlier issues to compare with. Check this ticket by hand.';
+  }
+  const reasons = reasonParts(result.reason);
+  const notes = [];
+  if (Number.isFinite(result.searched)) notes.push(`Searched the ${result.searched} most recent earlier issues in this project.`);
+  if (result.copyOf && !reasons.some((r) => r.text.includes(result.copyOf))) notes.push(`Repeats the text of ${result.copyOf}.`);
+  // A verdict counts against the budget only when the trigger applied the call (feedback.js).
+  const verdictCounts = acting !== null && carriedOut !== null;
+  return { kind: 'decided', decision, lozenge: LOZENGE[decision], headline, carriedOut, budget, nextStep, reasons, notes, candidates, verdictCounts };
 }
+
+// The line under the verdict buttons, for the state of the verdict control.
+export function verdictStatus(state, counts, error) {
+  if (state === 'right' || state === 'wrong') {
+    const extra = counts === true ? ' The admin page compares these verdicts with the error budget.' : '';
+    return { done: true, text: `Thanks. You marked this call ${state}.${extra}` };
+  }
+  if (state === 'failed') return { done: false, error: `${sentence(error || 'Could not save that')} Try again.` };
+  return { done: false, error: null };
+}
+
+// What each action is called on the admin page.
+export const ACTION_TEXT = Object.freeze({
+  clear: {
+    title: 'Clear new reports',
+    noun: 'new report',
+    blurb: 'Hedge marks a ticket as a new report, so nobody has to check it for duplicates.',
+  },
+  link: {
+    title: 'Link duplicates',
+    noun: 'duplicate',
+    blurb: 'Hedge links a ticket to the earlier issue it repeats.',
+  },
+});
+
+export const CHART_NOTE =
+  'Each bar is a budget you can pick. Its height is the share of held-out calibration tickets Hedge would act on at that budget. Taller means Hedge acts on more tickets and asks about fewer.';
+
+const selectedOption = (setting) => (setting?.options ?? []).find((o) => o.alpha === setting?.budget) ?? null;
 
 // Bars and choices for one action on the admin page.
 export function dialView(setting) {
   const options = setting?.options ?? [];
+  const chosen = selectedOption(setting);
+  let current = '';
+  if (chosen?.certified) {
+    current = `Current budget: ${trimPct(chosen.alpha)}. Hedge acts on ${+(chosen.coverage * 100).toFixed(1)}% of held-out tickets.`;
+  } else if (Number.isFinite(setting?.budget)) {
+    current = `Current budget: ${trimPct(setting.budget)}. Nothing is certified here, so Hedge asks about every ticket.`;
+  }
   return {
     choices: options.map((o) => ({ name: 'budget', value: String(o.alpha), label: o.label })),
     selected: String(setting?.budget ?? ''),
     bars: options.map((o) => ({ budget: trimPct(o.alpha), coverage: +(o.coverage * 100).toFixed(1) })),
     anyCertified: options.some((o) => o.certified),
+    current,
   };
 }
 
-// Rows of the recent-decisions table.
+// The value a summary tile shows for one action's budget.
+function budgetValue(setting) {
+  const chosen = selectedOption(setting);
+  if (chosen?.certified) return trimPct(chosen.alpha);
+  return 'Always asks';
+}
+
+// The tiles at the top of the admin page: what is set right now, at a glance.
+export function summaryView(settings, autoAct, log) {
+  const count = Array.isArray(log) ? log.length : 0;
+  return {
+    tiles: [
+      { key: 'clear', label: 'New report budget', value: budgetValue(settings?.clear) },
+      { key: 'link', label: 'Duplicate budget', value: budgetValue(settings?.link) },
+      { key: 'auto', label: 'Acting on new issues', value: autoAct === true ? 'On' : 'Off' },
+      { key: 'log', label: 'Recent decisions', value: String(count) },
+    ],
+    hint: count === 0 ? 'No decisions yet. Add sample data at the bottom of this page, then open one of its issues.' : '',
+  };
+}
+
+// The confirmation after a budget is saved, from the budgets setBudget returns.
+export function budgetSaved(action, budgets, setting) {
+  const alpha = budgets?.[action];
+  const name = ACTION_TEXT[action]?.noun ?? action;
+  if (!Number.isFinite(alpha)) return 'Saved.';
+  const option = (setting?.options ?? []).find((o) => o.alpha === alpha);
+  const tail = option && !option.certified ? ' Nothing is certified at this budget, so Hedge asks about every ticket.' : '';
+  return `Saved. The ${name} budget is now ${trimPct(alpha)}.${tail}`;
+}
+
+// The confirmation after acting on new issues is switched.
+export function autoActSaved(on) {
+  return on === true
+    ? 'Saved. Hedge now acts on each new issue as it is filed.'
+    : 'Saved. Hedge no longer acts on new issues. The panel and agents still get its call.';
+}
+
+export const AUTO_ACT_TEXT =
+  `When this is on, Hedge triages each new issue as it is filed and carries the call out. It labels cleared issues ${LABELS.clear}, labels likely duplicates ${LABELS.link} so a person can link them, and labels the rest ${LABELS.ask}.`;
+export const ASK_QUEUE_JQL = `labels = ${LABELS.ask}`;
+
+const VIA = { panel: 'Issue panel', mcp: 'Agent (MCP)', trigger: 'New issue' };
+
+export const LOG_HEAD = ['Time (UTC)', 'Issue', 'Decision', 'Score', 'Budget', 'Source', 'Carried out'];
+
+// Rows of the recent-decisions table, as plain data the JSX turns into cells.
 export function logRows(log) {
   return (Array.isArray(log) ? log : []).map((e, i) => ({
     key: `${e.at}-${e.issueKey}-${i}`,
-    cells: [
-      { key: 'at', content: String(e.at ?? '').replace('T', ' ').slice(0, 16) },
-      { key: 'issue', content: e.issueKey },
-      { key: 'decision', content: e.decision },
-      { key: 'score', content: Number.isFinite(e.score) ? e.score.toFixed(3) : '' },
-      { key: 'budget', content: Number.isFinite(e.budget) ? trimPct(e.budget) : '' },
-      { key: 'via', content: e.via },
-      { key: 'applied', content: e.applied === true ? 'yes' : e.applied === false ? 'failed' : '' },
-    ],
+    at: String(e.at ?? '').replace('T', ' ').slice(0, 16),
+    issueKey: String(e.issueKey ?? ''),
+    href: e.issueKey ? `/browse/${e.issueKey}` : '',
+    decision: LOZENGE[e.decision] ?? { text: String(e.decision ?? ''), appearance: 'default' },
+    score: Number.isFinite(e.score) ? e.score.toFixed(3) : '',
+    budget: Number.isFinite(e.budget) ? trimPct(e.budget) : '',
+    via: VIA[e.via] ?? String(e.via ?? ''),
+    // Only the issue trigger carries decisions out; the panel and MCP only report them.
+    applied:
+      e.applied === true
+        ? { text: 'Done', appearance: 'success' }
+        : e.applied === false
+          ? { text: 'Failed', appearance: 'removed' }
+          : { text: 'Report only', appearance: null },
   }));
 }
 
@@ -87,14 +252,17 @@ export const FEW_REVIEWS = 30;
 export function verdictView(summary, budget) {
   const reviewed = Number.isInteger(summary?.reviewed) && summary.reviewed > 0 ? summary.reviewed : 0;
   const wrong = Number.isInteger(summary?.wrong) ? Math.min(Math.max(summary.wrong, 0), reviewed) : 0;
+  const shown = Number.isInteger(summary?.shownOnly) && summary.shownOnly > 0 ? summary.shownOnly : 0;
+  const shownText = shown === 0 ? '' : ` ${shown} more ${shown === 1 ? 'verdict was' : 'verdicts were'} on calls Hedge only showed, so they don't count against the budget.`;
   if (reviewed === 0) {
-    return { text: "No one has reviewed one of Hedge's actions yet. Mark calls right or wrong from the Hedge panel on an issue.", warn: false };
+    return { text: `No one has reviewed an action Hedge carried out yet. Mark calls right or wrong from the Hedge panel on an issue.${shownText}`, warn: false };
   }
   const rate = wrong / reviewed;
   const plural = reviewed === 1 ? 'action' : 'actions';
-  let text = `People reviewed ${reviewed} of Hedge's ${plural} and marked ${wrong} wrong (${trimPct(rate)}).`;
+  let text = `People reviewed ${reviewed} ${plural} Hedge carried out and marked ${wrong} wrong (${trimPct(rate)}).`;
   const over = Number.isFinite(budget) && rate > budget;
   if (Number.isFinite(budget)) text += ` The budget is ${trimPct(budget)}.`;
   if (reviewed < FEW_REVIEWS) text += ` ${reviewed} reviews are too few to tell a ${trimPct(budget ?? 0.03)} budget apart from chance.`;
+  text += shownText;
   return { text, warn: over && reviewed >= FEW_REVIEWS };
 }

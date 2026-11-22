@@ -1,30 +1,95 @@
 import React, { useEffect, useState } from 'react';
 import ForgeReconciler, {
-  BarChart, Button, DynamicTable, Heading, Label, ProgressBar, Toggle, RadioGroup, SectionMessage, Spinner, Stack, Text, Textfield,
+  BarChart, Box, Button, Code, DynamicTable, Heading, Inline, Label, Link, Lozenge, ProgressBar, RadioGroup,
+  SectionMessage, Spinner, Stack, Text, Textfield, Toggle, xcss,
 } from '@forge/react';
 import { invoke } from '@forge/bridge';
 import { runSeed } from '../seedloop.js';
-import { dialView, logRows, seedView, verdictView } from '../view.js';
+import {
+  ACTION_TEXT, ASK_QUEUE_JQL, AUTO_ACT_TEXT, CHART_NOTE, LOG_HEAD, autoActSaved, budgetSaved, dialView, logRows, seedView,
+  summaryView, verdictView,
+} from '../view.js';
 
-const HEAD = {
-  cells: ['Time (UTC)', 'Issue', 'Decision', 'Score', 'Budget', 'Via', 'Applied'].map((content) => ({ key: content, content })),
-};
+const card = xcss({
+  borderColor: 'color.border',
+  borderWidth: 'border.width',
+  borderStyle: 'solid',
+  borderRadius: 'border.radius',
+});
 
-const NAMES = { clear: 'Clear new tickets from duplicate review', link: 'Link duplicates automatically' };
+const tile = xcss({ borderRadius: 'border.radius' });
 
-function Dial({ action, setting, onChange }) {
-  const v = dialView(setting);
+const HEAD = { cells: LOG_HEAD.map((content) => ({ key: content, content })) };
+
+const message = (e) => e?.message ?? 'Unknown error';
+
+function Section({ title, children }) {
+  return (
+    <Box xcss={card} padding="space.300">
+      <Stack space="space.150">
+        <Heading size="small">{title}</Heading>
+        {children}
+      </Stack>
+    </Box>
+  );
+}
+
+// A saved or failed change, shown next to the control it came from.
+function Status({ status }) {
+  if (!status) return null;
+  return (
+    <SectionMessage appearance={status.ok ? 'success' : 'error'}>
+      <Text>{status.text}</Text>
+    </SectionMessage>
+  );
+}
+
+function Summary({ view }) {
   return (
     <Stack space="space.100">
-      <Heading size="small">{NAMES[action]}</Heading>
-      <Text>{setting.guarantee}</Text>
-      {v.anyCertified ? (
-        <BarChart data={v.bars} xAccessor="budget" yAccessor="coverage" title="Share of calibration tickets Hedge acts on (%)" height={220} />
-      ) : (
-        <SectionMessage appearance="information">No budget was certified for this action, so Hedge always asks a person.</SectionMessage>
-      )}
-      <RadioGroup name={`budget-${action}`} options={v.choices} value={v.selected} onChange={(e) => onChange(action, Number(e.target.value))} />
+      <Inline space="space.200" shouldWrap>
+        {view.tiles.map((t) => (
+          <Box key={t.key} xcss={tile} backgroundColor="color.background.neutral" paddingBlock="space.150" paddingInline="space.200">
+            <Stack space="space.050">
+              <Text size="small" color="color.text.subtle">{t.label}</Text>
+              <Heading size="medium">{t.value}</Heading>
+            </Stack>
+          </Box>
+        ))}
+      </Inline>
+      {view.hint ? <Text color="color.text.subtle">{view.hint}</Text> : null}
     </Stack>
+  );
+}
+
+function Dial({ action, setting, saving, status, onChange }) {
+  const v = dialView(setting);
+  const copy = ACTION_TEXT[action];
+  return (
+    <Section title={copy.title}>
+      <Text>{copy.blurb}</Text>
+      {v.current ? <Text weight="semibold">{v.current}</Text> : null}
+      {v.anyCertified ? (
+        <Stack space="space.050">
+          <BarChart data={v.bars} xAccessor="budget" yAccessor="coverage" title="Share of held-out tickets Hedge acts on (%)" height={220} />
+          <Text size="small" color="color.text.subtle">{CHART_NOTE}</Text>
+        </Stack>
+      ) : (
+        <SectionMessage appearance="information">
+          <Text>No budget was certified for this action, so Hedge always asks a person.</Text>
+        </SectionMessage>
+      )}
+      <Text weight="semibold">Error budget</Text>
+      <RadioGroup
+        name={`budget-${action}`}
+        options={v.choices}
+        value={v.selected}
+        isDisabled={saving}
+        onChange={(e) => onChange(action, Number(e.target.value))}
+      />
+      <Text size="small" color="color.text.subtlest">{setting.guarantee}</Text>
+      <Status status={status} />
+    </Section>
   );
 }
 
@@ -43,7 +108,7 @@ function SampleData({ minWindow }) {
     try {
       await runSeed(() => invoke('seed', { projectKey }), setStatus);
     } catch (e) {
-      setError(e?.message ?? 'unknown error');
+      setError(message(e));
     } finally {
       setRunning(false);
     }
@@ -57,34 +122,63 @@ function SampleData({ minWindow }) {
 
   const v = seedView(status, running);
   return (
-    <Stack space="space.100">
-      <Heading size="small">Sample data</Heading>
+    <Section title="Sample data">
       <Text>
         {`Hedge asks about every ticket until a project has ${minWindow} earlier issues. To see it act on an empty site, add 150 real issues from Atlassian's public Jira Software Server tracker (Public Jira Dataset, CC BY 4.0) to a project you choose. Five of them are known duplicates of earlier ones.`}
       </Text>
-      <Label labelFor="seed-project">Project key</Label>
-      <Textfield id="seed-project" name="seed-project" placeholder="DEMO" value={projectKey} onChange={(e) => setProjectKey(e.target.value)} onBlur={lookUp} />
-      <Button appearance="primary" isDisabled={running || v.done || projectKey.trim() === ''} onClick={run}>{v.button}</Button>
-      {status ? <ProgressBar value={v.progress} ariaLabel="Sample issues created" /> : null}
+      <Stack space="space.050">
+        <Label labelFor="seed-project">Project key</Label>
+        <Textfield id="seed-project" name="seed-project" placeholder="DEMO" value={projectKey} onChange={(e) => setProjectKey(e.target.value)} onBlur={lookUp} />
+      </Stack>
+      <Inline>
+        <Button appearance="primary" isDisabled={running || v.done || projectKey.trim() === ''} onClick={run}>{v.button}</Button>
+      </Inline>
+      {status ? <ProgressBar value={v.progress} ariaLabel="Sample issues created" appearance={v.done ? 'success' : 'default'} /> : null}
       {v.text ? <Text>{v.text}</Text> : null}
-      {error ? <SectionMessage appearance="error">{error}</SectionMessage> : null}
-    </Stack>
+      {error ? <SectionMessage appearance="error"><Text>{error}</Text></SectionMessage> : null}
+    </Section>
   );
 }
 
 // Off by default: until an admin opts in, Hedge only answers the panel and agents.
-function AutoAct({ on, onChange }) {
+function AutoAct({ on, saving, status, onChange }) {
   return (
-    <Stack space="space.100">
-      <Heading size="small">Act on new issues</Heading>
-      <Text>
-        When this is on, Hedge triages every new issue as it is filed and carries the decision out: it labels cleared
-        issues hedge-cleared, links certified duplicates, and labels the rest hedge-ask. Search labels = hedge-ask to see
-        what is waiting for a person.
+    <Section title="Act on new issues">
+      <Text>{AUTO_ACT_TEXT}</Text>
+      <Inline space="space.100" alignBlock="center">
+        <Text>To see what is waiting for a person, search Jira for</Text>
+        <Code>{ASK_QUEUE_JQL}</Code>
+      </Inline>
+      <Inline space="space.100" alignBlock="center">
+        <Toggle id="auto-act" isChecked={on} isDisabled={saving} onChange={() => onChange(!on)} />
+        <Label labelFor="auto-act">Act on new issues</Label>
+        <Lozenge appearance={on ? 'success' : 'default'}>{on ? 'On' : 'Off'}</Lozenge>
+      </Inline>
+      <Status status={status} />
+    </Section>
+  );
+}
+
+function Decisions({ log }) {
+  const rows = logRows(log).map((r) => ({
+    key: r.key,
+    cells: [
+      { key: 'at', content: r.at },
+      { key: 'issue', content: r.href ? <Link href={r.href}>{r.issueKey}</Link> : r.issueKey },
+      { key: 'decision', content: r.decision.text ? <Lozenge appearance={r.decision.appearance}>{r.decision.text}</Lozenge> : '' },
+      { key: 'score', content: r.score },
+      { key: 'budget', content: r.budget },
+      { key: 'via', content: r.via },
+      { key: 'applied', content: r.applied.appearance ? <Lozenge appearance={r.applied.appearance}>{r.applied.text}</Lozenge> : r.applied.text },
+    ],
+  }));
+  return (
+    <Section title="Recent decisions">
+      <Text size="small" color="color.text.subtle">
+        Hedge's latest calls, newest first. Carried out says whether the new issue trigger applied it in Jira. Calls from the panel or an agent are reported only.
       </Text>
-      <Label labelFor="auto-act">Act on new issues</Label>
-      <Toggle id="auto-act" isChecked={on} onChange={() => onChange(!on)} />
-    </Stack>
+      <DynamicTable head={HEAD} rows={rows} rowsPerPage={10} emptyView="No decisions yet. Open an issue to see Hedge's call." />
+    </Section>
   );
 }
 
@@ -93,7 +187,10 @@ function Admin() {
   const [log, setLog] = useState([]);
   const [autoAct, setAutoAct] = useState(false);
   const [verdicts, setVerdicts] = useState(null);
-  const [error, setError] = useState(null);
+  const [loadError, setLoadError] = useState(null);
+  // Which control is saving, and the last saved or failed change: { where, ok, text }.
+  const [saving, setSaving] = useState(null);
+  const [status, setStatus] = useState(null);
 
   const load = () =>
     Promise.all([invoke('settings'), invoke('log'), invoke('autoAct'), invoke('feedbackSummary')]).then(([s, l, a, f]) => {
@@ -101,43 +198,84 @@ function Admin() {
       setLog(l);
       setAutoAct(a === true);
       setVerdicts(f);
-    }, (e) => setError(e?.message ?? 'unknown error'));
+      setLoadError(null);
+    }, (e) => setLoadError(message(e)));
 
   useEffect(() => {
     load();
   }, []);
 
   const change = (action, alpha) => {
-    setError(null);
-    invoke('setBudget', { action, alpha }).then(load, (e) => setError(e?.message ?? 'unknown error'));
+    setStatus(null);
+    setSaving(action);
+    invoke('setBudget', { action, alpha })
+      .then(
+        (budgets) => {
+          setStatus({ where: action, ok: true, text: budgetSaved(action, budgets, settings?.[action]) });
+          return load();
+        },
+        (e) => setStatus({ where: action, ok: false, text: message(e) }),
+      )
+      .finally(() => setSaving(null));
   };
 
   const switchAutoAct = (on) => {
-    setError(null);
-    invoke('setAutoAct', { on }).then(setAutoAct, (e) => setError(e?.message ?? 'unknown error'));
+    setStatus(null);
+    setSaving('autoAct');
+    invoke('setAutoAct', { on })
+      .then(
+        (saved) => {
+          setAutoAct(saved === true);
+          setStatus({ where: 'autoAct', ok: true, text: autoActSaved(saved) });
+        },
+        (e) => setStatus({ where: 'autoAct', ok: false, text: message(e) }),
+      )
+      .finally(() => setSaving(null));
   };
 
-  if (!settings) return error ? <SectionMessage appearance="error">{error}</SectionMessage> : <Spinner label="Loading Hedge settings" />;
+  if (!settings) {
+    return loadError ? (
+      <SectionMessage appearance="error" title="Hedge could not load its settings">
+        <Text>{loadError}</Text>
+      </SectionMessage>
+    ) : (
+      <Inline space="space.100" alignBlock="center">
+        <Spinner size="small" label="Loading Hedge settings" />
+        <Text color="color.text.subtle">Loading Hedge settings.</Text>
+      </Inline>
+    );
+  }
+
+  const at = (where) => (status?.where === where ? status : null);
+  const verdict = verdictView(verdicts, settings.clear.budget);
 
   return (
     <Stack space="space.300">
-      <Text>
-        Pick how often Hedge may be wrong when it acts. Every budget below was certified on held-out tickets with 90%
-        confidence, so you can switch between them at any time. A tighter budget means Hedge acts on fewer tickets and asks
-        about the rest.
-      </Text>
-      {error ? <SectionMessage appearance="error">{error}</SectionMessage> : null}
-      <Dial action="clear" setting={settings.clear} onChange={change} />
-      <Dial action="link" setting={settings.link} onChange={change} />
-      <AutoAct on={autoAct} onChange={switchAutoAct} />
+      <Stack space="space.150">
+        <Text>
+          Hedge acts on a ticket only when a statistical test certifies that its error rate stays under the budget you pick. Each certified budget below was checked on held-out tickets with 90% confidence, so you can switch between them at any time. A tighter budget means Hedge acts on fewer tickets and asks a person about the rest.
+        </Text>
+        <Summary view={summaryView(settings, autoAct, log)} />
+        {loadError ? (
+          <SectionMessage appearance="error">
+            <Text>{loadError}</Text>
+          </SectionMessage>
+        ) : null}
+      </Stack>
+      <Dial action="clear" setting={settings.clear} saving={saving === 'clear'} status={at('clear')} onChange={change} />
+      <Dial action="link" setting={settings.link} saving={saving === 'link'} status={at('link')} onChange={change} />
+      <AutoAct on={autoAct} saving={saving === 'autoAct'} status={at('autoAct')} onChange={switchAutoAct} />
+      <Section title="What people said">
+        {verdict.warn ? (
+          <SectionMessage appearance="warning">
+            <Text>{verdict.text}</Text>
+          </SectionMessage>
+        ) : (
+          <Text>{verdict.text}</Text>
+        )}
+      </Section>
+      <Decisions log={log} />
       <SampleData minWindow={settings.clear.minWindow ?? 30} />
-      <Heading size="small">What people said</Heading>
-      {(() => {
-        const v = verdictView(verdicts, settings.clear.budget);
-        return v.warn ? <SectionMessage appearance="warning">{v.text}</SectionMessage> : <Text>{v.text}</Text>;
-      })()}
-      <Heading size="small">Recent decisions</Heading>
-      <DynamicTable head={HEAD} rows={logRows(log)} rowsPerPage={10} emptyView="No decisions yet." />
     </Stack>
   );
 }
