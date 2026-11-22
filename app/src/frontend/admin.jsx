@@ -4,7 +4,7 @@ import ForgeReconciler, {
 } from '@forge/react';
 import { invoke } from '@forge/bridge';
 import { runSeed } from '../seedloop.js';
-import { dialView, logRows, seedView } from '../view.js';
+import { dialView, logRows, seedView, verdictView } from '../view.js';
 
 const HEAD = {
   cells: ['Time (UTC)', 'Issue', 'Decision', 'Score', 'Budget', 'Via', 'Applied'].map((content) => ({ key: content, content })),
@@ -92,13 +92,15 @@ function Admin() {
   const [settings, setSettings] = useState(null);
   const [log, setLog] = useState([]);
   const [autoAct, setAutoAct] = useState(false);
+  const [verdicts, setVerdicts] = useState(null);
   const [error, setError] = useState(null);
 
   const load = () =>
-    Promise.all([invoke('settings'), invoke('log'), invoke('autoAct')]).then(([s, l, a]) => {
+    Promise.all([invoke('settings'), invoke('log'), invoke('autoAct'), invoke('feedbackSummary')]).then(([s, l, a, f]) => {
       setSettings(s);
       setLog(l);
       setAutoAct(a === true);
+      setVerdicts(f);
     }, (e) => setError(e?.message ?? 'unknown error'));
 
   useEffect(() => {
@@ -129,6 +131,11 @@ function Admin() {
       <Dial action="link" setting={settings.link} onChange={change} />
       <AutoAct on={autoAct} onChange={switchAutoAct} />
       <SampleData minWindow={settings.clear.minWindow ?? 30} />
+      <Heading size="small">What people said</Heading>
+      {(() => {
+        const v = verdictView(verdicts, settings.clear.budget);
+        return v.warn ? <SectionMessage appearance="warning">{v.text}</SectionMessage> : <Text>{v.text}</Text>;
+      })()}
       <Heading size="small">Recent decisions</Heading>
       <DynamicTable head={HEAD} rows={logRows(log)} rowsPerPage={10} emptyView="No decisions yet." />
     </Stack>

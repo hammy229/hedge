@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { dialView, logRows, panelView } from '../src/view.js';
+import { FEW_REVIEWS, dialView, logRows, panelView, verdictView } from '../src/view.js';
 
 test('a cleared ticket shows its budget and what was searched', () => {
   const v = panelView({
@@ -78,4 +78,18 @@ test('seed view reports progress, resumption and completion', async () => {
   assert.equal(done.progress, 1);
   assert.equal(seedView(null).progress, 0);
   assert.equal(seedView({ created: 999, total: 150, projectKey: 'X' }).progress, 1);
+});
+
+test('the verdict view compares people\'s verdicts with the budget and flags small samples', () => {
+  assert.match(verdictView({ reviewed: 0 }, 0.03).text, /No one has reviewed/);
+  assert.match(verdictView(null, 0.03).text, /No one has reviewed/);
+  const few = verdictView({ reviewed: 10, wrong: 1 }, 0.03);
+  assert.match(few.text, /reviewed 10 of Hedge's actions and marked 1 wrong \(10%\)\. The budget is 3%\./);
+  assert.match(few.text, /too few/);
+  assert.equal(few.warn, false);
+  const many = verdictView({ reviewed: FEW_REVIEWS, wrong: 3 }, 0.03);
+  assert.equal(many.warn, true);
+  assert.doesNotMatch(many.text, /too few/);
+  assert.equal(verdictView({ reviewed: 100, wrong: 2 }, 0.03).warn, false);
+  assert.match(verdictView({ reviewed: 1, wrong: 0 }, 0.03).text, /1 of Hedge's action and/);
 });

@@ -79,3 +79,22 @@ export function seedView(status, running = false) {
   else text = '';
   return { progress: total > 0 ? created / total : 0, text, done, button: created > 0 && !done ? 'Continue adding sample issues' : `Add ${total || 150} sample issues` };
 }
+
+// What people's verdicts say next to the budget, for the admin page. Fewer than 30
+// reviews is too few to compare with a budget of a few percent, so it says so.
+export const FEW_REVIEWS = 30;
+
+export function verdictView(summary, budget) {
+  const reviewed = Number.isInteger(summary?.reviewed) && summary.reviewed > 0 ? summary.reviewed : 0;
+  const wrong = Number.isInteger(summary?.wrong) ? Math.min(Math.max(summary.wrong, 0), reviewed) : 0;
+  if (reviewed === 0) {
+    return { text: "No one has reviewed one of Hedge's actions yet. Mark calls right or wrong from the Hedge panel on an issue.", warn: false };
+  }
+  const rate = wrong / reviewed;
+  const plural = reviewed === 1 ? 'action' : 'actions';
+  let text = `People reviewed ${reviewed} of Hedge's ${plural} and marked ${wrong} wrong (${trimPct(rate)}).`;
+  const over = Number.isFinite(budget) && rate > budget;
+  if (Number.isFinite(budget)) text += ` The budget is ${trimPct(budget)}.`;
+  if (reviewed < FEW_REVIEWS) text += ` ${reviewed} reviews are too few to tell a ${trimPct(budget ?? 0.03)} budget apart from chance.`;
+  return { text, warn: over && reviewed >= FEW_REVIEWS };
+}
