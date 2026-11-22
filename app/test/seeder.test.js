@@ -4,7 +4,12 @@ import { LABEL, issueFields, pickIssueType, seedStatus, seedStep } from '../src/
 
 const memory = () => {
   const m = new Map();
-  return { get: async (k) => m.get(k), set: async (k, v) => void m.set(k, v), m };
+  // Like Forge storage, refuse null and undefined values.
+  const set = async (k, v) => {
+    if (v === null || v === undefined) throw new Error('Provided request body is invalid');
+    m.set(k, v);
+  };
+  return { get: async (k) => m.get(k), set, m };
 };
 
 const items = Array.from({ length: 5 }, (_, i) => ({ summary: `issue ${i}`, description: `body ${i}`, duplicateOf: [] }));
@@ -87,7 +92,7 @@ test('a second caller holding no lease gets busy and creates nothing', async () 
   assert.equal(created.length, 0);
   await store.set('seed-lease:DEMO', { owner: 'someone-else', until: Date.now() - 1 });
   assert.equal((await seedStep({ jira, store, projectKey: 'DEMO', items })).done, true, 'an expired lease is taken over');
-  assert.equal(store.m.get('seed-lease:DEMO'), null, 'the lease is released');
+  assert.equal(store.m.get('seed-lease:DEMO').until, 0, 'the lease is released');
 });
 
 test('progress never moves backwards when another writer got further', async () => {
@@ -121,7 +126,7 @@ test('any other create error stops the step and keeps the progress', async () =>
   const store = memory();
   await assert.rejects(seedStep({ jira, store, projectKey: 'DEMO', items }), /403/);
   assert.deepEqual(await seedStatus(store, 'DEMO'), { projectKey: 'DEMO', created: 2, total: 150, done: false });
-  assert.equal(store.m.get('seed-lease:DEMO'), null, 'a failed step still releases its lease');
+  assert.equal(store.m.get('seed-lease:DEMO').until, 0, 'a failed step still releases its lease');
 });
 
 test('bad project keys and projects without a usable type are refused', async () => {

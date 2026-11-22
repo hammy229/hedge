@@ -113,7 +113,8 @@ export async function seedStep({
       await store.set(stateKey(key), state);
     }
   } finally {
-    await store.set(leaseKey(key), null);
+    // Forge storage rejects null values, so the lease is released by expiring it.
+    await store.set(leaseKey(key), { owner: null, until: 0 });
   }
   return status();
 }
