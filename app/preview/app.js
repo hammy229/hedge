@@ -1,7 +1,7 @@
 // Hedge demo page. The panel's words come from src/view.js, the module the Jira app
 // renders, so this page cannot drift from it. Data is the sample project replayed at each
 // budget (preview/replay.js), loaded as static JSON.
-import { ACTION_TEXT, CHART_NOTE, PANEL_TEXT, dialView, panelView, verdictStatus } from '/src/view.js';
+import { ACTION_TEXT, PANEL_TEXT, dialView, panelView, verdictStatus } from '/src/view.js';
 
 const state = { budget: null, budgets: [], data: null, settings: null, selected: 'DEMO-50', filter: 'all', verdicts: {} };
 
@@ -205,7 +205,7 @@ function renderDial() {
       h('div', {}, h('dt.bad', {}, `${missed.length} of ${dups.length}`), h('dd', {}, 'known duplicates cleared by mistake')),
       h('div', {}, h('dt', {}, counts.clear ? pct(missed.length / counts.clear) : 'none'), h('dd', {}, `of clears wrong, against a ${pct(state.budget)} budget`))),
     bars(`${ACTION_TEXT.clear.title}: share of held-out calibration tickets Hedge acts on at each budget`, rows),
-    h('p.foot', {}, `${dial.current} ${CHART_NOTE} ${state.settings.link.guarantee}`),
+    h('p.foot', {}, `${dial.current} Each bar is a budget you can pick; its length is the share of held-out calibration tickets Hedge would clear at that budget. Linking duplicates: ${state.settings.link.guarantee.charAt(0).toLowerCase()}${state.settings.link.guarantee.slice(1)}`),
   );
 }
 

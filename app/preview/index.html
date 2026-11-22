@@ -112,11 +112,11 @@
         <p>Small models, one statistical test, and a rule to ask whenever it can't prove it.</p>
       </div>
       <ol class="steps">
-        <li><b>Search.</b> BM25 compares the new ticket with the 1,000 most recent earlier issues in its project, the same corpus offline and inside Forge.</li>
-        <li><b>Score.</b> A small gate model turns signals such as the top match score, the gap to the next match, window size and match age into the chance that clearing the ticket is right.</li>
-        <li><b>Certify.</b> On a held-out calibration window, Learn then Test picks the lowest threshold whose error among cleared tickets stays under the budget with 90% confidence, counting duplicate clusters together.</li>
-        <li><b>Check.</b> A later test window, never seen in training or calibration, checks that the certified error held.</li>
-        <li><b>Act or ask.</b> Inside Jira the gate compares each ticket's score with its threshold. Below it, with too little history, or with any missing signal, the ticket goes to a person.</li>
+        <li><b>Search</b><p>BM25 compares the new ticket with the 1,000 most recent earlier issues in its project, the same corpus offline and inside Forge.</p></li>
+        <li><b>Score</b><p>A small gate model turns signals such as the top match score, the gap to the next match, window size and match age into the chance that clearing the ticket is right.</p></li>
+        <li><b>Certify</b><p>On a held-out calibration window, Learn then Test picks the lowest threshold whose error among cleared tickets stays under the budget with 90% confidence, counting duplicate clusters together.</p></li>
+        <li><b>Check</b><p>A later test window, never seen in training or calibration, checks that the certified error held.</p></li>
+        <li><b>Act or ask</b><p>Inside Jira the gate compares each ticket's score with its threshold. Below it, with too little history, or with any missing signal, the ticket goes to a person.</p></li>
       </ol>
     </section>
 
@@ -126,10 +126,10 @@
         <p>The guarantee bounds how often Hedge is wrong. It doesn't promise never.</p>
       </div>
       <ul class="limits">
-        <li><b>It never links duplicates on its own.</b> With BM25 signals, no linking threshold was certified at any budget up to 10%, so Hedge asks a person instead.</li>
-        <li><b>It misses some duplicates.</b> On this sample it clears 3 of the 5 known duplicates at 3%, each with the right original listed as its closest match.</li>
-        <li><b>Unseen projects are the open risk.</b> On held-out projects, error was 2.5%, 2.1% and 1.4% in three draws: under 3% at the point, over it at the upper end once.</li>
-        <li><b>No LLM baseline yet.</b> Comparing against an agent's own stated confidence is the next measurement, and the README will say if Hedge loses.</li>
+        <li><b>It never links duplicates on its own</b><p>With BM25 signals, no linking threshold was certified at any budget up to 10%, so Hedge asks a person instead.</p></li>
+        <li><b>It misses some duplicates</b><p>On this sample it clears 3 of the 5 known duplicates at 3%, each with the right original listed as its closest match.</p></li>
+        <li><b>Unseen projects are the open risk</b><p>On held-out projects, error was 2.5%, 2.1% and 1.4% in three draws: under 3% at the point, over it at the upper end once.</p></li>
+        <li><b>No LLM baseline yet</b><p>Comparing against an agent's own stated confidence is the next measurement, and the README will say if Hedge loses.</p></li>
       </ul>
     </section>
   </main>

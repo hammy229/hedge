@@ -181,12 +181,14 @@ button.sq:hover, button.sq:focus-visible { transform: scale(1.18); position: rel
 #dial .switch { margin-top: 4px; }
 
 /* ---------- how and limits ---------- */
-.steps { list-style: none; counter-reset: step; border-top: 1px solid var(--rule-strong); }
-.steps li { counter-increment: step; display: grid; grid-template-columns: 56px 1fr; padding: 22px 0; border-bottom: 1px solid var(--rule); color: var(--graphite); }
-.steps li::before { content: counter(step); font-family: var(--serif); font-size: 30px; line-height: 1; color: var(--cobalt); }
-.steps b, .limits b { color: var(--ink); font-weight: 600; }
-.limits { list-style: none; border-top: 1px solid var(--rule-strong); }
-.limits li { padding: 22px 0; border-bottom: 1px solid var(--rule); color: var(--graphite); }
+.steps, .limits { list-style: none; border-top: 1px solid var(--rule-strong); }
+.steps { counter-reset: step; }
+.steps li, .limits li { display: grid; grid-template-columns: minmax(180px, 18rem) minmax(0, 1fr); gap: 8px 32px; align-items: baseline; padding: 26px 0; border-bottom: 1px solid var(--rule); }
+.steps li { counter-increment: step; grid-template-columns: 44px minmax(120px, 10rem) minmax(0, 1fr); }
+.steps li::before { content: counter(step); font-family: var(--serif); font-weight: 300; font-size: 32px; line-height: 1; color: var(--cobalt); }
+.steps b, .limits b { font-family: var(--serif); font-weight: 400; font-size: 23px; line-height: 1.2; color: var(--ink); }
+.steps p, .limits p { color: var(--graphite); max-width: 40em; }
+.limits li::before { content: none; }
 
 /* ---------- footer ---------- */
 .site-foot { padding: 40px var(--gutter) 56px; border-top: 1px solid var(--rule); display: grid; gap: 12px; }
@@ -201,6 +203,11 @@ button.sq:hover, button.sq:focus-visible { transform: scale(1.18); position: rel
   .hero { grid-template-columns: 1fr; min-height: auto; padding-top: 56px; }
   .split { grid-template-columns: 1fr; }
   .band-head { position: static; }
+}
+@media (max-width: 760px) {
+  .steps li { grid-template-columns: 40px minmax(0, 1fr); }
+  .steps li p { grid-column: 2; }
+  .limits li { grid-template-columns: 1fr; }
 }
 @media (max-width: 640px) {
   :root { --rail: 0px; }
