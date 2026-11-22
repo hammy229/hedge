@@ -110,8 +110,7 @@ app:
     name: nodejs24.x
     memoryMB: 256
     architecture: arm64
-  # Replace with the id printed by `forge register` (see README, Getting started).
-  id: ari:cloud:ecosystem::app/00000000-0000-0000-0000-000000000000
+  id: ari:cloud:ecosystem::app/cc9d2e28-70ff-497d-858a-f24fa97e2118
 permissions:
   scopes:
     - read:jira-work
