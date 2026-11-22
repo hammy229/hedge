@@ -61,3 +61,27 @@ test('a Jira failure is reported, not thrown', async () => {
   assert.equal(out.applied, false);
   assert.match(out.error, /400/);
 });
+
+test('a project whose edit screen has no Labels field gets a fix, not Jira\'s text', async () => {
+  const jira = async () => {
+    const e = new Error('Jira returned 400: {"errorMessages":[],"errors":{"labels":"Field \'labels\' cannot be set. It is not on the appropriate screen, or unknown."}}');
+    e.jiraBody = { errorMessages: [], errors: { labels: "Field 'labels' cannot be set. It is not on the appropriate screen, or unknown." } };
+    e.status = 400;
+    throw e;
+  };
+  const out = await applyDecision({ issueKey: 'DEMO-40', decision: 'clear' }, jira, plain);
+  assert.equal(out.applied, false);
+  assert.match(out.error, /Labels field/);
+  assert.doesNotMatch(out.error, /appropriate screen/);
+});
+
+test('any other write failure reports only the status', async () => {
+  const jira = async () => {
+    const e = new Error('Jira returned 403: secret project text');
+    e.jiraBody = { errorMessages: ['secret project text'] };
+    e.status = 403;
+    throw e;
+  };
+  const out = await applyDecision({ issueKey: 'DEMO-40', decision: 'clear' }, jira, plain);
+  assert.deepEqual(out, { applied: false, error: 'Jira returned 403' });
+});

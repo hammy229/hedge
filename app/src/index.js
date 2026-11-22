@@ -70,6 +70,7 @@ export async function jiraError(res) {
   }
   const short = text.replace(/\s+/g, ' ').trim().slice(0, 200);
   const error = new Error(short ? `Jira returned ${res.status}: ${short}` : `Jira returned ${res.status}`);
+  error.status = res.status;
   try {
     error.jiraBody = JSON.parse(text);
   } catch {
@@ -78,10 +79,11 @@ export async function jiraError(res) {
   return error;
 }
 
-// Writes (labels, links) answer 204 with no body, so only the status is read.
+// Writes (labels) answer 204 with no body. On failure the body rides along as jiraBody, so
+// act.js can name a cause it knows; its message never shows Jira's text.
 async function jiraWrite(path, options, as) {
   const res = await send(as, path, options);
-  if (!res.ok) throw new Error(`Jira returned ${res.status}`);
+  if (!res.ok) throw await jiraError(res);
   return null;
 }
 

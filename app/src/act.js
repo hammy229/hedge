@@ -37,9 +37,22 @@ export async function applyDecision(result, jira, route) {
       body: JSON.stringify({ update: { labels: [{ add: LABELS[decision] }] } }),
     });
   } catch (e) {
-    return { applied: false, error: String(e?.message ?? e) };
+    return { applied: false, error: writeError(e) };
   }
   const out = { applied: true, label: LABELS[decision] };
   if (decision === 'link') out.duplicateOf = result.duplicateOf;
   return out;
+}
+
+// The result reaches the panel, the agent and the log, so Jira's text stays out of it:
+// only a known cause, or the status. Jira answers 400 with errors.labels when the project's
+// edit screen has no Labels field, which an admin can fix in a minute.
+export const NO_LABELS_FIELD =
+  "This project's edit screen has no Labels field, so Hedge could not label the issue. Add Labels to the screen, or leave acting off for this project.";
+
+function writeError(e) {
+  if (e?.jiraBody?.errors && typeof e.jiraBody.errors === 'object' && 'labels' in e.jiraBody.errors) return NO_LABELS_FIELD;
+  if (Number.isInteger(e?.status)) return `Jira returned ${e.status}`;
+  const m = /^Jira returned \d{3}/.exec(String(e?.message ?? ''));
+  return m ? m[0] : 'Jira could not be updated.';
 }
