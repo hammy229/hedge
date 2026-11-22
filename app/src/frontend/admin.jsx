@@ -6,7 +6,7 @@ import ForgeReconciler, {
 import { invoke } from '@forge/bridge';
 import { runSeed } from '../seedloop.js';
 import {
-  TONE, ACTION_TEXT, ASK_QUEUE_JQL, AUTO_ACT_TEXT, CHART_NOTE, LOG_HEAD, autoActSaved, budgetSaved, dialView, logRows, seedView,
+  TONE, ACTION_TEXT, ACT_PROJECTS_HINT, ASK_QUEUE_JQL, AUTO_ACT_TEXT, actProjectsSaved, CHART_NOTE, LOG_HEAD, autoActSaved, budgetSaved, dialView, logRows, seedView,
   summaryView, verdictView,
 } from '../view.js';
 
@@ -147,7 +147,8 @@ function SampleData({ minWindow }) {
 }
 
 // Off by default: until an admin opts in, Hedge only answers the panel and agents.
-function AutoAct({ on, saving, status, onChange }) {
+function AutoAct({ on, saving, status, onChange, projects, onSaveProjects }) {
+  const [text, setText] = useState(projects.join(', '));
   return (
     <Section title="Act on new issues">
       <Text>{AUTO_ACT_TEXT}</Text>
@@ -160,6 +161,14 @@ function AutoAct({ on, saving, status, onChange }) {
         <Label labelFor="auto-act">Act on new issues</Label>
         <Lozenge appearance={on ? 'inprogress' : 'default'}>{on ? 'On' : 'Off'}</Lozenge>
       </Inline>
+      <Stack space="space.050">
+        <Label labelFor="act-projects">Only in these projects</Label>
+        <Inline space="space.100" alignBlock="center">
+          <Textfield id="act-projects" name="act-projects" placeholder="DEMO, OPS" defaultValue={projects.join(', ')} onChange={(e) => setText(e.target.value)} />
+          <Button isDisabled={saving} onClick={() => onSaveProjects(text)}>Save projects</Button>
+        </Inline>
+        <Text size="small" color="color.text.subtlest">{ACT_PROJECTS_HINT}</Text>
+      </Stack>
       <Status status={status} />
     </Section>
   );
@@ -192,6 +201,7 @@ function Admin() {
   const [settings, setSettings] = useState(null);
   const [log, setLog] = useState([]);
   const [autoAct, setAutoAct] = useState(false);
+  const [actProjects, setActProjects] = useState(null);
   const [verdicts, setVerdicts] = useState(null);
   const [loadError, setLoadError] = useState(null);
   // Which control is saving, and the last saved or failed change: { where, ok, text }.
@@ -199,11 +209,12 @@ function Admin() {
   const [status, setStatus] = useState(null);
 
   const load = () =>
-    Promise.all([invoke('settings'), invoke('log'), invoke('autoAct'), invoke('feedbackSummary')]).then(([s, l, a, f]) => {
+    Promise.all([invoke('settings'), invoke('log'), invoke('autoAct'), invoke('feedbackSummary'), invoke('actProjects')]).then(([s, l, a, f, p]) => {
       setSettings(s);
       setLog(l);
       setAutoAct(a === true);
       setVerdicts(f);
+      setActProjects(Array.isArray(p) ? p : []);
       setLoadError(null);
     }, (e) => setLoadError(message(e)));
 
@@ -239,7 +250,21 @@ function Admin() {
       .finally(() => setSaving(null));
   };
 
-  if (!settings) {
+  const saveProjects = (text) => {
+    setStatus(null);
+    setSaving('autoAct');
+    invoke('setActProjects', { text })
+      .then(
+        (saved) => {
+          setActProjects(saved);
+          setStatus({ where: 'autoAct', ok: true, text: actProjectsSaved(saved) });
+        },
+        (e) => setStatus({ where: 'autoAct', ok: false, text: message(e) }),
+      )
+      .finally(() => setSaving(null));
+  };
+
+  if (!settings || !actProjects) {
     return loadError ? (
       <SectionMessage appearance="error" title="Hedge could not load its settings">
         <Text>{loadError}</Text>
@@ -275,7 +300,7 @@ function Admin() {
       </Stack>
       <Dial action="clear" setting={settings.clear} saving={saving === 'clear'} status={at('clear')} onChange={change} />
       <Dial action="link" setting={settings.link} saving={saving === 'link'} status={at('link')} onChange={change} />
-      <AutoAct on={autoAct} saving={saving === 'autoAct'} status={at('autoAct')} onChange={switchAutoAct} />
+      <AutoAct on={autoAct} saving={saving === 'autoAct'} status={at('autoAct')} onChange={switchAutoAct} projects={actProjects} onSaveProjects={saveProjects} />
       <Section title="What people said">
         {verdict.warn ? (
           <SectionMessage appearance="warning">

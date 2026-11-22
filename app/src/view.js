@@ -212,6 +212,14 @@ export function autoActSaved(on) {
     : 'Saved. Hedge no longer acts on new issues. The panel and agents still get its call.';
 }
 
+export function actProjectsSaved(projects) {
+  return Array.isArray(projects) && projects.length > 0
+    ? `Saved. Hedge acts on new issues only in ${projects.join(', ')}.`
+    : 'Saved. Hedge acts on new issues in every project.';
+}
+
+export const ACT_PROJECTS_HINT = 'Leave empty to act in every project.';
+
 export const AUTO_ACT_TEXT =
   `When this is on, Hedge triages each new issue as it is filed and carries the call out. It labels cleared issues ${LABELS.clear}, labels likely duplicates ${LABELS.link} so a person can link them, and labels the rest ${LABELS.ask}.`;
 export const ASK_QUEUE_JQL = `labels = ${LABELS.ask}`;

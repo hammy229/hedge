@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  AUTO_ACT_TEXT, FEW_REVIEWS, TONE, autoActSaved, budgetSaved, dialView, logRows, panelFailure, panelView, summaryView, verdictStatus, verdictView,
+  AUTO_ACT_TEXT, FEW_REVIEWS, TONE, actProjectsSaved, autoActSaved, budgetSaved, dialView, logRows, panelFailure, panelView, summaryView, verdictStatus, verdictView,
 } from '../src/view.js';
 
 test('a cleared ticket shows its budget and what was searched', () => {
@@ -190,4 +190,10 @@ test('every call has its own accent, all from Atlassian tokens', () => {
     for (const token of Object.values(tone)) assert.match(token, /^color\.(background|border|text)\.accent\./);
   }
   assert.notEqual(TONE.clear.background, TONE.ask.background);
+});
+
+test('the saved project list reads back in plain words', () => {
+  assert.equal(actProjectsSaved([]), 'Saved. Hedge acts on new issues in every project.');
+  assert.equal(actProjectsSaved(['DEMO']), 'Saved. Hedge acts on new issues only in DEMO.');
+  assert.equal(actProjectsSaved(['DEMO', 'OPS']), 'Saved. Hedge acts on new issues only in DEMO, OPS.');
 });

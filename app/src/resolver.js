@@ -6,7 +6,7 @@ import { describePolicy } from './gate.js';
 import { runTriage, seedProgress, seedProject, store } from './index.js';
 import { readLog } from './log.js';
 import policies from './policy.js';
-import { ACTIONS, activePolicies, readAutoAct, readBudgets, saveAutoAct, saveBudget } from './settings.js';
+import { ACTIONS, activePolicies, readActProjects, readAutoAct, readBudgets, saveActProjects, saveAutoAct, saveBudget } from './settings.js';
 
 export const ADMIN_MODULE = 'hedge-admin';
 
@@ -36,6 +36,12 @@ export const handlers = {
   setAutoAct: async ({ payload, context } = {}) => {
     adminOnly(context, 'Acting on new issues can only be switched from the admin page.');
     return saveAutoAct(store, payload?.on);
+  },
+  actProjects: () => readActProjects(store),
+  // The list decides where Hedge edits issues, so only the admin page may change it.
+  setActProjects: async ({ payload, context } = {}) => {
+    adminOnly(context, 'The projects Hedge acts in can only be changed from the admin page.');
+    return saveActProjects(store, payload?.text);
   },
   // The log names tickets from every project, so only the admin page may read it.
   log: ({ context } = {}) => {
