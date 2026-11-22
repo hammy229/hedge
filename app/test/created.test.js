@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { onCreated } from '../src/created.js';
 
-function deps({ on = true, decision = 'clear', applied = { applied: true, label: 'hedge-cleared' }, handled = false, seeding = false, failed = false } = {}) {
+function deps({ on = true, decision = 'clear', applied = { applied: true, label: 'hedge-cleared' }, handled = false, seeding = false, failed = false, labels = null } = {}) {
   const calls = { triage: [], apply: [], seeding: [] };
   return {
     calls,
@@ -16,6 +16,7 @@ function deps({ on = true, decision = 'clear', applied = { applied: true, label:
       calls.triage.push({ key, via, as });
       const result = { issueKey: key, decision };
       if (failed) result.failed = true;
+      if (labels) result.labels = labels;
       result.applied = await after(result);
       return result;
     },
@@ -90,4 +91,12 @@ test('a triage that could not read Jira changes nothing on the issue', async () 
   const out = await onCreated({ issue: { key: 'DEMO-77' } }, d);
   assert.equal(d.calls.apply.length, 0);
   assert.equal(out.applied.applied, false);
+});
+
+test('a sample issue whose event had no labels is still left alone once triage reads them', async () => {
+  const d = deps({ labels: ['hedge-sample'] });
+  const out = await onCreated({ issue: { key: 'DEMO-100' } }, d);
+  assert.equal(d.calls.triage.length, 1);
+  assert.equal(d.calls.apply.length, 0);
+  assert.match(out.applied.error, /Sample issues/);
 });

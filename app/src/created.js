@@ -25,7 +25,13 @@ export async function onCreated(event, { readAutoAct, triage, apply, alreadyHand
   const projectKey = issue.fields?.project?.key ?? key.replace(/-\d+$/, '');
   if (await seeding(projectKey)) return { skipped: 'Sample data is being added to this project.' };
   if (await alreadyHandled(key)) return { skipped: 'This issue was already handled.' };
-  return triage(key, 'trigger', 'app', (result) =>
-    result.failed ? { applied: false, error: 'Jira could not be read, so nothing was changed.' } : apply(result),
-  );
+  return triage(key, 'trigger', 'app', (result) => {
+    if (result.failed) return { applied: false, error: 'Jira could not be read, so nothing was changed.' };
+    // Jira's create event does not carry labels, so the check above rarely fires; the
+    // triage read the issue's labels, so check them again before changing anything.
+    if (Array.isArray(result.labels) && result.labels.includes(SAMPLE_LABEL)) {
+      return { applied: false, error: 'Sample issues are not acted on.' };
+    }
+    return apply(result);
+  });
 }
