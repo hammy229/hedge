@@ -187,10 +187,12 @@ CI runs both suites on every push and pull request to main.
 
 ## Limitations and next steps
 
-- The certified policies are not installed in the app yet, so it asks about every ticket.
+- Only the clear action is certified and installed; the app always asks before calling a
+  ticket a duplicate.
 - Auto-linking is not certified at any budget with BM25. It needs a better retriever (week 2)
   or should stay a suggestion for a person.
-- The gate's features do not beat the raw BM25 top score yet.
+- Without Mojang the gate ranks tickets no better than the raw BM25 top score (AURC 0.012
+  for both); its gain there is in certified coverage, and with Mojang it halves the AURC.
 - Labels are Duplicate links as of the January 2022 dump, and recent tickets have had less
   time to be linked, so test error for the clear action is probably understated a little.
 - The guarantee assumes calibration and new tickets are exchangeable, and treats duplicate
