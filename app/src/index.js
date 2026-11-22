@@ -5,6 +5,7 @@ import { onCreated } from './created.js';
 import { describePolicy } from './gate.js';
 import { seedStatus, seedStep, seedingNow } from './seeder.js';
 import { readDecision, record } from './log.js';
+import { withRetry } from './retry.js';
 import policies from './policy.js';
 import { activePolicies, readActProjects, readAutoAct, readBudgets } from './settings.js';
 import { triage } from './triage.js';
@@ -38,9 +39,16 @@ const FIELDS = ['summary', 'description', 'created', 'project'];
 // Triage only says the status: its reason reaches every panel viewer, MCP agents and the
 // decision log, so Jira's response body stays out of it. The panel and MCP read as the
 // calling user; an issue trigger has no user, so it reads as the app.
-async function jira(path, options, as = 'user') {
+const send = (as, path, options, retry) => {
   const actor = as === 'app' ? api.asApp() : api.asUser();
-  const res = await actor.requestJira(path, options);
+  return withRetry(() => actor.requestJira(path, options), retry);
+};
+
+// Creating an issue twice is worse than failing once, so creates retry only on 429.
+const ONLY_RATE_LIMIT = { statuses: [429] };
+
+async function jira(path, options, as = 'user') {
+  const res = await send(as, path, options);
   if (!res.ok) throw new Error(`Jira returned ${res.status}`);
   return res.json();
 }
@@ -48,7 +56,7 @@ async function jira(path, options, as = 'user') {
 // The seeder, which only the admin page calls, needs the body: Jira names the field it
 // rejected there. The message is cut short; the parsed body rides along as jiraBody.
 async function jiraWithBody(path, options) {
-  const res = await api.asUser().requestJira(path, options);
+  const res = await send('user', path, options, options?.method === 'POST' ? ONLY_RATE_LIMIT : undefined);
   if (!res.ok) throw await jiraError(res);
   return res.json();
 }
@@ -72,8 +80,7 @@ export async function jiraError(res) {
 
 // Writes (labels, links) answer 204 with no body, so only the status is read.
 async function jiraWrite(path, options, as) {
-  const actor = as === 'app' ? api.asApp() : api.asUser();
-  const res = await actor.requestJira(path, options);
+  const res = await send(as, path, options);
   if (!res.ok) throw new Error(`Jira returned ${res.status}`);
   return null;
 }
