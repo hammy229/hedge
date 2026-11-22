@@ -89,10 +89,15 @@ test('a malformed project key is refused and stores nothing', async () => {
   assert.equal(store.m.size, 0);
 });
 
-test('a stored project list that is not a list of keys reads as every project', async () => {
+test('a project list that cannot be read or makes no sense stops acting, not widens it', async () => {
   const store = memory();
   store.m.set('auto:projects', 'DEMO');
-  assert.deepEqual(await readActProjects(store), []);
+  assert.equal(await readActProjects(store), null);
+  store.m.set('auto:projects', [7, 'not a key']);
+  assert.equal(await readActProjects(store), null);
   store.m.set('auto:projects', ['DEMO', 7]);
   assert.deepEqual(await readActProjects(store), ['DEMO']);
+  const broken = { get: async () => { throw new Error('storage down'); } };
+  assert.equal(await readActProjects(broken), null);
+  assert.equal(actsIn(null, 'DEMO'), false);
 });

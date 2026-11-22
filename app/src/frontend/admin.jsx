@@ -149,6 +149,7 @@ function SampleData({ minWindow }) {
 // Off by default: until an admin opts in, Hedge only answers the panel and agents.
 function AutoAct({ on, saving, status, onChange, projects, onSaveProjects }) {
   const [text, setText] = useState(projects.join(', '));
+  useEffect(() => setText(projects.join(', ')), [projects]);
   return (
     <Section title="Act on new issues">
       <Text>{AUTO_ACT_TEXT}</Text>
@@ -164,7 +165,8 @@ function AutoAct({ on, saving, status, onChange, projects, onSaveProjects }) {
       <Stack space="space.050">
         <Label labelFor="act-projects">Only in these projects</Label>
         <Inline space="space.100" alignBlock="center">
-          <Textfield id="act-projects" name="act-projects" placeholder="DEMO, OPS" defaultValue={projects.join(', ')} onChange={(e) => setText(e.target.value)} />
+          {/* Uncontrolled (a controlled Textfield drops typed characters); the key remounts it with the saved, cleaned list. */}
+          <Textfield key={projects.join(',')} id="act-projects" name="act-projects" placeholder="DEMO, OPS" defaultValue={projects.join(', ')} onChange={(e) => setText(e.target.value)} />
           <Button isDisabled={saving} onClick={() => onSaveProjects(text)}>Save projects</Button>
         </Inline>
         <Text size="small" color="color.text.subtlest">{ACT_PROJECTS_HINT}</Text>
@@ -215,7 +217,7 @@ function Admin() {
       setAutoAct(a === true);
       setVerdicts(f);
       setActProjects(Array.isArray(p) ? p : []);
-      setLoadError(null);
+      setLoadError(p === null ? 'The saved project list could not be read, so Hedge acts in no project until it is saved again.' : null);
     }, (e) => setLoadError(message(e)));
 
   useEffect(() => {

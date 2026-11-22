@@ -60,6 +60,7 @@ test('a verdict needs an issue from Jira context, and only the admin page reads 
 test('only the admin page may change which projects Hedge acts in', async () => {
   for (const context of [{ moduleKey: 'hedge-panel' }, {}, undefined]) {
     await assert.rejects(handlers.setActProjects({ payload: { text: 'DEMO' }, context }), /admin page/);
+    await assert.rejects(handlers.actProjects({ context }), /admin page/);
   }
   await assert.rejects(handlers.setActProjects(), /admin page/);
 });

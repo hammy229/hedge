@@ -115,3 +115,10 @@ test('a project on the admin\'s list is triaged, keyed from the issue when the e
   assert.equal(out.decision, 'clear');
   assert.equal(d.calls.triage.length, 1);
 });
+
+test('an unreadable project list leaves the issue alone', async () => {
+  const d = deps({ projects: null });
+  const out = await onCreated({ issue: { key: 'DEMO-77' } }, d);
+  assert.deepEqual(out, { skipped: 'Hedge does not act in this project.' });
+  assert.equal(d.calls.triage.length, 0);
+});

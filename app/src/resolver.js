@@ -37,7 +37,10 @@ export const handlers = {
     adminOnly(context, 'Acting on new issues can only be switched from the admin page.');
     return saveAutoAct(store, payload?.on);
   },
-  actProjects: () => readActProjects(store),
+  actProjects: async ({ context } = {}) => {
+    adminOnly(context, 'The projects Hedge acts in can only be read from the admin page.');
+    return readActProjects(store);
+  },
   // The list decides where Hedge edits issues, so only the admin page may change it.
   setActProjects: async ({ payload, context } = {}) => {
     adminOnly(context, 'The projects Hedge acts in can only be changed from the admin page.');

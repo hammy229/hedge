@@ -57,21 +57,26 @@ export async function saveAutoAct(store, on) {
   return on;
 }
 
-// Which projects the trigger acts in. An empty list means every project, which is what a
+// Which projects the trigger acts in. An empty list (or none saved) means every project, which is what a
 // site had before the list existed. Keys are typed by an admin as "DEMO, OPS", so the
 // saved form is upper case, deduplicated, in the order typed.
 const PROJECTS_KEY = 'auto:projects';
 const PROJECT_KEY = /^[A-Z][A-Z0-9_]+$/;
 const MAX_PROJECTS = 50;
 
+// null means the list could not be trusted (unreadable, or nothing in it is a key), and the
+// trigger then acts nowhere: an error must never widen acting to every project.
 export async function readActProjects(store) {
   let saved;
   try {
     saved = await store.get(PROJECTS_KEY);
   } catch {
-    saved = undefined;
+    return null;
   }
-  return Array.isArray(saved) ? saved.filter((k) => typeof k === 'string' && PROJECT_KEY.test(k)) : [];
+  if (saved === undefined) return [];
+  if (!Array.isArray(saved)) return null;
+  const keys = saved.filter((k) => typeof k === 'string' && PROJECT_KEY.test(k));
+  return keys.length === 0 && saved.length > 0 ? null : keys;
 }
 
 export async function saveActProjects(store, text) {
@@ -85,6 +90,7 @@ export async function saveActProjects(store, text) {
 }
 
 export function actsIn(projects, projectKey) {
-  if (!Array.isArray(projects) || projects.length === 0) return true;
+  if (!Array.isArray(projects)) return false;
+  if (projects.length === 0) return true;
   return typeof projectKey === 'string' && projects.includes(projectKey);
 }
