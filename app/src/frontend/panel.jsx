@@ -37,7 +37,7 @@ function Verdict({ counts }) {
     );
   };
   const status = verdictStatus(state, counts, error);
-  if (status.done) return <Text color="color.text.success">{status.text}</Text>;
+  if (status.done) return <Text color="color.text.accent.blue">{status.text}</Text>;
   return (
     <Stack space="space.075">
       <Text weight="semibold">{PANEL_TEXT.verdictQuestion}</Text>
@@ -60,7 +60,7 @@ function Candidates({ candidates }) {
             <Inline key={c.key} spread="space-between" alignBlock="center">
               <Inline space="space.100" alignBlock="center">
                 <Link href={c.href}>{c.key}</Link>
-                {c.isMatch ? <Lozenge appearance="moved">{PANEL_TEXT.match}</Lozenge> : null}
+                {c.isMatch ? <Lozenge appearance="new">{PANEL_TEXT.match}</Lozenge> : null}
               </Inline>
               <Text size="small" color="color.text.subtle">{c.score}</Text>
             </Inline>

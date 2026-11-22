@@ -13,7 +13,7 @@ test('a cleared ticket shows its budget and what was searched', () => {
     budgets: { clear: 0.03 },
   });
   assert.equal(v.kind, 'decided');
-  assert.equal(v.lozenge.appearance, 'success');
+  assert.equal(v.lozenge.appearance, 'inprogress');
   assert.equal(v.budget.value, '3%');
   assert.match(v.budget.text, /At most 3% of the tickets Hedge clears/);
   assert.match(v.notes[0], /412/);

@@ -2,18 +2,19 @@
 
 import { LABELS } from './act.js';
 
-// One accent per call, in the house style: teal for a new report, purple for a duplicate,
-// amber for a ticket a person must decide. Atlassian design tokens, so dark mode works.
+// One tint per call, matching the web demo's cobalt / plum / ochre palette as closely as
+// Atlassian design tokens allow (so dark mode works): blue for a new report, purple for a
+// duplicate, yellow for a ticket a person must decide.
 export const TONE = Object.freeze({
-  clear: { background: 'color.background.accent.teal.subtlest', border: 'color.border.accent.teal', text: 'color.text.accent.teal' },
+  clear: { background: 'color.background.accent.blue.subtlest', border: 'color.border.accent.blue', text: 'color.text.accent.blue' },
   link: { background: 'color.background.accent.purple.subtlest', border: 'color.border.accent.purple', text: 'color.text.accent.purple' },
-  ask: { background: 'color.background.accent.orange.subtlest', border: 'color.border.accent.orange', text: 'color.text.accent.orange' },
+  ask: { background: 'color.background.accent.yellow.subtlest', border: 'color.border.accent.yellow', text: 'color.text.accent.yellow' },
 });
 
 const LOZENGE = {
-  link: { text: 'Duplicate', appearance: 'moved' },
-  clear: { text: 'New report', appearance: 'success' },
-  ask: { text: 'Needs a person', appearance: 'inprogress' },
+  link: { text: 'Duplicate', appearance: 'new' },
+  clear: { text: 'New report', appearance: 'inprogress' },
+  ask: { text: 'Needs a person', appearance: 'moved' },
 };
 
 const trimPct = (x) => `${+(x * 100).toFixed(2)}%`;
@@ -233,7 +234,7 @@ export function logRows(log) {
     // Only the issue trigger carries decisions out; the panel and MCP only report them.
     applied:
       e.applied === true
-        ? { text: 'Done', appearance: 'success' }
+        ? { text: 'Done', appearance: 'inprogress' }
         : e.applied === false
           ? { text: 'Failed', appearance: 'removed' }
           : { text: 'Report only', appearance: null },

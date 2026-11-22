@@ -158,7 +158,7 @@ function AutoAct({ on, saving, status, onChange }) {
       <Inline space="space.100" alignBlock="center">
         <Toggle id="auto-act" isChecked={on} isDisabled={saving} onChange={() => onChange(!on)} />
         <Label labelFor="auto-act">Act on new issues</Label>
-        <Lozenge appearance={on ? 'success' : 'default'}>{on ? 'On' : 'Off'}</Lozenge>
+        <Lozenge appearance={on ? 'inprogress' : 'default'}>{on ? 'On' : 'Off'}</Lozenge>
       </Inline>
       <Status status={status} />
     </Section>
