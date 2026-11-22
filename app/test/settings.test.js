@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { activePolicies, readBudgets, saveBudget } from '../src/settings.js';
+import { activePolicies, readAutoAct, readBudgets, saveAutoAct, saveBudget } from '../src/settings.js';
 import policies from '../src/policy.js';
 
 const memory = () => {
@@ -43,4 +43,24 @@ test('a storage failure falls back to the defaults instead of throwing', async (
   const broken = { get: async () => { throw new Error('kvs down'); } };
   const budgets = await readBudgets(broken, policies);
   assert.equal(budgets.clear, policies.clear.alpha);
+});
+
+test('acting on new issues is off until an admin turns it on', async () => {
+  const store = memory();
+  assert.equal(await readAutoAct(store), false);
+  assert.equal(await saveAutoAct(store, true), true);
+  assert.equal(await readAutoAct(store), true);
+  assert.equal(await saveAutoAct(store, false), false);
+  assert.equal(await readAutoAct(store), false);
+});
+
+test('only a real boolean turns acting on, and broken storage reads as off', async () => {
+  const store = memory();
+  for (const value of ['true', 1, null, undefined, {}]) {
+    await assert.rejects(saveAutoAct(store, value), /true or false/);
+  }
+  store.m.set('auto:act', 'yes');
+  assert.equal(await readAutoAct(store), false);
+  const broken = { get: async () => { throw new Error('down'); }, set: async () => {} };
+  assert.equal(await readAutoAct(broken), false);
 });

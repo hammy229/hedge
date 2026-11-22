@@ -37,3 +37,22 @@ export async function saveBudget(store, policies, action, alpha) {
 export function activePolicies(policies, budgets) {
   return Object.fromEntries(ACTIONS.map((a) => [a, atBudget(policies?.[a], budgets?.[a])]));
 }
+
+// Whether Hedge acts on new issues by itself (the issue trigger), or only answers the
+// panel and agents. Off until an admin turns it on: a fresh install never edits tickets,
+// and anything stored that is not exactly true reads as off.
+const AUTO_KEY = 'auto:act';
+
+export async function readAutoAct(store) {
+  try {
+    return (await store.get(AUTO_KEY)) === true;
+  } catch {
+    return false;
+  }
+}
+
+export async function saveAutoAct(store, on) {
+  if (typeof on !== 'boolean') throw new Error('Acting on new issues must be true or false.');
+  await store.set(AUTO_KEY, on);
+  return on;
+}
