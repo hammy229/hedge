@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  AUTO_ACT_TEXT, FEW_REVIEWS, autoActSaved, budgetSaved, dialView, logRows, panelFailure, panelView, summaryView, verdictStatus, verdictView,
+  AUTO_ACT_TEXT, FEW_REVIEWS, TONE, autoActSaved, budgetSaved, dialView, logRows, panelFailure, panelView, summaryView, verdictStatus, verdictView,
 } from '../src/view.js';
 
 test('a cleared ticket shows its budget and what was searched', () => {
@@ -183,4 +183,11 @@ test('verdicts on calls Hedge only showed are named apart from the budget', () =
   assert.match(verdictView({ reviewed: 40, wrong: 0, shownOnly: 1 }, 0.03).text, /1 more verdict was on calls/);
   assert.doesNotMatch(verdictView({ reviewed: 40, wrong: 0, shownOnly: 0 }, 0.03).text, /only showed/);
   assert.equal(verdictView({ reviewed: 40, wrong: 3, shownOnly: 50 }, 0.03).warn, true);
+});
+
+test('every call has its own accent, all from Atlassian tokens', () => {
+  for (const tone of Object.values(TONE)) {
+    for (const token of Object.values(tone)) assert.match(token, /^color\.(background|border|text)\.accent\./);
+  }
+  assert.notEqual(TONE.clear.background, TONE.ask.background);
 });

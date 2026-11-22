@@ -3,7 +3,7 @@ import ForgeReconciler, {
   Box, Button, ButtonGroup, Heading, Inline, Link, Lozenge, SectionMessage, Spinner, Stack, Strong, Text, xcss,
 } from '@forge/react';
 import { invoke } from '@forge/bridge';
-import { PANEL_TEXT, panelFailure, panelView, verdictStatus } from '../view.js';
+import { PANEL_TEXT, TONE, panelFailure, panelView, verdictStatus } from '../view.js';
 
 const card = xcss({
   borderColor: 'color.border',
@@ -11,6 +11,15 @@ const card = xcss({
   borderStyle: 'solid',
   borderRadius: 'border.radius',
 });
+
+const rounded = xcss({ borderRadius: 'border.radius.200' });
+const accentEdge = (tone) =>
+  xcss({ borderRadius: 'border.radius.200', borderLeftWidth: 'border.width.outline', borderLeftStyle: 'solid', borderLeftColor: tone.border });
+
+// Small uppercase label above a section, like the eyebrows on the project sites.
+function Eyebrow({ children }) {
+  return <Text size="small" weight="bold" color="color.text.subtlest">{String(children).toUpperCase()}</Text>;
+}
 
 // A person's verdict on the call, which the admin page compares with the error budget.
 function Verdict({ counts }) {
@@ -44,7 +53,7 @@ function Verdict({ counts }) {
 function Candidates({ candidates }) {
   return (
     <Stack space="space.075">
-      <Heading size="xxsmall">{PANEL_TEXT.candidatesTitle}</Heading>
+      <Eyebrow>{PANEL_TEXT.candidatesTitle}</Eyebrow>
       <Box xcss={card} paddingBlock="space.100" paddingInline="space.150">
         <Stack space="space.100">
           {candidates.map((c) => (
@@ -102,25 +111,28 @@ function Panel() {
     );
   }
 
+  const tone = TONE[v.decision] ?? TONE.ask;
   return (
-    <Stack space="space.200">
-      <Stack space="space.100">
-        <Inline>
-          <Lozenge isBold appearance={v.lozenge.appearance}>{v.lozenge.text}</Lozenge>
-        </Inline>
-        <Heading size="small">{v.headline}</Heading>
-        {v.carriedOut ? <Text size="small" color="color.text.subtle">{v.carriedOut}</Text> : null}
-      </Stack>
+    <Stack space="space.250">
+      <Box xcss={accentEdge(tone)} backgroundColor={tone.background} padding="space.200">
+        <Stack space="space.100">
+          <Inline>
+            <Lozenge isBold appearance={v.lozenge.appearance}>{v.lozenge.text}</Lozenge>
+          </Inline>
+          <Heading size="small">{v.headline}</Heading>
+          {v.carriedOut ? <Text size="small" color="color.text.subtle">{v.carriedOut}</Text> : null}
+        </Stack>
+      </Box>
 
       {v.budget ? (
-        <Box xcss={card} padding="space.150">
-          <Stack space="space.050">
-            <Inline space="space.100" alignBlock="center">
-              <Text size="small" weight="semibold" color="color.text.subtle">{PANEL_TEXT.budgetTitle}</Text>
-              <Lozenge appearance="success">{v.budget.value}</Lozenge>
-            </Inline>
-            <Text size="small">{v.budget.text}</Text>
-          </Stack>
+        <Box xcss={rounded} backgroundColor={TONE.clear.background} padding="space.150">
+          <Inline space="space.200" alignBlock="center">
+            <Heading size="large">{v.budget.value}</Heading>
+            <Stack space="space.025">
+              <Eyebrow>{PANEL_TEXT.budgetTitle}</Eyebrow>
+              <Text size="small">{v.budget.text}</Text>
+            </Stack>
+          </Inline>
         </Box>
       ) : null}
 
@@ -132,7 +144,7 @@ function Panel() {
 
       {v.reasons.length > 0 ? (
         <Stack space="space.075">
-          <Heading size="xxsmall">{PANEL_TEXT.whyTitle}</Heading>
+          <Eyebrow>{PANEL_TEXT.whyTitle}</Eyebrow>
           {v.reasons.map((r) => (
             <Text key={r.text}>
               {r.label ? <Strong>{`${r.label}: `}</Strong> : null}

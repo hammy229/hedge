@@ -2,6 +2,14 @@
 
 import { LABELS } from './act.js';
 
+// One accent per call, in the house style: teal for a new report, purple for a duplicate,
+// amber for a ticket a person must decide. Atlassian design tokens, so dark mode works.
+export const TONE = Object.freeze({
+  clear: { background: 'color.background.accent.teal.subtlest', border: 'color.border.accent.teal', text: 'color.text.accent.teal' },
+  link: { background: 'color.background.accent.purple.subtlest', border: 'color.border.accent.purple', text: 'color.text.accent.purple' },
+  ask: { background: 'color.background.accent.orange.subtlest', border: 'color.border.accent.orange', text: 'color.text.accent.orange' },
+});
+
 const LOZENGE = {
   link: { text: 'Duplicate', appearance: 'moved' },
   clear: { text: 'New report', appearance: 'success' },

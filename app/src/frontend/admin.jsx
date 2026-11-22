@@ -6,7 +6,7 @@ import ForgeReconciler, {
 import { invoke } from '@forge/bridge';
 import { runSeed } from '../seedloop.js';
 import {
-  ACTION_TEXT, ASK_QUEUE_JQL, AUTO_ACT_TEXT, CHART_NOTE, LOG_HEAD, autoActSaved, budgetSaved, dialView, logRows, seedView,
+  TONE, ACTION_TEXT, ASK_QUEUE_JQL, AUTO_ACT_TEXT, CHART_NOTE, LOG_HEAD, autoActSaved, budgetSaved, dialView, logRows, seedView,
   summaryView, verdictView,
 } from '../view.js';
 
@@ -17,7 +17,13 @@ const card = xcss({
   borderRadius: 'border.radius',
 });
 
-const tile = xcss({ borderRadius: 'border.radius' });
+const tile = xcss({ borderRadius: 'border.radius.200', minWidth: '180px' });
+const hero = xcss({
+  borderRadius: 'border.radius.200',
+  borderLeftWidth: 'border.width.outline',
+  borderLeftStyle: 'solid',
+  borderLeftColor: TONE.clear.border,
+});
 
 const HEAD = { cells: LOG_HEAD.map((content) => ({ key: content, content })) };
 
@@ -251,10 +257,16 @@ function Admin() {
 
   return (
     <Stack space="space.300">
-      <Stack space="space.150">
-        <Text>
-          Hedge acts on a ticket only when a statistical test certifies that its error rate stays under the budget you pick. Each certified budget below was checked on held-out tickets with 90% confidence, so you can switch between them at any time. A tighter budget means Hedge acts on fewer tickets and asks a person about the rest.
-        </Text>
+      <Stack space="space.200">
+        <Box xcss={hero} backgroundColor={TONE.clear.background} padding="space.300">
+          <Stack space="space.100">
+            <Text size="small" weight="bold" color="color.text.subtlest">CALIBRATED TRIAGE</Text>
+            <Heading size="medium">Hedge acts only inside the error rate you set, and asks a person about the rest.</Heading>
+            <Text>
+              Each certified budget below was checked on held-out tickets with 90% confidence, so you can switch between them at any time. A tighter budget means Hedge acts on fewer tickets.
+            </Text>
+          </Stack>
+        </Box>
         <Summary view={summaryView(settings, autoAct, log)} />
         {loadError ? (
           <SectionMessage appearance="error">
