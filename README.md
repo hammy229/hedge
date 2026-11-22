@@ -5,7 +5,7 @@
 [![CI](https://github.com/hammy229/hedge/actions/workflows/ci.yml/badge.svg)](https://github.com/hammy229/hedge/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**Links:** [Plan](docs/PLAN.md) · [Results](docs/results.md) · [Data](docs/data.md) · [Design decisions](docs/adr/) · [arhamdoshi.dev](https://arhamdoshi.dev) · [linkedin.com/in/arhamdoshi](https://linkedin.com/in/arhamdoshi)
+**Links:** [Live demo](https://hedge-delta.vercel.app) · [Plan](docs/PLAN.md) · [Results](docs/results.md) · [Data](docs/data.md) · [Design decisions](docs/adr/) · [arhamdoshi.dev](https://arhamdoshi.dev) · [linkedin.com/in/arhamdoshi](https://linkedin.com/in/arhamdoshi)
 
 > Status: in progress for Atlassian Codegeist 2026 (due Dec 22, 2026). The certified 3% clear
 > policy ships in the app, with an issue panel, an admin error-budget dial, a decision log,
@@ -41,9 +41,9 @@ Only numbers this repo produces. Real-data rows come from [docs/results.md](docs
 | The real dataset streams without a database | 2,686,223 issues and 271,185 Duplicate pairs in 261 s from the 5.8 GB zip | `python -m hedge.extract`, counts in [docs/data.md](docs/data.md) |
 | Hedge beats the agent's own stated confidence | not measured yet | week 3: LLM baseline on the same test tickets |
 
-## Try it locally
+## Try it
 
-No Atlassian account needed. The preview replays the 150 sample issues through the same
+Open the [live demo](https://hedge-delta.vercel.app), or run it locally. No Atlassian account needed. The preview replays the 150 sample issues through the same
 triage, gate, policy and panel wording the Jira app ships, and shows the dataset's known
 answer next to each call, so the misses are visible.
 
