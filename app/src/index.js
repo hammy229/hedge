@@ -1,5 +1,5 @@
 import api, { route } from '@forge/api';
-import { kvs } from '@forge/kvs';
+import { WhereConditions, kvs } from '@forge/kvs';
 import { applyDecision } from './act.js';
 import { onCreated } from './created.js';
 import { describePolicy } from './gate.js';
@@ -10,8 +10,25 @@ import { activePolicies, readAutoAct, readBudgets } from './settings.js';
 import { triage } from './triage.js';
 import { PAGE_SIZE, collectWindow, windowJql } from './window.js';
 
-// Forge storage, through the small get/set interface settings.js and log.js take.
-export const store = { get: (k) => kvs.get(k), set: (k, v) => kvs.set(k, v) };
+// Forge storage, through the small interface settings.js, log.js and feedback.js take.
+// list(prefix) reads every value under a key prefix, page by page, up to LIST_MAX.
+const LIST_MAX = 5000;
+export const store = {
+  get: (k) => kvs.get(k),
+  set: (k, v) => kvs.set(k, v),
+  async list(prefix) {
+    const out = [];
+    let cursor;
+    do {
+      let q = kvs.query().where('key', WhereConditions.beginsWith(prefix)).limit(100);
+      if (cursor) q = q.cursor(cursor);
+      const page = await q.getMany();
+      out.push(...(page?.results ?? []).map((r) => r.value));
+      cursor = page?.nextCursor;
+    } while (cursor && out.length < LIST_MAX);
+    return out;
+  },
+};
 
 const ISSUE_KEY = /^[A-Z][A-Z0-9_]+-\d+$/;
 // REST v2 returns descriptions as wiki-markup strings, the form the training data has.

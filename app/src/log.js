@@ -47,7 +47,8 @@ const same = (a, b) =>
   a.issueKey === b.issueKey && a.decision === b.decision && a.budget === b.budget && a.via === b.via;
 
 // The latest decision on each issue also gets a key of its own, so a verdict from the
-// panel (feedback.js) finds it after the capped list has moved on.
+// panel (feedback.js) finds it after the capped list has moved on, and the trigger can
+// tell an issue it already handled.
 const decisionKey = (issueKey) => `decision:${issueKey}`;
 
 export async function readDecision(store, issueKey) {
@@ -63,7 +64,11 @@ export async function record(store, result, meta) {
   try {
     const log = await readLog(store);
     const entry = entryFor(result, meta);
-    if (entry.issueKey) await store.set(decisionKey(entry.issueKey), entry);
+    // The trigger's entry is what Hedge actually did to the issue, so a later panel view
+    // or agent call must not replace it.
+    if (entry.issueKey && (entry.via === 'trigger' || (await readDecision(store, entry.issueKey))?.via !== 'trigger')) {
+      await store.set(decisionKey(entry.issueKey), entry);
+    }
     if (log.some((e) => same(e, entry))) return;
     await store.set(KEY, [entry, ...log].slice(0, LOG_SIZE));
   } catch {

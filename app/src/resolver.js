@@ -22,7 +22,7 @@ export const handlers = {
   feedback: async ({ payload, context } = {}) => {
     const issueKey = context?.extension?.issue?.key;
     if (typeof issueKey !== 'string' || issueKey === '') throw new Error('Verdicts can only be given from an issue.');
-    return saveFeedback(store, { issueKey, verdict: payload?.verdict });
+    return saveFeedback(store, { issueKey, verdict: payload?.verdict, accountId: context?.accountId });
   },
   // Verdicts span every project, like the log, so only the admin page may read them.
   feedbackSummary: async ({ context } = {}) => {
