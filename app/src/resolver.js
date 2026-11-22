@@ -1,6 +1,7 @@
 // Backend for the issue panel and the admin page (UI Kit, src/frontend/).
 import ResolverModule from '@forge/resolver';
 import { budgetOptions } from './budget.js';
+import { feedbackSummary, readFeedback, saveFeedback } from './feedback.js';
 import { describePolicy } from './gate.js';
 import { runTriage, seedProgress, seedProject, store } from './index.js';
 import { readLog } from './log.js';
@@ -16,6 +17,18 @@ const resolver = new Resolver();
 export const handlers = {
   // The panel triages the issue it is shown on, as the viewing user.
   triage: ({ context }) => runTriage(context?.extension?.issue?.key, 'panel'),
+  // A verdict on the call shown in the panel. The issue comes from Jira's context, not the
+  // payload, so a viewer can only review the ticket they are looking at.
+  feedback: async ({ payload, context } = {}) => {
+    const issueKey = context?.extension?.issue?.key;
+    if (typeof issueKey !== 'string' || issueKey === '') throw new Error('Verdicts can only be given from an issue.');
+    return saveFeedback(store, { issueKey, verdict: payload?.verdict });
+  },
+  // Verdicts span every project, like the log, so only the admin page may read them.
+  feedbackSummary: async ({ context } = {}) => {
+    adminOnly(context, 'Verdicts can only be read from the admin page.');
+    return feedbackSummary(await readFeedback(store));
+  },
   settings,
   setBudget,
   autoAct: () => readAutoAct(store),

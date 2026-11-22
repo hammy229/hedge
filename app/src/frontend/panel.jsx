@@ -1,7 +1,27 @@
 import React, { useEffect, useState } from 'react';
-import ForgeReconciler, { Heading, Inline, Lozenge, SectionMessage, Spinner, Stack, Strong, Text } from '@forge/react';
+import ForgeReconciler, { Button, ButtonGroup, Heading, Inline, Lozenge, SectionMessage, Spinner, Stack, Strong, Text } from '@forge/react';
 import { invoke } from '@forge/bridge';
 import { panelView } from '../view.js';
+
+// A person's verdict on the call, which the admin page compares with the error budget.
+function Verdict() {
+  const [state, setState] = useState('idle');
+  const send = (verdict) => {
+    setState('sending');
+    invoke('feedback', { verdict }).then(() => setState(verdict), () => setState('failed'));
+  };
+  if (state === 'right' || state === 'wrong') return <Text>{`Thanks. You marked this call ${state}.`}</Text>;
+  return (
+    <Stack space="space.050">
+      <Text>Was this call right?</Text>
+      <ButtonGroup label="Review Hedge's call">
+        <Button isDisabled={state === 'sending'} onClick={() => send('right')}>Right</Button>
+        <Button isDisabled={state === 'sending'} onClick={() => send('wrong')}>Wrong</Button>
+      </ButtonGroup>
+      {state === 'failed' ? <Text>Could not save that. Try again.</Text> : null}
+    </Stack>
+  );
+}
 
 function Panel() {
   const [result, setResult] = useState(null);
@@ -36,6 +56,7 @@ function Panel() {
           {v.candidates.map((c) => <Text key={c.key}>{`${c.key}  (BM25 ${c.score})`}</Text>)}
         </Stack>
       ) : null}
+      {result.error ? null : <Verdict />}
     </Stack>
   );
 }

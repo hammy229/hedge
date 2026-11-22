@@ -46,10 +46,24 @@ export async function readLog(store) {
 const same = (a, b) =>
   a.issueKey === b.issueKey && a.decision === b.decision && a.budget === b.budget && a.via === b.via;
 
+// The latest decision on each issue also gets a key of its own, so a verdict from the
+// panel (feedback.js) finds it after the capped list has moved on.
+const decisionKey = (issueKey) => `decision:${issueKey}`;
+
+export async function readDecision(store, issueKey) {
+  try {
+    const entry = await store.get(decisionKey(issueKey));
+    return entry && typeof entry === 'object' && entry.issueKey === issueKey ? entry : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function record(store, result, meta) {
   try {
     const log = await readLog(store);
     const entry = entryFor(result, meta);
+    if (entry.issueKey) await store.set(decisionKey(entry.issueKey), entry);
     if (log.some((e) => same(e, entry))) return;
     await store.set(KEY, [entry, ...log].slice(0, LOG_SIZE));
   } catch {

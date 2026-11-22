@@ -47,3 +47,12 @@ test('only the admin page may switch acting on new issues', async () => {
   }
   await assert.rejects(handlers.setAutoAct(), /admin page/);
 });
+
+test('a verdict needs an issue from Jira context, and only the admin page reads the summary', async () => {
+  for (const context of [{}, { extension: {} }, undefined]) {
+    await assert.rejects(handlers.feedback({ payload: { verdict: 'wrong' }, context }), /from an issue/);
+  }
+  for (const context of [{ moduleKey: 'hedge-panel' }, {}, undefined]) {
+    await assert.rejects(handlers.feedbackSummary({ context }), /admin page/);
+  }
+});
