@@ -8,7 +8,9 @@
 **Links:** [Plan](docs/PLAN.md) · [Results](docs/results.md) · [Data](docs/data.md) · [Design decisions](docs/adr/) · [arhamdoshi.dev](https://arhamdoshi.dev) · [linkedin.com/in/arhamdoshi](https://linkedin.com/in/arhamdoshi)
 
 > Status: in progress for Atlassian Codegeist 2026 (due Dec 22, 2026). The certified 3% clear
-> policy ships in the app, with an issue panel, an admin error-budget dial and a decision log.
+> policy ships in the app, with an issue panel, an admin error-budget dial, a decision log,
+> an opt-in trigger that labels new issues with Hedge's call, right-or-wrong verdicts from
+> the panel, and a Rovo agent.
 > Next: deploying to a Forge site. Judges' steps are in [docs/TESTING.md](docs/TESTING.md).
 > See [docs/PLAN.md](docs/PLAN.md).
 
@@ -63,8 +65,12 @@ tickets where a calibrated statistical test shows the error rate among its actio
 4. A later test window checks that the certified error held under drift.
 5. Inside Forge, each gate compares the ticket's score to its threshold. Below both, with
    both above, or with any missing signal or unreadable window, the ticket goes to a person.
-6. The same gate is exposed through `rovo:mcp`, so external agents such as Claude Desktop go
-   through it too.
+6. The same gate is exposed through `rovo:mcp` and a Rovo agent, so external agents such as
+   Claude Desktop and Rovo chat go through it too. They only report the call.
+7. If an admin turns it on, a trigger triages each new issue as it is filed and labels it
+   `hedge-cleared`, `hedge-duplicate` or `hedge-ask`. It never writes a duplicate link,
+   since the app can see issues the reporter cannot. People mark calls right or wrong in
+   the panel, and the admin page compares the share marked wrong with the budget.
 
 | Choice | Why |
 |---|---|
