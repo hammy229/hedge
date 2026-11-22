@@ -56,3 +56,35 @@ export async function saveAutoAct(store, on) {
   await store.set(AUTO_KEY, on);
   return on;
 }
+
+// Which projects the trigger acts in. An empty list means every project, which is what a
+// site had before the list existed. Keys are typed by an admin as "DEMO, OPS", so the
+// saved form is upper case, deduplicated, in the order typed.
+const PROJECTS_KEY = 'auto:projects';
+const PROJECT_KEY = /^[A-Z][A-Z0-9_]+$/;
+const MAX_PROJECTS = 50;
+
+export async function readActProjects(store) {
+  let saved;
+  try {
+    saved = await store.get(PROJECTS_KEY);
+  } catch {
+    saved = undefined;
+  }
+  return Array.isArray(saved) ? saved.filter((k) => typeof k === 'string' && PROJECT_KEY.test(k)) : [];
+}
+
+export async function saveActProjects(store, text) {
+  if (typeof text !== 'string') throw new Error('Project keys must be text, like DEMO, OPS.');
+  const keys = [...new Set(text.split(',').map((k) => k.trim().toUpperCase()).filter(Boolean))];
+  const bad = keys.find((k) => !PROJECT_KEY.test(k));
+  if (bad !== undefined) throw new Error(`${bad} is not a project key. Use keys like DEMO, OPS.`);
+  if (keys.length > MAX_PROJECTS) throw new Error(`List at most ${MAX_PROJECTS} project keys.`);
+  await store.set(PROJECTS_KEY, keys);
+  return keys;
+}
+
+export function actsIn(projects, projectKey) {
+  if (!Array.isArray(projects) || projects.length === 0) return true;
+  return typeof projectKey === 'string' && projects.includes(projectKey);
+}

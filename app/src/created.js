@@ -7,14 +7,16 @@
 //   - sample issues (label hedge-sample) and anything filed while seeding runs in that
 //     project: 150 creates in two minutes would mean 150 full window reads at once, and the
 //     first ones always ask, which would fill the hedge-ask queue with sample tickets;
+//   - projects outside the admin's list, when there is one (an empty list means all);
 //   - subtasks, which are pieces of an issue, not new reports;
 //   - an issue the trigger already handled, since Forge may deliver an event twice;
 //   - a triage that could not read Jira: its "ask" says nothing about the ticket, and a
 //     label would stick, because the trigger only fires on create.
 
 import { SAMPLE_LABEL } from './act.js';
+import { actsIn } from './settings.js';
 
-export async function onCreated(event, { readAutoAct, triage, apply, alreadyHandled, seeding }) {
+export async function onCreated(event, { readAutoAct, readActProjects = async () => [], triage, apply, alreadyHandled, seeding }) {
   const issue = event?.issue;
   const key = issue?.key;
   if (typeof key !== 'string' || key === '') return { skipped: 'The event names no issue.' };
@@ -23,6 +25,7 @@ export async function onCreated(event, { readAutoAct, triage, apply, alreadyHand
   if (labels.includes(SAMPLE_LABEL)) return { skipped: 'Sample issues are not acted on.' };
   if (issue.fields?.issuetype?.subtask === true) return { skipped: 'Subtasks are not acted on.' };
   const projectKey = issue.fields?.project?.key ?? key.replace(/-\d+$/, '');
+  if (!actsIn(await readActProjects(), projectKey)) return { skipped: 'Hedge does not act in this project.' };
   if (await seeding(projectKey)) return { skipped: 'Sample data is being added to this project.' };
   if (await alreadyHandled(key)) return { skipped: 'This issue was already handled.' };
   return triage(key, 'trigger', 'app', (result) => {

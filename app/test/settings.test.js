@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { activePolicies, readAutoAct, readBudgets, saveAutoAct, saveBudget } from '../src/settings.js';
+import { activePolicies, actsIn, readActProjects, readAutoAct, readBudgets, saveActProjects, saveAutoAct, saveBudget } from '../src/settings.js';
 import policies from '../src/policy.js';
 
 const memory = () => {
@@ -63,4 +63,36 @@ test('only a real boolean turns acting on, and broken storage reads as off', asy
   assert.equal(await readAutoAct(store), false);
   const broken = { get: async () => { throw new Error('down'); }, set: async () => {} };
   assert.equal(await readAutoAct(broken), false);
+});
+
+test('with no projects saved, acting covers every project', async () => {
+  const store = memory();
+  assert.deepEqual(await readActProjects(store), []);
+  assert.equal(actsIn([], 'DEMO'), true);
+});
+
+test('saved project keys are cleaned, deduplicated and limit acting to those projects', async () => {
+  const store = memory();
+  const saved = await saveActProjects(store, ' demo, Ops ,DEMO,,');
+  assert.deepEqual(saved, ['DEMO', 'OPS']);
+  assert.deepEqual(await readActProjects(store), ['DEMO', 'OPS']);
+  assert.equal(actsIn(saved, 'OPS'), true);
+  assert.equal(actsIn(saved, 'WEB'), false);
+  assert.equal(actsIn(saved, undefined), false);
+});
+
+test('a malformed project key is refused and stores nothing', async () => {
+  const store = memory();
+  for (const bad of ['DEMO, 9X', 'de mo', 'A', 42, null]) {
+    await assert.rejects(saveActProjects(store, bad), /project key/i);
+  }
+  assert.equal(store.m.size, 0);
+});
+
+test('a stored project list that is not a list of keys reads as every project', async () => {
+  const store = memory();
+  store.m.set('auto:projects', 'DEMO');
+  assert.deepEqual(await readActProjects(store), []);
+  store.m.set('auto:projects', ['DEMO', 7]);
+  assert.deepEqual(await readActProjects(store), ['DEMO']);
 });

@@ -6,7 +6,7 @@ import { describePolicy } from './gate.js';
 import { seedStatus, seedStep, seedingNow } from './seeder.js';
 import { readDecision, record } from './log.js';
 import policies from './policy.js';
-import { activePolicies, readAutoAct, readBudgets } from './settings.js';
+import { activePolicies, readActProjects, readAutoAct, readBudgets } from './settings.js';
 import { triage } from './triage.js';
 import { PAGE_SIZE, collectWindow, windowJql } from './window.js';
 
@@ -140,6 +140,7 @@ export function seedProgress(projectKey) {
 export function issueCreated(event) {
   return onCreated(event, {
     readAutoAct: () => readAutoAct(store),
+    readActProjects: () => readActProjects(store),
     triage: runTriage,
     apply: (result) => applyDecision(result, (path, options) => jiraWrite(path, options, 'app'), route),
     alreadyHandled: async (key) => (await readDecision(store, key))?.via === 'trigger',

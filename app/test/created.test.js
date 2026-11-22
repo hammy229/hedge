@@ -2,11 +2,12 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { onCreated } from '../src/created.js';
 
-function deps({ on = true, decision = 'clear', applied = { applied: true, label: 'hedge-cleared' }, handled = false, seeding = false, failed = false, labels = null } = {}) {
+function deps({ projects = [], on = true, decision = 'clear', applied = { applied: true, label: 'hedge-cleared' }, handled = false, seeding = false, failed = false, labels = null } = {}) {
   const calls = { triage: [], apply: [], seeding: [] };
   return {
     calls,
     readAutoAct: async () => on,
+    readActProjects: async () => projects,
     alreadyHandled: async () => handled,
     seeding: async (projectKey) => {
       calls.seeding.push(projectKey);
@@ -99,4 +100,18 @@ test('a sample issue whose event had no labels is still left alone once triage r
   assert.equal(d.calls.triage.length, 1);
   assert.equal(d.calls.apply.length, 0);
   assert.match(out.applied.error, /Sample issues/);
+});
+
+test('a project outside the admin\'s list is not triaged', async () => {
+  const d = deps({ projects: ['OPS'] });
+  const out = await onCreated({ issue: { key: 'DEMO-77', fields: { project: { key: 'DEMO' } } } }, d);
+  assert.deepEqual(out, { skipped: 'Hedge does not act in this project.' });
+  assert.equal(d.calls.triage.length, 0);
+});
+
+test('a project on the admin\'s list is triaged, keyed from the issue when the event has no project', async () => {
+  const d = deps({ projects: ['DEMO'] });
+  const out = await onCreated({ issue: { key: 'DEMO-77' } }, d);
+  assert.equal(out.decision, 'clear');
+  assert.equal(d.calls.triage.length, 1);
 });
