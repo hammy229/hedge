@@ -36,9 +36,11 @@ test('the server serves the page, the shared view code and the API, and nothing 
     for (const path of ['/', '/app.js', '/style.css', '/src/view.js', '/src/act.js']) {
       assert.equal((await fetch(base + path)).status, 200, path);
     }
-    const r = await (await fetch(`${base}/api/replay?budget=0.025`)).json();
+    const r = await (await fetch(`${base}/data/replay-0.025.json`)).json();
     assert.equal(r.counts.clear, 114);
-    assert.equal((await fetch(`${base}/api/replay?budget=9`)).status, 400);
+    assert.equal((await (await fetch(`${base}/data/index.json`)).json()).default, 0.03);
+    assert.equal((await fetch(`${base}/data/settings-0.03.json`)).status, 200);
+    assert.equal((await fetch(`${base}/data/replay-9.json`)).status, 404);
     for (const path of ['/src/policy.js', '/../package.json', '/preview/server.js', '/%2e%2e/manifest.yml']) {
       assert.equal((await fetch(base + path)).status, 404, path);
     }

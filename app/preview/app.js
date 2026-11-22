@@ -25,9 +25,16 @@ function h(tag, props = {}, ...children) {
 const pct = (x) => `${+(x * 100).toFixed(2)}%`;
 const decisionOf = (issue) => issue.result.decision;
 
+// Static JSON per budget (preview/build.js writes it; preview/server.js serves the same
+// paths live), so the page can be hosted anywhere.
+const json = (path) => fetch(path).then((r) => {
+  if (!r.ok) throw new Error(`${path} returned ${r.status}`);
+  return r.json();
+});
+
 async function load(budget) {
-  const q = budget === null ? '' : `?budget=${budget}`;
-  const [data, settings] = await Promise.all([fetch(`/api/replay${q}`), fetch(`/api/settings${q}`)].map((p) => p.then((r) => r.json())));
+  const b = budget ?? (await json('/data/index.json')).default;
+  const [data, settings] = await Promise.all([json(`/data/replay-${b}.json`), json(`/data/settings-${b}.json`)]);
   state.data = data;
   state.settings = settings;
   state.budget = data.budget;

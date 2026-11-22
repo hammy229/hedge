@@ -1,13 +1,13 @@
 // Local preview of Hedge, no Jira needed: `npm run preview`, then open the printed URL.
 //
 // Serves one page, the app's own view code (src/view.js and the act.js labels it imports,
-// so the wording matches the Forge panel exactly) and two read-only endpoints backed by
-// preview/replay.js. Only the files listed below are served, and only on 127.0.0.1.
+// so the wording matches the Forge panel exactly) and the replay as JSON per budget, at
+// the same paths preview/build.js writes for static hosting. Only the files listed below are served, and only on 127.0.0.1.
 
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
-import { replay, settingsFor } from './replay.js';
+import { budgetIndex, replay, settingsFor } from './replay.js';
 
 const here = (p) => fileURLToPath(new URL(p, import.meta.url));
 const FILES = {
@@ -26,15 +26,15 @@ function send(res, status, body, type = 'application/json; charset=utf-8') {
 async function handle(req, res) {
   const url = new URL(req.url ?? '/', 'http://localhost');
   if (req.method !== 'GET') return send(res, 405, '{"error":"GET only"}');
-  if (url.pathname === '/api/replay' || url.pathname === '/api/settings') {
-    const raw = url.searchParams.get('budget');
-    const budget = raw === null ? undefined : Number(raw);
+  if (url.pathname === '/data/index.json') return send(res, 200, JSON.stringify(budgetIndex()));
+  const data = url.pathname.match(/^\/data\/(replay|settings)-(\d+(?:\.\d+)?)\.json$/);
+  if (data) {
+    const budget = Number(data[2]);
     try {
-      const body = url.pathname === '/api/replay' ? replay(budget) : settingsFor(budget);
-      if (url.pathname === '/api/settings') replay(budget); // refuse budgets the policy does not offer
-      return send(res, 200, JSON.stringify(body));
+      replay(budget); // refuses budgets the policy does not offer
+      return send(res, 200, JSON.stringify(data[1] === 'replay' ? replay(budget) : settingsFor(budget)));
     } catch (e) {
-      return send(res, 400, JSON.stringify({ error: e.message }));
+      return send(res, 404, JSON.stringify({ error: e.message }));
     }
   }
   const file = FILES[url.pathname];

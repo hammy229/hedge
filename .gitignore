@@ -16,3 +16,4 @@ runs/
 # Secrets
 .env
 .env.*
+app/preview/dist/

@@ -8,7 +8,8 @@
   "scripts": {
     "test": "node --test \"test/**/*.test.js\"",
     "lint": "forge lint",
-    "preview": "node preview/server.js"
+    "preview": "node preview/server.js",
+    "preview:build": "node preview/build.js"
   },
   "dependencies": {
     "@forge/api": "^8.5.0",

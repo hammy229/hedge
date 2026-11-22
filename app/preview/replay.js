@@ -67,3 +67,8 @@ export function settingsFor(clear = policies.clear.alpha) {
     ]),
   );
 }
+
+// Every budget the page can pick, and the one it opens on.
+export function budgetIndex() {
+  return { default: policies.clear.alpha, budgets: offered() };
+}
