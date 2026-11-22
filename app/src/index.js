@@ -17,9 +17,11 @@ const ISSUE_KEY = /^[A-Z][A-Z0-9_]+-\d+$/;
 const FIELDS = ['summary', 'description', 'created', 'project'];
 
 // Triage only says the status: its reason reaches every panel viewer, MCP agents and the
-// decision log, so Jira's response body stays out of it.
-async function jira(path, options) {
-  const res = await api.asUser().requestJira(path, options);
+// decision log, so Jira's response body stays out of it. The panel and MCP read as the
+// calling user; an issue trigger has no user, so it reads as the app.
+async function jira(path, options, as = 'user') {
+  const actor = as === 'app' ? api.asApp() : api.asUser();
+  const res = await actor.requestJira(path, options);
   if (!res.ok) throw new Error(`Jira returned ${res.status}`);
   return res.json();
 }
@@ -49,33 +51,34 @@ export async function jiraError(res) {
   return error;
 }
 
-async function projectKeys() {
-  const projects = await jira(route`/rest/api/2/project`);
+async function projectKeys(as) {
+  const projects = await jira(route`/rest/api/2/project`, undefined, as);
   return Array.isArray(projects) ? projects.map((p) => p.key).filter(Boolean) : [];
 }
 
-// One triage, shared by the MCP tool and the issue panel: read the ticket and its window as
-// the calling user, gate it at the admin's budgets, and log the decision.
-export async function runTriage(rawKey, via) {
+// One triage, shared by the MCP tool, the issue panel and the issue trigger: read the
+// ticket and its window (as the calling user, or as the app for the trigger), gate it at
+// the admin's budgets, and log the decision.
+export async function runTriage(rawKey, via, as = 'user') {
   const issueKey = String(rawKey ?? '').trim().toUpperCase();
   if (!ISSUE_KEY.test(issueKey)) return { error: 'issueKey must look like PROJ-123.' };
   const budgets = await readBudgets(store, policies);
-  const result = await triageAt(issueKey, activePolicies(policies, budgets));
+  const result = await triageAt(issueKey, activePolicies(policies, budgets), as);
   await record(store, result, { budgets, via });
   return { ...result, budgets };
 }
 
-async function triageAt(issueKey, active) {
+async function triageAt(issueKey, active, as) {
   try {
-    const issue = await jira(route`/rest/api/2/issue/${issueKey}?fields=${FIELDS.join(',')}`);
+    const issue = await jira(route`/rest/api/2/issue/${issueKey}?fields=${FIELDS.join(',')}`, undefined, as);
     const jql = windowJql(issue.fields?.project?.id, issue);
     const fetchPage = (nextPageToken) =>
       jira(route`/rest/api/2/search/jql`, {
         method: 'POST',
         headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
         body: JSON.stringify({ jql, fields: FIELDS, maxResults: PAGE_SIZE, nextPageToken }),
-      });
-    const [{ window, complete }, keys] = await Promise.all([collectWindow(fetchPage, issue), projectKeys()]);
+      }, as);
+    const [{ window, complete }, keys] = await Promise.all([collectWindow(fetchPage, issue), projectKeys(as)]);
     if (!complete) {
       return { issueKey, decision: 'ask', reason: 'Could not read the full search window, so a person decides.' };
     }
