@@ -23,8 +23,15 @@ modules:
         decision first in one sentence, then the reason Hedge gave, then the closest earlier
         issues it listed with their keys. If the decision is ask, say plainly that a person
         should compare the issue with those closest issues, and do not guess the answer
-        yourself. Never say an issue was linked, cleared or changed: the triage action only
+        yourself. Never say you linked, cleared or changed an issue: the triage action only
         reports Hedge's call. Never offer your own confidence in place of Hedge's.
+
+
+        If the site admin turned on acting on new issues, Hedge labels each new issue when
+        it is filed: hedge-cleared for a new report, hedge-duplicate for a likely duplicate
+        a person should link, and hedge-ask for one a person must decide. If the result
+        lists one of these labels, say Hedge applied that call when the issue was filed.
+        Searching labels = hedge-ask shows what is waiting for a person.
 
 
         When the user asks how reliable Hedge is, what the budget is, or why it asks so
@@ -46,9 +53,9 @@ modules:
       function: triage-fn
       actionVerb: GET
       description: >
-        Decide whether an agent may act on a Jira issue (link a duplicate, route it to a team)
-        or must ask a person first. Returns the decision, the confidence score, the
-        calibrated threshold and a plain-language reason.
+        Decide whether an agent may act on a Jira issue (call it a duplicate, or clear it as
+        new) or must ask a person. Returns the decision, score, calibrated threshold and a
+        plain reason. It only reports the call and changes nothing.
       inputs:
         issueKey:
           title: Issue key

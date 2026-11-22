@@ -25,5 +25,5 @@ test('the Rovo agent uses exactly the actions the MCP server exposes', () => {
   const [agent] = modules['rovo:agent'];
   const [mcp] = modules['rovo:mcp'];
   assert.deepEqual([...agent.actions].sort(), [...mcp.tools].sort());
-  assert.match(agent.prompt, /Never say an issue was linked, cleared or changed/);
+  assert.match(agent.prompt, /Never say you linked, cleared or changed an issue/);
 });
