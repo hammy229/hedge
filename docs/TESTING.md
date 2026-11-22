@@ -2,16 +2,17 @@
 
 These steps start from an empty Jira Cloud site. They take about fifteen minutes.
 
-> Draft: written before the first deployed install. The menu paths in steps 1, 4 and 5 get
-> checked against a real site when Hedge is deployed.
+> Draft: written before the first deployed install. The menu paths in steps 1, 4, 5 and 6
+> get checked against a real site when Hedge is deployed.
 
 ## 1. Install
 
 1. Open the install link from the submission page and pick your site.
 2. Approve the scopes. Hedge asks for `read:jira-work` (to read tickets as the person
-   viewing them), `write:jira-work` (only for the optional sample data in step 2; Hedge
-   never edits your tickets) and `storage:app` (to keep the error budget, the decision log
-   and seeding progress inside Atlassian).
+   viewing them), `write:jira-work` (for the optional sample data in step 2, and for the
+   labels Hedge adds in step 5 if you turn acting on; it is off on a fresh install, so until
+   then Hedge never edits your tickets) and `storage:app` (to keep the error budget, the
+   decision log, verdicts and seeding progress inside Atlassian).
 
 ## 2. Add sample data
 
@@ -26,7 +27,7 @@ empty site needs history first.
    150 real issues from Atlassian's public Jira Software Server tracker (Public Jira
    Dataset, CC BY 4.0), oldest first, labeled `hedge-sample`. It takes about two minutes;
    leave the page open. If you close it, choose **Continue** later and it picks up where
-   it stopped.
+   it stopped. Sample issues are never acted on, even with acting turned on in step 5.
 
 Five of the 150 restate an earlier sample issue. In a new project they become DEMO-15,
 DEMO-29, DEMO-37, DEMO-50 and DEMO-51 (the numbers shift if the project already had
@@ -36,18 +37,22 @@ issues).
 
 1. Open any ticket and choose **Hedge** in the issue panel area.
 2. The panel shows one of three outcomes:
-   - **Cleared as new**: Hedge is confident this is not a duplicate, inside the error budget.
-   - **Linked as duplicate**: Hedge certified nothing for linking, so you shouldn't see
-     this. The panel says why for every ticket.
-   - **Needs a person**: Hedge is not sure enough, and says why (its score against the
-     certified threshold, a copied ticket, or too little history).
+   - **New report**: Hedge is confident this is not a duplicate, inside the error budget,
+     which the panel shows in its own card.
+   - **Duplicate**: Hedge certified nothing for duplicates, so you shouldn't see this.
+   - **Needs a person**: Hedge is not sure enough. Under **Why** it gives each check's
+     reason (its score against the certified threshold, a copied ticket, or too little
+     history), and **What to do next** says which earlier issues to compare it with.
+   Every outcome lists the closest earlier issues as links, with Hedge's match marked.
 3. What to expect on the sample, replayed in CI (`app/test/seed.test.js`) at the default
    3% budget: 119 cleared, 31 asked about. DEMO-1 to DEMO-30 always ask (too little
    history). Of the five duplicates, DEMO-15 and DEMO-29 are asked about, and DEMO-37,
    DEMO-50 and DEMO-51 are cleared by mistake, each with the right earlier issue listed as
    its closest match. Three misses in 119 clears is 2.5%, inside the 3% budget: the
    guarantee bounds how often Hedge is wrong, it does not promise never.
-4. Your own test: create ten tickets in a second, empty project, then one that restates
+4. Under **Was this call right?**, choose **Right** or **Wrong**. The admin page counts
+   verdicts against the budget only for calls Hedge carried out (step 5).
+5. Your own test: create ten tickets in a second, empty project, then one that restates
    the first in new words. All eleven get **Needs a person**, and the restated one lists
    the first as its closest earlier issue.
 
@@ -57,9 +62,30 @@ issues).
 2. The chart shows how many held-out tickets Hedge would act on at each budget.
 3. Pick 2.5% and the sample gets 114 clears instead of 119. Pick 2%: nothing was
    certified at 2%, so Hedge asks about every ticket. Pick 3.5% and it acts on more.
-4. **Recent decisions** lists each decision with its score, budget and source (panel or MCP).
+4. **Recent decisions** lists each decision with its score, budget, source (issue panel,
+   agent or new issue) and whether it was carried out.
 
-## 5. Through an agent (Atlassian MCP, optional)
+## 5. Let Hedge act on new issues (optional)
+
+1. On the admin page, turn on **Act on new issues**. It is off on a fresh install.
+2. Create a new ticket in `DEMO`. Within a few seconds Hedge triages it and adds one label:
+   `hedge-cleared` for a new report, `hedge-ask` for one a person must decide, or
+   `hedge-duplicate` for a likely duplicate (Hedge never writes the link itself, since the
+   app can see issues the reporter might not). The panel on that ticket now says Hedge
+   carried the call out.
+3. Search `labels = hedge-ask` to see the queue Hedge left for people.
+4. Mark a few of those calls right or wrong in the panel; **What people said** on the admin
+   page compares the share marked wrong with the budget, and says when there are too few
+   reviews to tell.
+
+## 6. Through an agent (Rovo or Atlassian MCP, optional)
+
+In Rovo chat, pick the **Hedge** agent and ask "Is DEMO-50 a duplicate?" It calls the same
+`triage-issue` action as the panel, so it reports the same call, and it only reports: it
+never edits the ticket.
+
+For an external agent over MCP:
+
 
 1. In **Atlassian Administration → Apps → Sites → Connected apps**, open Hedge and turn on
    "Expose tools via external MCP endpoint".
