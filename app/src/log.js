@@ -27,6 +27,8 @@ export function entryFor(result, { budgets = {}, via, at = new Date().toISOStrin
     threshold: acting ? finite(acting.threshold) : null,
     budget: acting ? finite(budgets[action]) : null,
     via: String(via ?? 'unknown'),
+    // Only the issue trigger carries decisions out; the panel and MCP only report them.
+    applied: typeof result?.applied?.applied === 'boolean' ? result.applied.applied : null,
   };
 }
 

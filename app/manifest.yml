@@ -42,7 +42,14 @@ modules:
       resolver:
         function: resolver-fn
       render: native
+  trigger:
+    - key: hedge-created
+      function: created-fn
+      events:
+        - avi:jira:created:issue
   function:
+    - key: created-fn
+      handler: index.issueCreated
     - key: resolver-fn
       handler: resolver.handler
     - key: triage-fn

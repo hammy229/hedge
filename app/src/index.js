@@ -1,10 +1,12 @@
 import api, { route } from '@forge/api';
 import { kvs } from '@forge/kvs';
+import { applyDecision } from './act.js';
+import { onCreated } from './created.js';
 import { describePolicy } from './gate.js';
 import { seedStatus, seedStep } from './seeder.js';
 import { record } from './log.js';
 import policies from './policy.js';
-import { activePolicies, readBudgets } from './settings.js';
+import { activePolicies, readAutoAct, readBudgets } from './settings.js';
 import { triage } from './triage.js';
 import { PAGE_SIZE, collectWindow, windowJql } from './window.js';
 
@@ -51,6 +53,14 @@ export async function jiraError(res) {
   return error;
 }
 
+// Writes (labels, links) answer 204 with no body, so only the status is read.
+async function jiraWrite(path, options, as) {
+  const actor = as === 'app' ? api.asApp() : api.asUser();
+  const res = await actor.requestJira(path, options);
+  if (!res.ok) throw new Error(`Jira returned ${res.status}`);
+  return null;
+}
+
 async function projectKeys(as) {
   const projects = await jira(route`/rest/api/2/project`, undefined, as);
   return Array.isArray(projects) ? projects.map((p) => p.key).filter(Boolean) : [];
@@ -58,12 +68,14 @@ async function projectKeys(as) {
 
 // One triage, shared by the MCP tool, the issue panel and the issue trigger: read the
 // ticket and its window (as the calling user, or as the app for the trigger), gate it at
-// the admin's budgets, and log the decision.
-export async function runTriage(rawKey, via, as = 'user') {
+// the admin's budgets, and log the decision. `after`, when given, carries the decision out
+// before it is logged, so the log says whether it was applied.
+export async function runTriage(rawKey, via, as = 'user', after = null) {
   const issueKey = String(rawKey ?? '').trim().toUpperCase();
   if (!ISSUE_KEY.test(issueKey)) return { error: 'issueKey must look like PROJ-123.' };
   const budgets = await readBudgets(store, policies);
   const result = await triageAt(issueKey, activePolicies(policies, budgets), as);
+  if (after) result.applied = await after(result);
   await record(store, result, { budgets, via });
   return { ...result, budgets };
 }
@@ -96,6 +108,16 @@ export function seedProject(projectKey) {
 
 export function seedProgress(projectKey) {
   return seedStatus(store, projectKey);
+}
+
+// Issue trigger: triage each new issue and carry the decision out, if the admin turned
+// acting on.
+export function issueCreated(event) {
+  return onCreated(event, {
+    readAutoAct: () => readAutoAct(store),
+    triage: runTriage,
+    apply: (result) => applyDecision(result, (path, options) => jiraWrite(path, options, 'app'), route),
+  });
 }
 
 // MCP tool: may an agent act on this ticket (link it as a duplicate, or clear it as new),

@@ -28,8 +28,18 @@ test('an entry keeps what an auditor needs and nothing else', () => {
     threshold: 0.964,
     budget: 0.03,
     via: 'panel',
+    applied: null,
   });
   assert.equal('summary' in e, false); // ticket text stays in Jira
+});
+
+test('a trigger entry says whether the decision was carried out', () => {
+  const at = '2026-11-21T12:00:00.000Z';
+  const done = entryFor({ ...result, applied: { applied: true, label: 'hedge-cleared' } }, { via: 'trigger', at });
+  assert.equal(done.applied, true);
+  const failed = entryFor({ ...result, applied: { applied: false, error: 'Jira returned 403' } }, { via: 'trigger', at });
+  assert.equal(failed.applied, false);
+  assert.equal(entryFor({ ...result, applied: 'yes' }, { via: 'trigger', at }).applied, null);
 });
 
 test('ask decisions log the highest gate score and no threshold', () => {
