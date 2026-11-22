@@ -2,8 +2,8 @@
 
 These steps start from an empty Jira Cloud site. They take about fifteen minutes.
 
-> Draft: written before the first deployed install. The menu paths in steps 1, 4, 5 and 6
-> get checked against a real site when Hedge is deployed.
+> Steps 2 to 5 were checked on a deployed install on Nov 22 2026. Step 1 (the install link)
+> and the MCP steps in 6 get checked when the production build is shared.
 
 ## 1. Install
 
@@ -22,7 +22,7 @@ calibration tickets look like it ([ADR 8](adr/0008-ask-below-a-minimum-window.md
 empty site needs history first.
 
 1. Create a Software project (any template), say with key `DEMO`.
-2. Go to **Jira settings → Apps → Hedge error budget** (site admins only).
+2. Go to **Settings (gear, top right) → Apps**, then **Hedge error budget** under Apps in the left sidebar (site admins only).
 3. Under **Sample data**, type `DEMO` and choose **Add 150 sample issues**. Hedge creates
    150 real issues from Atlassian's public Jira Software Server tracker (Public Jira
    Dataset, CC BY 4.0), oldest first, labeled `hedge-sample`. It takes about two minutes;
@@ -58,7 +58,7 @@ issues).
 
 ## 4. The error-budget dial
 
-1. Go to **Jira settings → Apps → Hedge error budget** (site admins only).
+1. Go to **Settings (gear, top right) → Apps**, then **Hedge error budget** under Apps in the left sidebar (site admins only).
 2. The chart shows how many held-out tickets Hedge would act on at each budget.
 3. Pick 2.5% and the sample gets 114 clears instead of 119. Pick 2%: nothing was
    certified at 2%, so Hedge asks about every ticket. Pick 3.5% and it acts on more.
@@ -74,7 +74,11 @@ issues).
    app can see issues the reporter might not). The panel on that ticket now says Hedge
    carried the call out.
 3. Search `labels = hedge-ask` to see the queue Hedge left for people.
-4. Mark a few of those calls right or wrong in the panel; **What people said** on the admin
+4. To keep Hedge to some projects, type their keys under **Only in these projects** (for
+   example `DEMO`) and choose **Save projects**. Leave it empty to act in every project.
+   If a project's edit screen has no Labels field, Hedge cannot label its issues: the
+   admin log marks them **Failed** and says how to add the field.
+5. Mark a few of those calls right or wrong in the panel; **What people said** on the admin
    page compares the share marked wrong with the budget, and says when there are too few
    reviews to tell.
 
