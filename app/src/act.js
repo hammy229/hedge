@@ -8,6 +8,10 @@
 // gate already did, and an error or an unknown decision changes nothing. A Jira failure
 // comes back as { applied: false, error } so the trigger can log it instead of retrying.
 
+// The seeder's label (seeder.js), here so the trigger can skip sample issues without
+// importing the 150 shipped issues.
+export const SAMPLE_LABEL = 'hedge-sample';
+
 export const LABELS = Object.freeze({ clear: 'hedge-cleared', link: 'hedge-linked', ask: 'hedge-ask' });
 
 const ISSUE_KEY = /^[A-Z][A-Z0-9_]+-\d+$/;

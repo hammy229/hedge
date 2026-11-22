@@ -13,9 +13,10 @@
 // and its progress write can still repeat one issue; that costs one extra ticket, not a
 // broken run.
 
+import { SAMPLE_LABEL } from './act.js';
 import seed from './seed.js';
 
-export const LABEL = 'hedge-sample';
+export const LABEL = SAMPLE_LABEL;
 // Leaves room for one slow create to finish before Forge's 25 s limit.
 export const DEADLINE_MS = 12000;
 export const LEASE_MS = 30000;
@@ -51,6 +52,18 @@ export function issueFields(item, projectId, issueTypeId, withLabel = true) {
 // Jira names the fields it rejected in errors: { labels: "..." }.
 export function rejectsLabels(error) {
   return Boolean(error?.jiraBody && typeof error.jiraBody === 'object' && error.jiraBody.errors?.labels);
+}
+
+// True while a seeding call holds the project's lease, so the issue trigger can stay out
+// of the way of 150 creates in a row.
+export async function seedingNow(store, projectKey, now = Date.now()) {
+  try {
+    const lease = await store.get(leaseKey(projectKey));
+    const until = typeof lease === 'number' ? lease : lease?.until;
+    return Number.isFinite(until) && until > now;
+  } catch {
+    return false;
+  }
 }
 
 // What the admin page shows about one project's seeding.

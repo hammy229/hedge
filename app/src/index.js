@@ -3,8 +3,8 @@ import { kvs } from '@forge/kvs';
 import { applyDecision } from './act.js';
 import { onCreated } from './created.js';
 import { describePolicy } from './gate.js';
-import { seedStatus, seedStep } from './seeder.js';
-import { record } from './log.js';
+import { seedStatus, seedStep, seedingNow } from './seeder.js';
+import { readDecision, record } from './log.js';
 import policies from './policy.js';
 import { activePolicies, readAutoAct, readBudgets } from './settings.js';
 import { triage } from './triage.js';
@@ -75,7 +75,13 @@ export async function runTriage(rawKey, via, as = 'user', after = null) {
   if (!ISSUE_KEY.test(issueKey)) return { error: 'issueKey must look like PROJ-123.' };
   const budgets = await readBudgets(store, policies);
   const result = await triageAt(issueKey, activePolicies(policies, budgets), as);
-  if (after) result.applied = await after(result);
+  if (after) {
+    try {
+      result.applied = await after(result);
+    } catch (e) {
+      result.applied = { applied: false, error: String(e?.message ?? e) };
+    }
+  }
   await record(store, result, { budgets, via });
   return { ...result, budgets };
 }
@@ -92,12 +98,13 @@ async function triageAt(issueKey, active, as) {
       }, as);
     const [{ window, complete }, keys] = await Promise.all([collectWindow(fetchPage, issue), projectKeys(as)]);
     if (!complete) {
-      return { issueKey, decision: 'ask', reason: 'Could not read the full search window, so a person decides.' };
+      return { issueKey, decision: 'ask', failed: true, reason: 'Could not read the full search window, so a person decides.' };
     }
     const labels = Array.isArray(issue.fields?.labels) ? issue.fields.labels : [];
     return { issueKey, summary: issue.fields?.summary ?? '', labels, ...triage({ issue, window, projectKeys: keys, policies: active }) };
   } catch (e) {
-    return { issueKey, decision: 'ask', reason: `Hedge could not triage this ticket (${e.message}), so a person decides.` };
+    // failed: the ask is about Jira, not the ticket, so the trigger leaves the issue alone.
+    return { issueKey, decision: 'ask', failed: true, reason: `Hedge could not triage this ticket (${e.message}), so a person decides.` };
   }
 }
 
@@ -118,6 +125,8 @@ export function issueCreated(event) {
     readAutoAct: () => readAutoAct(store),
     triage: runTriage,
     apply: (result) => applyDecision(result, (path, options) => jiraWrite(path, options, 'app'), route),
+    alreadyHandled: async (key) => (await readDecision(store, key))?.via === 'trigger',
+    seeding: (projectKey) => seedingNow(store, projectKey),
   });
 }
 

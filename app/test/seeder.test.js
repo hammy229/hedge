@@ -162,3 +162,16 @@ test('seeder errors carry the parsed body and a short single-line message', asyn
   assert.equal(gone.message, 'Jira returned 502');
   assert.equal(gone.jiraBody, null);
 });
+
+test('seeding counts as running only while a lease is held', async () => {
+  const { seedingNow } = await import('../src/seeder.js');
+  const m = new Map();
+  const store = { get: async (k) => m.get(k) };
+  assert.equal(await seedingNow(store, 'DEMO', 1000), false);
+  m.set('seed-lease:DEMO', { owner: 'a', until: 2000 });
+  assert.equal(await seedingNow(store, 'DEMO', 1000), true);
+  assert.equal(await seedingNow(store, 'DEMO', 3000), false);
+  m.set('seed-lease:DEMO', null);
+  assert.equal(await seedingNow(store, 'DEMO', 1000), false);
+  assert.equal(await seedingNow({ get: async () => { throw new Error('down'); } }, 'DEMO'), false);
+});

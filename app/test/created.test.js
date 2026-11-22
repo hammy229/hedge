@@ -2,14 +2,20 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { onCreated } from '../src/created.js';
 
-function deps({ on = true, decision = 'clear', applied = { applied: true, label: 'hedge-cleared' } } = {}) {
-  const calls = { triage: [], apply: [] };
+function deps({ on = true, decision = 'clear', applied = { applied: true, label: 'hedge-cleared' }, handled = false, seeding = false, failed = false } = {}) {
+  const calls = { triage: [], apply: [], seeding: [] };
   return {
     calls,
     readAutoAct: async () => on,
+    alreadyHandled: async () => handled,
+    seeding: async (projectKey) => {
+      calls.seeding.push(projectKey);
+      return seeding;
+    },
     triage: async (key, via, as, after) => {
       calls.triage.push({ key, via, as });
       const result = { issueKey: key, decision };
+      if (failed) result.failed = true;
       result.applied = await after(result);
       return result;
     },
@@ -55,4 +61,33 @@ test('a triage that failed to read Jira is not applied', async () => {
   const out = await onCreated({ issue: { key: 'bad' } }, d);
   assert.equal(d.calls.apply.length, 0);
   assert.ok(out.error);
+});
+
+test('sample issues, subtasks, seeding projects and handled issues are skipped untriaged', async () => {
+  const cases = [
+    [{ issue: { key: 'DEMO-9', fields: { labels: ['hedge-sample'] } } }, {}, /Sample issues/],
+    [{ issue: { key: 'DEMO-9', fields: { issuetype: { subtask: true } } } }, {}, /Subtasks/],
+    [{ issue: { key: 'DEMO-9', fields: { project: { key: 'DEMO' } } } }, { seeding: true }, /Sample data is being added/],
+    [{ issue: { key: 'DEMO-9' } }, { handled: true }, /already handled/],
+  ];
+  for (const [event, opts, why] of cases) {
+    const d = deps(opts);
+    const out = await onCreated(event, d);
+    assert.match(out.skipped, why);
+    assert.equal(d.calls.triage.length, 0);
+  }
+});
+
+test('the seeding check uses the project key, from the event or the issue key', async () => {
+  const d = deps();
+  await onCreated({ issue: { key: 'ABC_2-14' } }, d);
+  await onCreated({ issue: { key: 'X-1', fields: { project: { key: 'OTHER' } } } }, d);
+  assert.deepEqual(d.calls.seeding, ['ABC_2', 'OTHER']);
+});
+
+test('a triage that could not read Jira changes nothing on the issue', async () => {
+  const d = deps({ decision: 'ask', failed: true });
+  const out = await onCreated({ issue: { key: 'DEMO-77' } }, d);
+  assert.equal(d.calls.apply.length, 0);
+  assert.equal(out.applied.applied, false);
 });
