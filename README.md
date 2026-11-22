@@ -41,6 +41,16 @@ Only numbers this repo produces. Real-data rows come from [docs/results.md](docs
 | The real dataset streams without a database | 2,686,223 issues and 271,185 Duplicate pairs in 261 s from the 5.8 GB zip | `python -m hedge.extract`, counts in [docs/data.md](docs/data.md) |
 | Hedge beats the agent's own stated confidence | not measured yet | week 3: LLM baseline on the same test tickets |
 
+## Try it locally
+
+No Atlassian account needed. The preview replays the 150 sample issues through the same
+triage, gate, policy and panel wording the Jira app ships, and shows the dataset's known
+answer next to each call, so the misses are visible.
+
+```bash
+cd app && npm install && npm run preview   # http://localhost:5173
+```
+
 ## Why it matters
 
 Teams switch off AI triage after one confident wrong action, like a real bug closed as a
