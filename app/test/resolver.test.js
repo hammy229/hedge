@@ -40,3 +40,10 @@ test('only the admin page may add sample data', async () => {
     assert.throws(() => handlers.seedStatus({ payload: { projectKey: 'DEMO' }, context }), /admin page/);
   }
 });
+
+test('only the admin page may switch acting on new issues', async () => {
+  for (const context of [{ moduleKey: 'hedge-panel' }, {}, undefined]) {
+    await assert.rejects(handlers.setAutoAct({ payload: { on: true }, context }), /admin page/);
+  }
+  await assert.rejects(handlers.setAutoAct(), /admin page/);
+});

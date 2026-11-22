@@ -54,6 +54,7 @@ export function logRows(log) {
       { key: 'score', content: Number.isFinite(e.score) ? e.score.toFixed(3) : '' },
       { key: 'budget', content: Number.isFinite(e.budget) ? trimPct(e.budget) : '' },
       { key: 'via', content: e.via },
+      { key: 'applied', content: e.applied === true ? 'yes' : e.applied === false ? 'failed' : '' },
     ],
   }));
 }

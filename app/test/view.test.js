@@ -44,8 +44,10 @@ test('the dial lists every budget with its certified coverage', () => {
 
 test('log rows format time, score and budget and tolerate gaps', () => {
   const rows = logRows([{ at: '2026-11-19T12:34:56.000Z', issueKey: 'P-1', decision: 'clear', score: 0.98123, budget: 0.025, via: 'mcp' }, { issueKey: 'P-2' }]);
-  assert.deepEqual(rows[0].cells.map((c) => c.content), ['2026-11-19 12:34', 'P-1', 'clear', '0.981', '2.5%', 'mcp']);
+  assert.deepEqual(rows[0].cells.map((c) => c.content), ['2026-11-19 12:34', 'P-1', 'clear', '0.981', '2.5%', 'mcp', '']);
   assert.equal(rows[1].cells[3].content, '');
+  const applied = logRows([{ issueKey: 'P-3', applied: true }, { issueKey: 'P-4', applied: false }]);
+  assert.deepEqual(applied.map((r) => r.cells[6].content), ['yes', 'failed']);
   assert.deepEqual(logRows(null), []);
 });
 

@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import ForgeReconciler, {
-  BarChart, Button, DynamicTable, Heading, Label, ProgressBar, RadioGroup, SectionMessage, Spinner, Stack, Text, Textfield,
+  BarChart, Button, DynamicTable, Heading, Label, ProgressBar, Toggle, RadioGroup, SectionMessage, Spinner, Stack, Text, Textfield,
 } from '@forge/react';
 import { invoke } from '@forge/bridge';
 import { runSeed } from '../seedloop.js';
 import { dialView, logRows, seedView } from '../view.js';
 
 const HEAD = {
-  cells: ['Time (UTC)', 'Issue', 'Decision', 'Score', 'Budget', 'Via'].map((content) => ({ key: content, content })),
+  cells: ['Time (UTC)', 'Issue', 'Decision', 'Score', 'Budget', 'Via', 'Applied'].map((content) => ({ key: content, content })),
 };
 
 const NAMES = { clear: 'Clear new tickets from duplicate review', link: 'Link duplicates automatically' };
@@ -72,15 +72,33 @@ function SampleData({ minWindow }) {
   );
 }
 
+// Off by default: until an admin opts in, Hedge only answers the panel and agents.
+function AutoAct({ on, onChange }) {
+  return (
+    <Stack space="space.100">
+      <Heading size="small">Act on new issues</Heading>
+      <Text>
+        When this is on, Hedge triages every new issue as it is filed and carries the decision out: it labels cleared
+        issues hedge-cleared, links certified duplicates, and labels the rest hedge-ask. Search labels = hedge-ask to see
+        what is waiting for a person.
+      </Text>
+      <Label labelFor="auto-act">Act on new issues</Label>
+      <Toggle id="auto-act" isChecked={on} onChange={() => onChange(!on)} />
+    </Stack>
+  );
+}
+
 function Admin() {
   const [settings, setSettings] = useState(null);
   const [log, setLog] = useState([]);
+  const [autoAct, setAutoAct] = useState(false);
   const [error, setError] = useState(null);
 
   const load = () =>
-    Promise.all([invoke('settings'), invoke('log')]).then(([s, l]) => {
+    Promise.all([invoke('settings'), invoke('log'), invoke('autoAct')]).then(([s, l, a]) => {
       setSettings(s);
       setLog(l);
+      setAutoAct(a === true);
     }, (e) => setError(e?.message ?? 'unknown error'));
 
   useEffect(() => {
@@ -90,6 +108,11 @@ function Admin() {
   const change = (action, alpha) => {
     setError(null);
     invoke('setBudget', { action, alpha }).then(load, (e) => setError(e?.message ?? 'unknown error'));
+  };
+
+  const switchAutoAct = (on) => {
+    setError(null);
+    invoke('setAutoAct', { on }).then(setAutoAct, (e) => setError(e?.message ?? 'unknown error'));
   };
 
   if (!settings) return error ? <SectionMessage appearance="error">{error}</SectionMessage> : <Spinner label="Loading Hedge settings" />;
@@ -104,6 +127,7 @@ function Admin() {
       {error ? <SectionMessage appearance="error">{error}</SectionMessage> : null}
       <Dial action="clear" setting={settings.clear} onChange={change} />
       <Dial action="link" setting={settings.link} onChange={change} />
+      <AutoAct on={autoAct} onChange={switchAutoAct} />
       <SampleData minWindow={settings.clear.minWindow ?? 30} />
       <Heading size="small">Recent decisions</Heading>
       <DynamicTable head={HEAD} rows={logRows(log)} rowsPerPage={10} emptyView="No decisions yet." />
