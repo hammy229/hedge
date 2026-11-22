@@ -50,6 +50,7 @@ function select(key) {
   state.selected = key;
   state.view = 'issues';
   render();
+  document.querySelector('.rows [aria-current="true"]')?.scrollIntoView({ block: 'nearest' });
   document.querySelector('.issue')?.scrollIntoView({ block: 'start', behavior: 'smooth' });
 }
 
@@ -182,7 +183,6 @@ function adminView() {
     h(
       'section.hero',
       {},
-      h('p.eyebrow', {}, 'Calibrated triage'),
       h('h1', {}, 'Hedge acts only inside the error rate you set, and asks a person about the rest.'),
       h('p', {}, 'Each certified budget below was checked on held-out tickets with 90% confidence. Pick one and the sample project is replayed at that budget.'),
     ),
