@@ -301,7 +301,7 @@ function Admin() {
             </Text>
           </Stack>
         </Box>
-        <Summary view={summaryView(settings, autoAct, log)} />
+        <Summary view={summaryView(settings, autoAct, log, actProjects)} />
         {loadError ? (
           <SectionMessage appearance="error">
             <Text>{loadError}</Text>

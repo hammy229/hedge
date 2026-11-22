@@ -203,3 +203,11 @@ test('a failed row in the log carries its cause', () => {
   assert.equal(row.applied.text, 'Failed');
   assert.equal(row.applied.why, 'No Labels field.');
 });
+
+test('the acting tile names the projects when the admin limited them', () => {
+  const tile = (on, projects) => summaryView({}, on, [], projects).tiles.find((t) => t.key === 'auto').value;
+  assert.equal(tile(true, ['DEMO', 'OPS']), 'On in DEMO, OPS');
+  assert.equal(tile(true, []), 'On');
+  assert.equal(tile(true, undefined), 'On');
+  assert.equal(tile(false, ['DEMO']), 'Off');
+});

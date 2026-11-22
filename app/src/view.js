@@ -182,13 +182,13 @@ function budgetValue(setting) {
 }
 
 // The tiles at the top of the admin page: what is set right now, at a glance.
-export function summaryView(settings, autoAct, log) {
+export function summaryView(settings, autoAct, log, projects = []) {
   const count = Array.isArray(log) ? log.length : 0;
   return {
     tiles: [
       { key: 'clear', label: 'New report budget', value: budgetValue(settings?.clear) },
       { key: 'link', label: 'Duplicate budget', value: budgetValue(settings?.link) },
-      { key: 'auto', label: 'Acting on new issues', value: autoAct === true ? 'On' : 'Off' },
+      { key: 'auto', label: 'Acting on new issues', value: autoAct !== true ? 'Off' : Array.isArray(projects) && projects.length > 0 ? `On in ${projects.join(', ')}` : 'On' },
       { key: 'log', label: 'Recent decisions', value: String(count) },
     ],
     hint: count === 0 ? 'No decisions yet. Add sample data at the bottom of this page, then open one of its issues.' : '',
