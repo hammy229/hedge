@@ -1,8 +1,10 @@
 // Plain-data views for the UI Kit screens, kept out of the JSX so node:test can check them.
 
+import { LABELS } from './act.js';
+
 const LOZENGE = {
-  link: { text: 'Linked as duplicate', appearance: 'moved' },
-  clear: { text: 'Cleared as new', appearance: 'success' },
+  link: { text: 'Duplicate', appearance: 'moved' },
+  clear: { text: 'New report', appearance: 'success' },
   ask: { text: 'Needs a person', appearance: 'default' },
 };
 
@@ -16,13 +18,19 @@ export function panelView(result) {
   const decision = LOZENGE[result.decision] ? result.decision : 'ask';
   const budgets = result.budgets ?? {};
   const acting = decision === 'link' ? 'link' : decision === 'clear' ? 'clear' : null;
+  // The panel only reports Hedge's call. It says the call was carried out only when the
+  // issue carries the label the trigger adds (act.js), never on its own say-so.
   const headline =
     decision === 'link'
-      ? `Hedge linked this as a duplicate of ${result.duplicateOf}.`
+      ? `Hedge's call: a duplicate of ${result.duplicateOf}.`
       : decision === 'clear'
-        ? 'Hedge cleared this as a new report, so nobody needs to check it for duplicates.'
+        ? "Hedge's call: a new report, so nobody needs to check it for duplicates."
         : 'Hedge is not sure enough to act, so a person should check this ticket.';
   const lines = [];
+  const labels = Array.isArray(result.labels) ? result.labels : [];
+  if (acting && labels.includes(LABELS[acting])) {
+    lines.push(`Hedge carried this out when the issue was filed (label ${LABELS[acting]}).`);
+  }
   if (acting && Number.isFinite(budgets[acting])) {
     lines.push(`Error budget: at most ${trimPct(budgets[acting])} of these actions are wrong (certified on held-out tickets).`);
   }

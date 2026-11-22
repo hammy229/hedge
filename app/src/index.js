@@ -82,7 +82,7 @@ export async function runTriage(rawKey, via, as = 'user', after = null) {
 
 async function triageAt(issueKey, active, as) {
   try {
-    const issue = await jira(route`/rest/api/2/issue/${issueKey}?fields=${FIELDS.join(',')}`, undefined, as);
+    const issue = await jira(route`/rest/api/2/issue/${issueKey}?fields=${[...FIELDS, 'labels'].join(',')}`, undefined, as);
     const jql = windowJql(issue.fields?.project?.id, issue);
     const fetchPage = (nextPageToken) =>
       jira(route`/rest/api/2/search/jql`, {
@@ -94,7 +94,8 @@ async function triageAt(issueKey, active, as) {
     if (!complete) {
       return { issueKey, decision: 'ask', reason: 'Could not read the full search window, so a person decides.' };
     }
-    return { issueKey, summary: issue.fields?.summary ?? '', ...triage({ issue, window, projectKeys: keys, policies: active }) };
+    const labels = Array.isArray(issue.fields?.labels) ? issue.fields.labels : [];
+    return { issueKey, summary: issue.fields?.summary ?? '', labels, ...triage({ issue, window, projectKeys: keys, policies: active }) };
   } catch (e) {
     return { issueKey, decision: 'ask', reason: `Hedge could not triage this ticket (${e.message}), so a person decides.` };
   }

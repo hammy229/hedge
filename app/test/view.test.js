@@ -14,6 +14,18 @@ test('a cleared ticket shows its budget and what was searched', () => {
   assert.match(v.lines[0], /at most 3%/);
   assert.match(v.lines[1], /412/);
   assert.deepEqual(v.candidates, [{ key: 'P-1', score: '3.14' }]);
+  assert.match(v.headline, /^Hedge's call: a new report/);
+  assert.equal(v.lines.some((l) => /carried this out/.test(l)), false);
+});
+
+test('the panel says a call was carried out only when the issue has its label', () => {
+  const base = { decision: 'clear', reason: 'r', searched: 50, budgets: { clear: 0.03 } };
+  assert.ok(panelView({ ...base, labels: ['ui', 'hedge-cleared'] }).lines.some((l) => /carried this out.*hedge-cleared/.test(l)));
+  assert.equal(panelView({ ...base, labels: ['hedge-ask'] }).lines.some((l) => /carried/.test(l)), false);
+  const link = panelView({ decision: 'link', duplicateOf: 'P-2', reason: 'r', labels: ['hedge-linked'] });
+  assert.match(link.headline, /duplicate of P-2/);
+  assert.ok(link.lines.some((l) => /hedge-linked/.test(l)));
+  assert.equal(panelView({ decision: 'ask', labels: ['hedge-ask'] }).lines.some((l) => /carried/.test(l)), false);
 });
 
 test('an ask names no budget, since nothing was done', () => {
