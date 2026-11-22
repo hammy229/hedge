@@ -128,7 +128,7 @@ function SampleData({ minWindow }) {
       </Text>
       <Stack space="space.050">
         <Label labelFor="seed-project">Project key</Label>
-        <Textfield id="seed-project" name="seed-project" placeholder="DEMO" value={projectKey} onChange={(e) => setProjectKey(e.target.value)} onBlur={lookUp} />
+        <Textfield id="seed-project" name="seed-project" placeholder="DEMO" defaultValue="" onChange={(e) => setProjectKey(e.target.value)} onBlur={lookUp} />
       </Stack>
       <Inline>
         <Button appearance="primary" isDisabled={running || v.done || projectKey.trim() === ''} onClick={run}>{v.button}</Button>
