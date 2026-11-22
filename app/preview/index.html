@@ -5,27 +5,47 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Hedge: calibrated act-or-ask Jira triage</title>
   <meta name="description" content="Hedge acts on a Jira ticket only when it can prove it stays inside the error rate you set. 150 real issues replayed through the shipped gate.">
+  <meta name="theme-color" content="#fbfbf8">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter+Tight:wght@400;500;600;700&family=Spectral:ital,wght@0,400;0,500;1,400&display=swap">
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-  <header class="top">
-    <div class="brand">
-      <span class="mark" aria-hidden="true"></span>
-      <span class="name">Hedge</span>
-      <span class="tag">Demo</span>
-    </div>
-    <a class="repo" href="https://github.com/hammy229/hedge">GitHub</a>
-    <nav class="tabs" aria-label="Views">
-      <button type="button" data-view="issues" aria-pressed="true">Issues</button>
-      <button type="button" data-view="admin" aria-pressed="false">Error budget</button>
-    </nav>
-  </header>
-  <p class="intro">
-    The 150 sample issues from the admin page, replayed in order through the gate, policy and wording the Jira app ships.
-    No Jira needed. Each issue also shows the known answer from the dataset, so you can see where Hedge was wrong.
-  </p>
-  <main id="app" aria-live="polite"><p class="muted">Replaying the sample project.</p></main>
-  <footer class="foot" id="foot"></footer>
+  <div class="wrap">
+    <header class="top">
+      <div class="brand">
+        <span class="mark" aria-hidden="true"></span>
+        <div>
+          <span class="name">Hedge</span>
+          <span class="tagline">Calibrated Jira triage · Demo</span>
+        </div>
+      </div>
+      <div class="top-controls">
+        <a class="repo" href="https://github.com/hammy229/hedge" target="_blank" rel="noreferrer">GitHub</a>
+        <nav class="tabs" aria-label="Views">
+          <button type="button" data-view="issues" aria-pressed="true">Issues</button>
+          <button type="button" data-view="admin" aria-pressed="false">Error budget</button>
+        </nav>
+      </div>
+    </header>
+    <section class="lede">
+      <p class="eyebrow">Act or ask</p>
+      <h1>An agent that acts on a ticket only when it can prove it stays inside the error rate you set.</h1>
+      <p class="intro">
+        The 150 sample issues from the Jira app's admin page, replayed in order through the gate, policy and wording the app ships.
+        Each issue also shows the known answer from the dataset, so you can see where Hedge was wrong.
+      </p>
+    </section>
+    <main id="app" aria-live="polite"><p class="muted">Replaying the sample project.</p></main>
+    <footer class="foot">
+      <div class="footer-meta">
+        <p>Made by <a href="https://github.com/hammy229" target="_blank" rel="noreferrer">Arham Doshi</a></p>
+        <p>Built for Atlassian Codegeist 2026</p>
+      </div>
+      <p class="attribution" id="foot"></p>
+    </footer>
+  </div>
   <script type="module" src="/app.js"></script>
 </body>
 </html>
