@@ -31,18 +31,13 @@ test('asking labels the ticket for the review queue', async () => {
   assert.deepEqual(calls[0].body, { update: { labels: [{ add: 'hedge-ask' }] } });
 });
 
-test('linking creates a Duplicate link from the new ticket to the original, then labels it', async () => {
+test('a duplicate call is labelled for a person to link, and the app writes no link', async () => {
   const { jira, calls } = fakeJira();
   const out = await applyDecision({ issueKey: 'DEMO-90', decision: 'link', duplicateOf: 'DEMO-12' }, jira, plain);
-  assert.deepEqual(out, { applied: true, label: 'hedge-linked', duplicateOf: 'DEMO-12' });
-  assert.equal(calls[0].path, '/rest/api/2/issueLink');
-  assert.equal(calls[0].method, 'POST');
-  assert.deepEqual(calls[0].body, {
-    type: { name: 'Duplicate' },
-    inwardIssue: { key: 'DEMO-90' },
-    outwardIssue: { key: 'DEMO-12' },
-  });
-  assert.deepEqual(calls[1].body, { update: { labels: [{ add: 'hedge-linked' }] } });
+  assert.deepEqual(out, { applied: true, label: 'hedge-duplicate', duplicateOf: 'DEMO-12' });
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].path, '/rest/api/2/issue/DEMO-90');
+  assert.deepEqual(calls[0].body, { update: { labels: [{ add: 'hedge-duplicate' }] } });
 });
 
 test('a link without a target, an error or an unknown decision changes nothing', async () => {
@@ -60,14 +55,9 @@ test('a link without a target, an error or an unknown decision changes nothing',
   }
 });
 
-test('a Jira failure is reported, not thrown, and a failed link adds no label', async () => {
+test('a Jira failure is reported, not thrown', async () => {
   const label = fakeJira('/issue/');
   const out = await applyDecision({ issueKey: 'DEMO-40', decision: 'clear' }, label.jira, plain);
   assert.equal(out.applied, false);
   assert.match(out.error, /400/);
-
-  const link = fakeJira('issueLink');
-  const linked = await applyDecision({ issueKey: 'DEMO-90', decision: 'link', duplicateOf: 'DEMO-12' }, link.jira, plain);
-  assert.equal(linked.applied, false);
-  assert.equal(link.calls.length, 1);
 });
