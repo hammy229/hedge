@@ -3,48 +3,144 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Hedge: calibrated act-or-ask Jira triage</title>
-  <meta name="description" content="Hedge acts on a Jira ticket only when it can prove it stays inside the error rate you set. 150 real issues replayed through the shipped gate.">
-  <meta name="theme-color" content="#fbfbf8">
+  <title>Hedge: a Jira triage agent that only acts when it can prove it</title>
+  <meta name="description" content="Hedge acts on a Jira ticket only when a calibrated test shows it stays inside the error rate you set, and asks a person about the rest. 150 real issues, replayed in your browser.">
+  <meta name="theme-color" content="#fafaf7">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter+Tight:wght@400;500;600;700&family=Spectral:ital,wght@0,400;0,500;1,400&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter+Tight:wght@400;500;600;700&family=Spectral:ital,wght@0,300;0,400;0,500;1,400&display=swap">
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-  <div class="wrap">
-    <header class="top">
-      <div class="brand">
-        <span class="mark" aria-hidden="true"></span>
-        <div>
-          <span class="name">Hedge</span>
-          <span class="tagline">Calibrated Jira triage, demo</span>
-        </div>
+  <nav class="rail" aria-label="Sections">
+    <a class="rail-mark" href="#live" aria-label="Hedge, back to the top">
+      <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
+        <rect x="2" y="2" width="6" height="6" rx="1.5" fill="var(--cobalt)" />
+        <rect x="9" y="2" width="6" height="6" rx="1.5" fill="var(--cobalt)" />
+        <rect x="16" y="2" width="6" height="6" rx="1.5" fill="var(--cobalt-pale)" />
+        <rect x="2" y="9" width="6" height="6" rx="1.5" fill="var(--cobalt)" />
+        <rect x="9" y="9" width="6" height="6" rx="1.5" fill="var(--ochre-pale)" />
+        <rect x="16" y="9" width="6" height="6" rx="1.5" fill="var(--cobalt)" />
+        <rect x="2" y="16" width="6" height="6" rx="1.5" fill="var(--cobalt-pale)" />
+        <rect x="9" y="16" width="6" height="6" rx="1.5" fill="var(--cobalt)" />
+        <rect x="16" y="16" width="6" height="6" rx="1.5" fill="var(--vermilion)" />
+      </svg>
+      <span class="rail-name">Hedge</span>
+    </a>
+    <ul>
+      <li><a href="#live"><span>Live</span></a></li>
+      <li><a href="#try"><span>Try it</span></a></li>
+      <li><a href="#budget"><span>Budget</span></a></li>
+      <li><a href="#results"><span>Results</span></a></li>
+      <li><a href="#how"><span>How</span></a></li>
+      <li><a href="#limits"><span>Limits</span></a></li>
+    </ul>
+  </nav>
+
+  <main>
+    <section class="hero" id="live">
+      <div class="hero-text">
+        <h1>A Jira triage agent that only acts when it can prove it.</h1>
+        <p class="lead">
+          You pick an error budget, say 3%. Hedge clears a ticket from duplicate review only when a calibrated test
+          shows that at most 3% of what it clears are really duplicates. Everything else goes to a person, with the reason.
+        </p>
+        <p class="hero-honest">
+          Each square here is one of 150 real public Jira issues, filed in order and run through the same gate the
+          Jira app ships. Change the budget and watch which ones Hedge is allowed to touch. Red squares are its mistakes.
+        </p>
+        <p class="hero-links">
+          <a class="arrow" href="#try">Open an issue</a>
+          <a class="arrow" href="#budget">Move the budget</a>
+          <a class="plain" href="https://github.com/hammy229/hedge" target="_blank" rel="noreferrer">Read the code</a>
+        </p>
       </div>
-      <div class="top-controls">
-        <a class="repo" href="https://github.com/hammy229/hedge" target="_blank" rel="noreferrer">GitHub</a>
-        <nav class="tabs" aria-label="Views">
-          <button type="button" data-view="issues" aria-pressed="true">Issues</button>
-          <button type="button" data-view="admin" aria-pressed="false">Error budget</button>
-        </nav>
+      <figure class="field" id="field" aria-label="The 150 sample issues and Hedge's call on each"></figure>
+    </section>
+
+    <section class="band split" id="try">
+      <div class="band-head">
+        <h2>Open any ticket and see Hedge's call.</h2>
+        <p>
+          This is the panel Hedge shows inside Jira, word for word: the call, the budget it was certified under, why,
+          and the closest earlier issues it compared against.
+        </p>
+        <p>
+          The Jira app can't know the right answer. This page can, so every issue also shows what the dataset says,
+          including the duplicates Hedge waved through.
+        </p>
       </div>
-    </header>
-    <section class="lede">
-      <h1>An agent that acts on a ticket only when it can prove it stays inside the error rate you set.</h1>
-      <p class="intro">
-        The 150 sample issues from the Jira app's admin page, replayed in order through the gate, policy and wording the app ships.
-        Each issue also shows the known answer from the dataset, so you can see where Hedge was wrong.
+      <div id="explorer"><p class="muted">Replaying the sample project.</p></div>
+    </section>
+
+    <section class="band" id="budget">
+      <div class="band-wide">
+        <h2>A tighter budget means fewer actions, never more mistakes than you allowed.</h2>
+        <p class="band-lead">
+          Every budget on the dial was certified on held-out tickets at once, so an admin can move it any time
+          without breaking the guarantee. Pick one and the whole sample project is replayed at that budget.
+        </p>
+      </div>
+      <div id="dial"></div>
+    </section>
+
+    <section class="band" id="results">
+      <div class="band-wide">
+        <h2>Measured on 2.7 million public Jira issues.</h2>
+        <p class="band-lead">
+          The gate was trained on older tickets, certified on a fresh calibration draw, then checked on the latest
+          time window it never saw. Every number here comes from the repo's report scripts, with 95% intervals that
+          resample whole projects.
+        </p>
+      </div>
+      <dl class="facts">
+        <div><dt>79.6%</dt><dd>of later test tickets cleared at a 3% budget, interval 74.4 to 83.8</dd></div>
+        <div><dt>1.8%</dt><dd>of those clears were really duplicates, inside the 3% budget, interval 1.3 to 2.3</dd></div>
+        <div><dt>1 / 400</dt><dd>synthetic calibration draws where any of five budgets certified a threshold above its budget, against 10% allowed</dd></div>
+        <div><dt>3 of 5</dt><dd>known duplicates in the 150-issue sample cleared by mistake at 3%, 2.5% of its 119 clears</dd></div>
+      </dl>
+      <figure class="hbars" id="results-bars"></figure>
+      <p class="foot">
+        Except where a caption says otherwise, results leave out Mojang's tracker, whose catch-all tickets chain into duplicate clusters of over 20,000 unrelated
+        issues. Methods and every caveat are in <a class="plain" href="https://github.com/hammy229/hedge/blob/main/docs/results.md" target="_blank" rel="noreferrer">docs/results.md</a>.
       </p>
     </section>
-    <main id="app" aria-live="polite"><p class="muted">Replaying the sample project.</p></main>
-    <footer class="foot">
-      <div class="footer-meta">
-        <p>Made by <a href="https://github.com/hammy229" target="_blank" rel="noreferrer">Arham Doshi</a></p>
-        <p>Built for Atlassian Codegeist 2026</p>
+
+    <section class="band split" id="how">
+      <div class="band-head">
+        <h2>How it decides.</h2>
+        <p>Small models, one statistical test, and a rule to ask whenever it can't prove it.</p>
       </div>
-      <p class="attribution" id="foot"></p>
-    </footer>
-  </div>
+      <ol class="steps">
+        <li><b>Search.</b> BM25 compares the new ticket with the 1,000 most recent earlier issues in its project, the same corpus offline and inside Forge.</li>
+        <li><b>Score.</b> A small gate model turns signals such as the top match score, the gap to the next match, window size and match age into the chance that clearing the ticket is right.</li>
+        <li><b>Certify.</b> On a held-out calibration window, Learn then Test picks the lowest threshold whose error among cleared tickets stays under the budget with 90% confidence, counting duplicate clusters together.</li>
+        <li><b>Check.</b> A later test window, never seen in training or calibration, checks that the certified error held.</li>
+        <li><b>Act or ask.</b> Inside Jira the gate compares each ticket's score with its threshold. Below it, with too little history, or with any missing signal, the ticket goes to a person.</li>
+      </ol>
+    </section>
+
+    <section class="band split" id="limits">
+      <div class="band-head">
+        <h2>What it doesn't do yet.</h2>
+        <p>The guarantee bounds how often Hedge is wrong. It doesn't promise never.</p>
+      </div>
+      <ul class="limits">
+        <li><b>It never links duplicates on its own.</b> With BM25 signals, no linking threshold was certified at any budget up to 10%, so Hedge asks a person instead.</li>
+        <li><b>It misses some duplicates.</b> On this sample it clears 3 of the 5 known duplicates at 3%, each with the right original listed as its closest match.</li>
+        <li><b>Unseen projects are the open risk.</b> On held-out projects, error was 2.5%, 2.1% and 1.4% in three draws: under 3% at the point, over it at the upper end once.</li>
+        <li><b>No LLM baseline yet.</b> Comparing against an agent's own stated confidence is the next measurement, and the README will say if Hedge loses.</li>
+      </ul>
+    </section>
+  </main>
+
+  <footer class="site-foot">
+    <div class="footer-meta">
+      <p>Made by <a class="plain" href="https://github.com/hammy229" target="_blank" rel="noreferrer">Arham Doshi</a></p>
+      <p>Built for Atlassian Codegeist 2026 · <a class="plain" href="https://github.com/hammy229/hedge" target="_blank" rel="noreferrer">github.com/hammy229/hedge</a></p>
+    </div>
+    <p class="attribution" id="foot"></p>
+  </footer>
   <script type="module" src="/app.js"></script>
 </body>
 </html>
