@@ -20,9 +20,9 @@ const card = xcss({
 const tile = xcss({ borderRadius: 'border.radius.200', minWidth: '180px' });
 const hero = xcss({
   borderRadius: 'border.radius.200',
-  borderLeftWidth: 'border.width.outline',
-  borderLeftStyle: 'solid',
-  borderLeftColor: TONE.clear.border,
+  borderWidth: 'border.width',
+  borderStyle: 'solid',
+  borderColor: TONE.clear.border,
 });
 
 const HEAD = { cells: LOG_HEAD.map((content) => ({ key: content, content })) };
@@ -260,7 +260,6 @@ function Admin() {
       <Stack space="space.200">
         <Box xcss={hero} backgroundColor={TONE.clear.background} padding="space.300">
           <Stack space="space.100">
-            <Text size="small" weight="bold" color="color.text.subtlest">CALIBRATED TRIAGE</Text>
             <Heading size="medium">Hedge acts only inside the error rate you set, and asks a person about the rest.</Heading>
             <Text>
               Each certified budget below was checked on held-out tickets with 90% confidence, so you can switch between them at any time. A tighter budget means Hedge acts on fewer tickets.

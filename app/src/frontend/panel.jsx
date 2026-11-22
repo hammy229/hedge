@@ -14,11 +14,11 @@ const card = xcss({
 
 const rounded = xcss({ borderRadius: 'border.radius.200' });
 const accentEdge = (tone) =>
-  xcss({ borderRadius: 'border.radius.200', borderLeftWidth: 'border.width.outline', borderLeftStyle: 'solid', borderLeftColor: tone.border });
+  xcss({ borderRadius: 'border.radius.200', borderWidth: 'border.width', borderStyle: 'solid', borderColor: tone.border });
 
-// Small uppercase label above a section, like the eyebrows on the project sites.
+// A quiet label naming a section of the panel.
 function Eyebrow({ children }) {
-  return <Text size="small" weight="bold" color="color.text.subtlest">{String(children).toUpperCase()}</Text>;
+  return <Text size="small" weight="semibold" color="color.text.subtle">{children}</Text>;
 }
 
 // A person's verdict on the call, which the admin page compares with the error budget.
