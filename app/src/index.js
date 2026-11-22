@@ -47,8 +47,11 @@ const send = (as, path, options, retry) => {
 // Creating an issue twice is worse than failing once, so creates retry only on 429.
 const ONLY_RATE_LIMIT = { statuses: [429] };
 
-async function jira(path, options, as = 'user') {
-  const res = await send(as, path, options);
+// Waiting on rate limits, shared by all reads of one triage (retry.js).
+export const TRIAGE_RETRY_MS = 8000;
+
+async function jira(path, options, as = 'user', budget = null) {
+  const res = await send(as, path, options, budget ? { budget } : undefined);
   if (!res.ok) throw new Error(`Jira returned ${res.status}`);
   return res.json();
 }
@@ -56,7 +59,7 @@ async function jira(path, options, as = 'user') {
 // The seeder, which only the admin page calls, needs the body: Jira names the field it
 // rejected there. The message is cut short; the parsed body rides along as jiraBody.
 async function jiraWithBody(path, options) {
-  const res = await send('user', path, options, options?.method === 'POST' ? ONLY_RATE_LIMIT : undefined);
+  const res = await send('user', path, options, String(options?.method ?? '').toUpperCase() === 'POST' ? ONLY_RATE_LIMIT : undefined);
   if (!res.ok) throw await jiraError(res);
   return res.json();
 }
@@ -87,8 +90,8 @@ async function jiraWrite(path, options, as) {
   return null;
 }
 
-async function projectKeys(as) {
-  const projects = await jira(route`/rest/api/2/project`, undefined, as);
+async function projectKeys(as, budget) {
+  const projects = await jira(route`/rest/api/2/project`, undefined, as, budget);
   return Array.isArray(projects) ? projects.map((p) => p.key).filter(Boolean) : [];
 }
 
@@ -113,16 +116,17 @@ export async function runTriage(rawKey, via, as = 'user', after = null) {
 }
 
 async function triageAt(issueKey, active, as) {
+  const budget = { ms: TRIAGE_RETRY_MS };
   try {
-    const issue = await jira(route`/rest/api/2/issue/${issueKey}?fields=${[...FIELDS, 'labels'].join(',')}`, undefined, as);
+    const issue = await jira(route`/rest/api/2/issue/${issueKey}?fields=${[...FIELDS, 'labels'].join(',')}`, undefined, as, budget);
     const jql = windowJql(issue.fields?.project?.id, issue);
     const fetchPage = (nextPageToken) =>
       jira(route`/rest/api/2/search/jql`, {
         method: 'POST',
         headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
         body: JSON.stringify({ jql, fields: FIELDS, maxResults: PAGE_SIZE, nextPageToken }),
-      }, as);
-    const [{ window, complete }, keys] = await Promise.all([collectWindow(fetchPage, issue), projectKeys(as)]);
+      }, as, budget);
+    const [{ window, complete }, keys] = await Promise.all([collectWindow(fetchPage, issue), projectKeys(as, budget)]);
     if (!complete) {
       return { issueKey, decision: 'ask', failed: true, reason: 'Could not read the full search window, so a person decides.' };
     }

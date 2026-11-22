@@ -24,13 +24,17 @@ export function retryDelay(res, attempt, jitter = Math.random) {
   return Math.round(BASE_MS * 2 ** attempt * (1 + 0.2 * jitter()));
 }
 
-export async function withRetry(send, { tries = 3, sleep = pause, jitter = Math.random, statuses = RETRY } = {}) {
+// budget, when given, is shared by every request of one invocation: { ms } of waiting left,
+// spent by each sleep. A triage makes up to a dozen reads, and three waits each would pass
+// Forge's 25 s limit, which kills the function before it logs anything.
+export async function withRetry(send, { tries = 3, sleep = pause, jitter = Math.random, statuses = RETRY, budget = null } = {}) {
   let res;
   for (let attempt = 0; attempt < tries; attempt += 1) {
     res = await send();
     if (!statuses.includes(res?.status) || attempt === tries - 1) return res;
     const wait = retryDelay(res, attempt, jitter);
-    if (wait > MAX_WAIT_MS) return res;
+    if (wait > MAX_WAIT_MS || (budget && wait > budget.ms)) return res;
+    if (budget) budget.ms -= wait;
     await sleep(wait);
   }
   return res;

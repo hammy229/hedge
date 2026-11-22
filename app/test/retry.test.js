@@ -74,3 +74,15 @@ test('a caller can narrow the statuses retried, as issue creates do', async () =
   assert.equal(out.status, 503);
   assert.equal(s.calls.length, 1);
 });
+
+test('retries share one budget of waiting, so a triage of many reads stays inside Forge\'s time limit', async () => {
+  const waits = [];
+  const budget = { ms: 1500 };
+  const opts = { sleep: async (ms) => void waits.push(ms), budget };
+  assert.equal((await withRetry(sender([res(429, 1), res(200)]).send, opts)).status, 200);
+  const s = sender([res(429, 1), res(200)]);
+  assert.equal((await withRetry(s.send, opts)).status, 429);
+  assert.equal(s.calls.length, 1);
+  assert.deepEqual(waits, [1000]);
+  assert.equal(budget.ms, 500);
+});
