@@ -84,3 +84,11 @@ test('reopening a ticket with the same outcome does not add a second entry', asy
   await record(store, result, { ...meta, via: 'mcp', at: '5' });
   assert.equal((await readLog(store)).length, 4);
 });
+
+test('a call the trigger could not carry out keeps the cause, so the admin sees the fix', () => {
+  const e = entryFor({ issueKey: 'DEMO-9', decision: 'clear', gates: {}, applied: { applied: false, error: 'No Labels field.' } }, { via: 'trigger' });
+  assert.equal(e.applied, false);
+  assert.equal(e.appliedError, 'No Labels field.');
+  const ok = entryFor({ issueKey: 'DEMO-9', decision: 'clear', gates: {}, applied: { applied: true } }, { via: 'trigger' });
+  assert.equal(ok.appliedError, undefined);
+});

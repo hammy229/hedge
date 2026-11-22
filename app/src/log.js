@@ -18,7 +18,7 @@ export function entryFor(result, { budgets = {}, via, at = new Date().toISOStrin
   const acting = result?.decision === 'link' ? gates.link : result?.decision === 'clear' ? gates.clear : null;
   const scores = Object.values(gates).map((g) => finite(g?.score)).filter((s) => s !== null);
   const action = acting === gates.link ? 'link' : 'clear';
-  return {
+  const entry = {
     at,
     issueKey: String(result?.issueKey ?? ''),
     decision: String(result?.decision ?? 'ask'),
@@ -30,6 +30,10 @@ export function entryFor(result, { budgets = {}, via, at = new Date().toISOStrin
     // Only the issue trigger carries decisions out; the panel and MCP only report them.
     applied: typeof result?.applied?.applied === 'boolean' ? result.applied.applied : null,
   };
+  // Why a call was not carried out. act.js keeps Jira's text out of it, so it is a fixed
+  // message or a status, and the log is admin-only anyway.
+  if (entry.applied === false && result?.applied?.error) entry.appliedError = String(result.applied.error).slice(0, 300);
+  return entry;
 }
 
 export async function readLog(store) {

@@ -186,7 +186,15 @@ function Decisions({ log }) {
       { key: 'score', content: r.score },
       { key: 'budget', content: r.budget },
       { key: 'via', content: r.via },
-      { key: 'applied', content: r.applied.appearance ? <Lozenge appearance={r.applied.appearance}>{r.applied.text}</Lozenge> : r.applied.text },
+      {
+        key: 'applied',
+        content: r.applied.appearance ? (
+          <Stack space="space.050">
+            <Lozenge appearance={r.applied.appearance}>{r.applied.text}</Lozenge>
+            {r.applied.why ? <Text size="small" color="color.text.subtle">{r.applied.why}</Text> : null}
+          </Stack>
+        ) : r.applied.text,
+      },
     ],
   }));
   return (

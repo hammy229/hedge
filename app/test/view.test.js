@@ -197,3 +197,9 @@ test('the saved project list reads back in plain words', () => {
   assert.equal(actProjectsSaved(['DEMO']), 'Saved. Hedge acts on new issues only in DEMO.');
   assert.equal(actProjectsSaved(['DEMO', 'OPS']), 'Saved. Hedge acts on new issues only in DEMO, OPS.');
 });
+
+test('a failed row in the log carries its cause', () => {
+  const [row] = logRows([{ at: '2026-11-22T01:00:00Z', issueKey: 'DEMO-9', decision: 'clear', applied: false, appliedError: 'No Labels field.' }]);
+  assert.equal(row.applied.text, 'Failed');
+  assert.equal(row.applied.why, 'No Labels field.');
+});

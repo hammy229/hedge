@@ -244,7 +244,7 @@ export function logRows(log) {
       e.applied === true
         ? { text: 'Done', appearance: 'inprogress' }
         : e.applied === false
-          ? { text: 'Failed', appearance: 'removed' }
+          ? { text: 'Failed', appearance: 'removed', why: String(e.appliedError ?? '') }
           : { text: 'Report only', appearance: null },
   }));
 }
