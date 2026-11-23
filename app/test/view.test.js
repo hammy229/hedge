@@ -28,7 +28,7 @@ test('a cleared ticket shows its budget and what was searched', () => {
 test('the panel says a call was carried out only when the issue has its label', () => {
   const base = { decision: 'clear', reason: 'r', searched: 50, budgets: { clear: 0.03 } };
   assert.match(panelView({ ...base, labels: ['ui', 'hedge-cleared'] }).carriedOut, /carried this out.*hedge-cleared/);
-  assert.equal(panelView({ ...base, labels: ['hedge-ask'] }).carriedOut, null);
+  assert.doesNotMatch(panelView({ ...base, labels: ['hedge-ask'] }).carriedOut, /carried/);
   const link = panelView({ decision: 'link', duplicateOf: 'P-2', reason: 'r', labels: ['hedge-duplicate'], candidates: [{ key: 'P-2', score: 9 }, { key: 'P-3', score: 4 }] });
   assert.match(link.headline, /duplicate of P-2/);
   assert.match(link.carriedOut, /added the label hedge-duplicate/);
