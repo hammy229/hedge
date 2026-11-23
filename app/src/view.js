@@ -224,6 +224,25 @@ export const AUTO_ACT_TEXT =
   `When this is on, Hedge triages each new issue as it is filed and carries the call out. It labels cleared issues ${LABELS.clear}, labels likely duplicates ${LABELS.link} so a person can link them, and labels the rest ${LABELS.ask}.`;
 export const ASK_QUEUE_JQL = `labels = ${LABELS.ask}`;
 
+// The banner for each paused action, shown above everything else on the admin page.
+// Resuming throws away the evidence, so the text says what to do first.
+export function pauseViews(pauses) {
+  return ['clear', 'link']
+    .filter((a) => pauses?.[a]?.paused === true)
+    .map((action) => {
+      const p = pauses[action];
+      const title = `Hedge paused: ${ACTION_TEXT[action].title.toLowerCase()}`;
+      const text = p.unreadable
+        ? 'Hedge could not read whether it is paused, so it asks a person about every ticket. Resume to save a fresh state.'
+        : `People marked ${p.wrong} of ${p.reviewed} reviewed calls wrong. If Hedge were inside its budget, evidence this strong would come up in at most 5% of sites, so it now asks a person about every ticket. Look at the wrong calls, pick a tighter budget if they look alike, then resume. Only calls made after that will count.`;
+      return { action, title, text };
+    });
+}
+
+export function resumed(action) {
+  return `Resumed. Hedge can act on ${ACTION_TEXT[action]?.noun ?? action} calls again, and the count of reviewed calls starts over.`;
+}
+
 const VIA = { panel: 'Issue panel', mcp: 'Agent (MCP)', trigger: 'New issue' };
 
 export const LOG_HEAD = ['Time (UTC)', 'Issue', 'Decision', 'Score', 'Budget', 'Source', 'Carried out'];

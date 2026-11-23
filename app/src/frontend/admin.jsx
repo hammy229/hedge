@@ -6,7 +6,7 @@ import ForgeReconciler, {
 import { invoke } from '@forge/bridge';
 import { runSeed } from '../seedloop.js';
 import {
-  TONE, ACTION_TEXT, ACT_PROJECTS_HINT, ASK_QUEUE_JQL, AUTO_ACT_TEXT, actProjectsSaved, CHART_NOTE, LOG_HEAD, autoActSaved, budgetSaved, dialView, logRows, seedView,
+  TONE, ACTION_TEXT, ACT_PROJECTS_HINT, ASK_QUEUE_JQL, AUTO_ACT_TEXT, actProjectsSaved, pauseViews, resumed, CHART_NOTE, LOG_HEAD, autoActSaved, budgetSaved, dialView, logRows, seedView,
   summaryView, verdictView,
 } from '../view.js';
 
@@ -176,6 +176,19 @@ function AutoAct({ on, saving, status, onChange, projects, onSaveProjects }) {
   );
 }
 
+function Paused({ views, saving, onResume }) {
+  return views.map((v) => (
+    <SectionMessage key={v.action} appearance="warning" title={v.title}>
+      <Stack space="space.100">
+        <Text>{v.text}</Text>
+        <Inline>
+          <Button isDisabled={saving} onClick={() => onResume(v.action)}>Resume</Button>
+        </Inline>
+      </Stack>
+    </SectionMessage>
+  ));
+}
+
 function Decisions({ log }) {
   const rows = logRows(log).map((r) => ({
     key: r.key,
@@ -212,6 +225,7 @@ function Admin() {
   const [log, setLog] = useState([]);
   const [autoAct, setAutoAct] = useState(false);
   const [actProjects, setActProjects] = useState(null);
+  const [pauses, setPauses] = useState(null);
   const [verdicts, setVerdicts] = useState(null);
   const [loadError, setLoadError] = useState(null);
   // Which control is saving, and the last saved or failed change: { where, ok, text }.
@@ -219,7 +233,8 @@ function Admin() {
   const [status, setStatus] = useState(null);
 
   const load = () =>
-    Promise.all([invoke('settings'), invoke('log'), invoke('autoAct'), invoke('feedbackSummary'), invoke('actProjects')]).then(([s, l, a, f, p]) => {
+    Promise.all([invoke('settings'), invoke('log'), invoke('autoAct'), invoke('feedbackSummary'), invoke('actProjects'), invoke('pauses')]).then(([s, l, a, f, p, paused]) => {
+      setPauses(paused);
       setSettings(s);
       setLog(l);
       setAutoAct(a === true);
@@ -274,6 +289,20 @@ function Admin() {
       .finally(() => setSaving(null));
   };
 
+  const resume = (action) => {
+    setStatus(null);
+    setSaving('resume');
+    invoke('resume', { action })
+      .then(
+        () => {
+          setStatus({ where: 'resume', ok: true, text: resumed(action) });
+          return load();
+        },
+        (e) => setStatus({ where: 'resume', ok: false, text: message(e) }),
+      )
+      .finally(() => setSaving(null));
+  };
+
   if (!settings || !actProjects) {
     return loadError ? (
       <SectionMessage appearance="error" title="Hedge could not load its settings">
@@ -301,6 +330,8 @@ function Admin() {
             </Text>
           </Stack>
         </Box>
+        <Paused views={pauseViews(pauses)} saving={saving === 'resume'} onResume={resume} />
+        <Status status={at('resume')} />
         <Summary view={summaryView(settings, autoAct, log, actProjects)} />
         {loadError ? (
           <SectionMessage appearance="error">

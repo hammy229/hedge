@@ -1,8 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  AUTO_ACT_TEXT, FEW_REVIEWS, TONE, actProjectsSaved, autoActSaved, budgetSaved, dialView, logRows, panelFailure, panelView, summaryView, verdictStatus, verdictView,
-} from '../src/view.js';
+  AUTO_ACT_TEXT, FEW_REVIEWS, TONE, actProjectsSaved, autoActSaved, budgetSaved, dialView, logRows, panelFailure, panelView, summaryView, verdictStatus, verdictView, pauseViews, resumed } from '../src/view.js';
 
 test('a cleared ticket shows its budget and what was searched', () => {
   const v = panelView({
@@ -210,4 +209,15 @@ test('the acting tile names the projects when the admin limited them', () => {
   assert.equal(tile(true, []), 'On');
   assert.equal(tile(true, undefined), 'On');
   assert.equal(tile(false, ['DEMO']), 'Off');
+});
+
+test('a paused action gets a banner with the counts, and nothing shows when none is', () => {
+  assert.deepEqual(pauseViews({ clear: { paused: false }, link: { paused: false } }), []);
+  assert.deepEqual(pauseViews(null), []);
+  const [v] = pauseViews({ clear: { paused: true, reviewed: 10, wrong: 3 }, link: { paused: false } });
+  assert.equal(v.action, 'clear');
+  assert.match(v.title, /clear new reports/);
+  assert.match(v.text, /3 of 10/);
+  assert.match(pauseViews({ link: { paused: true, unreadable: true } })[0].text, /could not read/);
+  assert.match(resumed('clear'), /new report calls again/);
 });
