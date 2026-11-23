@@ -53,6 +53,11 @@ export async function requeue(saved, jira, route) {
   return editLabels(saved.issueKey, [{ remove: label }, { add: LABELS.ask }], jira, route);
 }
 
+// A person answered a ticket in the queue, so it leaves it.
+export function leaveQueue(issueKey, jira, route) {
+  return editLabels(issueKey, [{ remove: LABELS.ask }], jira, route);
+}
+
 async function editLabels(issueKey, labels, jira, route) {
   try {
     await jira(route`/rest/api/2/issue/${issueKey}`, { method: 'PUT', headers: JSON_HEADERS, body: JSON.stringify({ update: { labels } }) });

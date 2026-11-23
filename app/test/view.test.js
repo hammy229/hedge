@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   AUTO_ACT_TEXT, FEW_REVIEWS, TONE, actProjectsSaved, autoActSaved, budgetSaved, dialView, logRows, panelFailure, panelView, summaryView, verdictStatus, verdictView,
-  pauseViews, resumed,
+  answerStatus, answersText, pauseViews, resumed,
 } from '../src/view.js';
 
 test('a cleared ticket shows its budget and what was searched', () => {
@@ -228,4 +228,20 @@ test('the verdict line says whether the ticket moved and whether Hedge paused', 
   assert.match(verdictStatus('wrong', true, null, { requeued: { ok: true }, paused: true }).text, /hedge-ask.*now paused/);
   assert.match(verdictStatus('wrong', true, null, { requeued: { ok: false, error: 'Jira returned 403' } }).text, /kept its label: Jira returned 403\./);
   assert.doesNotMatch(verdictStatus('right', true, null, { requeued: null, paused: false }).text, /queue|paused/);
+});
+
+test('a queued ticket gets an answer control, even when its call is now a clear', () => {
+  assert.equal(panelView({ decision: 'ask', reason: 'r', labels: ['hedge-ask'] }).queued, true);
+  const marked = panelView({ decision: 'clear', reason: 'r', labels: ['hedge-ask'], budgets: { clear: 0.03 } });
+  assert.equal(marked.queued, true);
+  assert.equal(marked.verdictCounts, false);
+  assert.match(marked.carriedOut, /in the queue/);
+  assert.equal(panelView({ decision: 'ask', reason: 'r', labels: [] }).queued, false);
+});
+
+test('answers are confirmed and counted in plain words', () => {
+  assert.match(answerStatus('duplicate').text, /add the duplicate link yourself/);
+  assert.match(answerStatus('failed', 'Jira returned 403').error, /403\. Try again/);
+  assert.match(answersText({ fresh: 3, duplicate: 1 }), /4 queued tickets: 3 new, 1 duplicate\./);
+  assert.match(answersText(null), /could not be read/);
 });

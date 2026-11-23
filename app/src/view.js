@@ -35,6 +35,8 @@ export const PANEL_TEXT = Object.freeze({
   candidatesNote: 'Match score is BM25 word overlap with this ticket. Higher means more words in common.',
   match: "Hedge's match",
   verdictQuestion: 'Was this call right?',
+  answerQuestion: 'Which is it?',
+  answerLabel: 'Answer this ticket',
   verdictLabel: "Review Hedge's call",
 });
 
@@ -73,6 +75,7 @@ export function panelView(result) {
       notes: [],
       candidates: [],
       verdictCounts: false,
+      queued: false,
     };
   }
   const decision = LOZENGE[result.decision] ? result.decision : 'ask';
@@ -94,6 +97,11 @@ export function panelView(result) {
     // The trigger only labels a likely duplicate. A person makes the link.
     carriedOut = `Hedge added the label ${LABELS.link} when the issue was filed. It did not link the issues.`;
   } else if (!acting && labels.includes(LABELS.ask)) {
+    carriedOut = `This ticket is in the queue waiting for a person (label ${LABELS.ask}).`;
+  }
+  // In the queue, whatever the call is now: marked wrong, or filed while Hedge was paused.
+  const queued = labels.includes(LABELS.ask);
+  if (acting && !carriedOut && queued) {
     carriedOut = `This ticket is in the queue waiting for a person (label ${LABELS.ask}).`;
   }
   let budget = null;
@@ -122,8 +130,8 @@ export function panelView(result) {
   if (Number.isFinite(result.searched)) notes.push(`Searched the ${result.searched} most recent earlier issues in this project.`);
   if (result.copyOf && !reasons.some((r) => r.text.includes(result.copyOf))) notes.push(`Repeats the text of ${result.copyOf}.`);
   // A verdict counts against the budget only when the trigger applied the call (feedback.js).
-  const verdictCounts = acting !== null && carriedOut !== null;
-  return { kind: 'decided', decision, lozenge: LOZENGE[decision], headline, carriedOut, budget, nextStep, reasons, notes, candidates, verdictCounts };
+  const verdictCounts = acting !== null && carriedOut !== null && !queued;
+  return { kind: 'decided', decision, lozenge: LOZENGE[decision], headline, carriedOut, budget, nextStep, reasons, notes, candidates, verdictCounts, queued };
 }
 
 // The line under the verdict buttons, for the state of the verdict control.
@@ -140,6 +148,22 @@ export function verdictStatus(state, counts, error, outcome = null) {
   }
   if (state === 'failed') return { done: false, error: `${sentence(error || 'Could not save that')} Try again.` };
   return { done: false, error: null };
+}
+
+// The line under the answer buttons of a queued ticket.
+export function answerStatus(state, error) {
+  if (state === 'new') return { done: true, text: `Thanks. This is a new report, and it left the queue.` };
+  if (state === 'duplicate') return { done: true, text: 'Thanks. It left the queue. Hedge never links issues, so add the duplicate link yourself.' };
+  if (state === 'failed') return { done: false, error: `${sentence(error || 'Could not save that')} Try again.` };
+  return { done: false, error: null };
+}
+
+export function answersText(summary) {
+  if (!summary) return 'The answers people gave could not be read.';
+  const { fresh, duplicate } = summary;
+  const total = fresh + duplicate;
+  if (total === 0) return 'No one has answered a ticket from the queue yet. Answer one from its Hedge panel.';
+  return `People answered ${total} queued ticket${total === 1 ? '' : 's'}: ${fresh} new, ${duplicate} duplicate${duplicate === 1 ? '' : 's'}.`;
 }
 
 // What each action is called on the admin page.

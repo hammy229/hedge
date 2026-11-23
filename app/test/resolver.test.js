@@ -72,3 +72,10 @@ test('only the admin page may read pauses or resume Hedge', async () => {
   }
   await assert.rejects(handlers.resume(), /admin page/);
 });
+
+test('an answer needs an issue from Jira context, and only the admin page reads the counts', async () => {
+  await assert.rejects(handlers.answer({ payload: { answer: 'new' }, context: {} }), /from an issue/);
+  for (const context of [{ moduleKey: 'hedge-panel' }, {}, undefined]) {
+    assert.throws(() => handlers.answerSummary({ context }), /admin page/);
+  }
+});

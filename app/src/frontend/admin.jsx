@@ -6,7 +6,7 @@ import ForgeReconciler, {
 import { invoke } from '@forge/bridge';
 import { runSeed } from '../seedloop.js';
 import {
-  TONE, ACTION_TEXT, ACT_PROJECTS_HINT, ASK_QUEUE_JQL, AUTO_ACT_TEXT, actProjectsSaved, pauseViews, resumed, CHART_NOTE, LOG_HEAD, autoActSaved, budgetSaved, dialView, logRows, seedView,
+  TONE, ACTION_TEXT, ACT_PROJECTS_HINT, ASK_QUEUE_JQL, AUTO_ACT_TEXT, actProjectsSaved, answersText, pauseViews, resumed, CHART_NOTE, LOG_HEAD, autoActSaved, budgetSaved, dialView, logRows, seedView,
   summaryView, verdictView,
 } from '../view.js';
 
@@ -225,6 +225,7 @@ function Admin() {
   const [log, setLog] = useState([]);
   const [autoAct, setAutoAct] = useState(false);
   const [actProjects, setActProjects] = useState(null);
+  const [answers, setAnswers] = useState(null);
   const [pauses, setPauses] = useState(null);
   const [verdicts, setVerdicts] = useState(null);
   const [loadError, setLoadError] = useState(null);
@@ -233,7 +234,8 @@ function Admin() {
   const [status, setStatus] = useState(null);
 
   const load = () =>
-    Promise.all([invoke('settings'), invoke('log'), invoke('autoAct'), invoke('feedbackSummary'), invoke('actProjects'), invoke('pauses')]).then(([s, l, a, f, p, paused]) => {
+    Promise.all([invoke('settings'), invoke('log'), invoke('autoAct'), invoke('feedbackSummary'), invoke('actProjects'), invoke('pauses'), invoke('answerSummary')]).then(([s, l, a, f, p, paused, answered]) => {
+      setAnswers(answered);
       setPauses(paused);
       setSettings(s);
       setLog(l);
@@ -350,6 +352,7 @@ function Admin() {
         ) : (
           <Text>{verdict.text}</Text>
         )}
+        <Text>{answersText(answers)}</Text>
       </Section>
       <Decisions log={log} />
       <SampleData minWindow={settings.clear.minWindow ?? 30} />
