@@ -72,3 +72,8 @@ test('a site at five times its budget is caught', () => {
   const share = crossed(() => 0.15, () => 0.03);
   assert.ok(share >= 0.95, `${share}`);
 });
+
+test('a site at twice its budget is caught less than half the time, as ADR 9 says', () => {
+  const share = crossed(() => 0.06, () => 0.03);
+  assert.ok(Math.abs(share - 0.417) < 0.01, `${share}`);
+});
