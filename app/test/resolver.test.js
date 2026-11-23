@@ -79,3 +79,9 @@ test('an answer needs an issue from Jira context, and only the admin page reads 
     assert.throws(() => handlers.answerSummary({ context }), /admin page/);
   }
 });
+
+test('only the admin page may count the queue', () => {
+  for (const context of [{ moduleKey: 'hedge-panel' }, {}, undefined]) {
+    assert.throws(() => handlers.queue({ context }), /admin page/);
+  }
+});

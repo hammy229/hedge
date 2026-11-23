@@ -10,6 +10,7 @@ import { withRetry } from './retry.js';
 import policies from './policy.js';
 import { activePolicies, readActProjects, readAutoAct, readBudgets } from './settings.js';
 import { triage } from './triage.js';
+import { ASK_QUEUE_JQL } from './view.js';
 import { PAGE_SIZE, collectWindow, windowJql } from './window.js';
 
 // Forge storage, through the small interface settings.js, log.js and feedback.js take.
@@ -172,6 +173,20 @@ const writeAsUser = (path, options) => jiraWrite(path, options, 'user');
 export const requeueAsUser = (saved) => requeue(saved, writeAsUser, route);
 
 export const leaveQueueAsUser = (issueKey) => leaveQueue(issueKey, writeAsUser, route);
+
+// How many tickets wait for a person, as the admin sees them. null when Jira did not say.
+export async function queueCount() {
+  try {
+    const out = await jira(route`/rest/api/3/search/approximate-count`, {
+      method: 'POST',
+      headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jql: ASK_QUEUE_JQL }),
+    });
+    return Number.isInteger(out?.count) ? out.count : null;
+  } catch {
+    return null;
+  }
+}
 
 // MCP tool: may an agent act on this ticket (link it as a duplicate, or clear it as new),
 // or must it ask a person? Reads Jira as the calling user, so the tool never sees more

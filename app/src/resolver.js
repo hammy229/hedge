@@ -4,7 +4,7 @@ import { answerSummary, saveAnswer } from './answers.js';
 import { budgetOptions } from './budget.js';
 import { FEEDBACK_PREFIX, feedbackSummary, readFeedback, saveFeedback } from './feedback.js';
 import { describePolicy } from './gate.js';
-import { leaveQueueAsUser, openPolicies, requeueAsUser, runTriage, seedProgress, seedProject, store } from './index.js';
+import { leaveQueueAsUser, openPolicies, queueCount, requeueAsUser, runTriage, seedProgress, seedProject, store } from './index.js';
 import { readLog } from './log.js';
 import { checkEvidence, readPauses, resume } from './pause.js';
 import policies from './policy.js';
@@ -53,6 +53,10 @@ export const handlers = {
   resume: async ({ payload, context } = {}) => {
     adminOnly(context, 'Hedge can only be resumed from the admin page.');
     return resume(store, payload?.action);
+  },
+  queue: ({ context } = {}) => {
+    adminOnly(context, 'The queue can only be counted from the admin page.');
+    return queueCount();
   },
   settings,
   setBudget,

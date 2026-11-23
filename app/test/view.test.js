@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   AUTO_ACT_TEXT, FEW_REVIEWS, TONE, actProjectsSaved, autoActSaved, budgetSaved, dialView, logRows, panelFailure, panelView, summaryView, verdictStatus, verdictView,
-  answerStatus, answersText, pauseViews, resumed,
+  ASK_QUEUE_HREF, answerStatus, answersText, pauseViews, resumed,
 } from '../src/view.js';
 
 test('a cleared ticket shows its budget and what was searched', () => {
@@ -93,7 +93,7 @@ test('the summary shows each budget, the switch and the log size', () => {
     link: { budget: 0.03, options: [{ alpha: 0.03, certified: false, coverage: 0 }] },
   };
   const v = summaryView(settings, true, [{}, {}]);
-  assert.deepEqual(v.tiles.map((t) => t.value), ['3%', 'Always asks', 'On', '2']);
+  assert.deepEqual(v.tiles.map((t) => t.value), ['3%', 'Always asks', 'On', 'Unknown', '2']);
   assert.equal(v.hint, '');
   assert.match(summaryView(settings, false, []).hint, /No decisions yet/);
   assert.equal(summaryView(null, undefined, null).tiles[2].value, 'Off');
@@ -244,4 +244,13 @@ test('answers are confirmed and counted in plain words', () => {
   assert.match(answerStatus('failed', 'Jira returned 403').error, /403\. Try again/);
   assert.match(answersText({ fresh: 3, duplicate: 1 }), /4 queued tickets: 3 new, 1 duplicate\./);
   assert.match(answersText(null), /could not be read/);
+});
+
+test('the queue tile links to the search and never shows an unknown count as zero', () => {
+  const tile = (n) => summaryView({}, true, [], [], n).tiles.find((t) => t.key === 'queue');
+  assert.equal(tile(4).value, '4');
+  assert.equal(tile(0).value, '0');
+  assert.equal(tile(null).value, 'Unknown');
+  assert.equal(tile(4).href, ASK_QUEUE_HREF);
+  assert.match(decodeURIComponent(ASK_QUEUE_HREF), /labels = hedge-ask AND statusCategory != Done$/);
 });

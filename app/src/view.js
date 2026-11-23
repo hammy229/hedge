@@ -212,13 +212,14 @@ function budgetValue(setting) {
 }
 
 // The tiles at the top of the admin page: what is set right now, at a glance.
-export function summaryView(settings, autoAct, log, projects = []) {
+export function summaryView(settings, autoAct, log, projects = [], waiting = null) {
   const count = Array.isArray(log) ? log.length : 0;
   return {
     tiles: [
       { key: 'clear', label: 'New report budget', value: budgetValue(settings?.clear) },
       { key: 'link', label: 'Duplicate budget', value: budgetValue(settings?.link) },
       { key: 'auto', label: 'Acting on new issues', value: autoAct !== true ? 'Off' : Array.isArray(projects) && projects.length > 0 ? `On in ${projects.join(', ')}` : 'On' },
+      { key: 'queue', label: 'Waiting for a person', value: Number.isInteger(waiting) ? String(waiting) : 'Unknown', href: ASK_QUEUE_HREF },
       { key: 'log', label: 'Recent decisions', value: String(count) },
     ],
     hint: count === 0 ? 'No decisions yet. Add sample data at the bottom of this page, then open one of its issues.' : '',
@@ -252,7 +253,8 @@ export const ACT_PROJECTS_HINT = 'Leave empty to act in every project.';
 
 export const AUTO_ACT_TEXT =
   `When this is on, Hedge triages each new issue as it is filed and carries the call out. It labels cleared issues ${LABELS.clear}, labels likely duplicates ${LABELS.link} so a person can link them, and labels the rest ${LABELS.ask}.`;
-export const ASK_QUEUE_JQL = `labels = ${LABELS.ask}`;
+export const ASK_QUEUE_JQL = `labels = ${LABELS.ask} AND statusCategory != Done`;
+export const ASK_QUEUE_HREF = `/issues/?jql=${encodeURIComponent(ASK_QUEUE_JQL)}`;
 
 // The banner for each paused action, shown above everything else on the admin page.
 // Resuming throws away the evidence, so the text says what to do first.

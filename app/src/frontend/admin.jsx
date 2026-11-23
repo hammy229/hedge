@@ -6,7 +6,7 @@ import ForgeReconciler, {
 import { invoke } from '@forge/bridge';
 import { runSeed } from '../seedloop.js';
 import {
-  TONE, ACTION_TEXT, ACT_PROJECTS_HINT, ASK_QUEUE_JQL, AUTO_ACT_TEXT, actProjectsSaved, answersText, pauseViews, resumed, CHART_NOTE, LOG_HEAD, autoActSaved, budgetSaved, dialView, logRows, seedView,
+  TONE, ACTION_TEXT, ACT_PROJECTS_HINT, ASK_QUEUE_HREF, ASK_QUEUE_JQL, AUTO_ACT_TEXT, actProjectsSaved, answersText, pauseViews, resumed, CHART_NOTE, LOG_HEAD, autoActSaved, budgetSaved, dialView, logRows, seedView,
   summaryView, verdictView,
 } from '../view.js';
 
@@ -59,6 +59,7 @@ function Summary({ view }) {
             <Stack space="space.050">
               <Text size="small" color="color.text.subtle">{t.label}</Text>
               <Heading size="medium">{t.value}</Heading>
+              {t.href ? <Link href={t.href}>Open the queue</Link> : null}
             </Stack>
           </Box>
         ))}
@@ -156,6 +157,7 @@ function AutoAct({ on, saving, status, onChange, projects, onSaveProjects }) {
       <Inline space="space.100" alignBlock="center">
         <Text>To see what is waiting for a person, search Jira for</Text>
         <Code>{ASK_QUEUE_JQL}</Code>
+        <Link href={ASK_QUEUE_HREF}>Open</Link>
       </Inline>
       <Inline space="space.100" alignBlock="center">
         <Toggle id="auto-act" isChecked={on} isDisabled={saving} onChange={() => onChange(!on)} />
@@ -225,6 +227,7 @@ function Admin() {
   const [log, setLog] = useState([]);
   const [autoAct, setAutoAct] = useState(false);
   const [actProjects, setActProjects] = useState(null);
+  const [waiting, setWaiting] = useState(null);
   const [answers, setAnswers] = useState(null);
   const [pauses, setPauses] = useState(null);
   const [verdicts, setVerdicts] = useState(null);
@@ -246,6 +249,8 @@ function Admin() {
     }, (e) => setLoadError(message(e)));
 
   useEffect(() => {
+    // Apart from load(): a slow or failed count must not hold up the page.
+    invoke('queue').then(setWaiting, () => setWaiting(null));
     load();
   }, []);
 
@@ -334,7 +339,7 @@ function Admin() {
         </Box>
         <Paused views={pauseViews(pauses)} saving={saving === 'resume'} onResume={resume} />
         <Status status={at('resume')} />
-        <Summary view={summaryView(settings, autoAct, log, actProjects)} />
+        <Summary view={summaryView(settings, autoAct, log, actProjects, waiting)} />
         {loadError ? (
           <SectionMessage appearance="error">
             <Text>{loadError}</Text>
