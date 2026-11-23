@@ -1,6 +1,6 @@
 import api, { route } from '@forge/api';
 import { WhereConditions, kvs } from '@forge/kvs';
-import { applyDecision, leaveQueue, requeue } from './act.js';
+import { LABELS, applyDecision, leaveQueue, requeue } from './act.js';
 import { onCreated } from './created.js';
 import { describePolicy } from './gate.js';
 import { seedStatus, seedStep, seedingNow } from './seeder.js';
@@ -175,7 +175,11 @@ export function issueCreated(event) {
 const writeAsUser = (path, options) => jiraWrite(path, options, 'user');
 export const requeueAsUser = (saved) => requeue(saved, writeAsUser, route);
 
-export const leaveQueueAsUser = (issueKey) => leaveQueue(issueKey, writeAsUser, route);
+export async function leaveQueueAsUser(issueKey) {
+  const issue = await jira(route`/rest/api/2/issue/${issueKey}?fields=labels`);
+  if (!issue.fields?.labels?.includes(LABELS.ask)) return { ok: false, error: `${issueKey} is not in the queue.` };
+  return leaveQueue(issueKey, writeAsUser, route);
+}
 
 // How many tickets wait for a person, as the admin sees them. null when Jira did not say.
 export async function queueCount() {

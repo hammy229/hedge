@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { answerSummary, saveAnswer } from '../src/answers.js';
+import { answerSummary, readAnswer, saveAnswer } from '../src/answers.js';
 import { LABELS, leaveQueue } from '../src/act.js';
 
 const memory = (decision) => {
@@ -35,12 +35,16 @@ test('when Jira refuses the label edit, no answer is stored', async () => {
   assert.deepEqual(await answerSummary(store), { fresh: 0, duplicate: 0 });
 });
 
-test('unknown answers and tickets the trigger never handled touch nothing', async () => {
+test('an unknown answer touches nothing', async () => {
   const never = async () => assert.fail('wrote to Jira');
   await assert.rejects(saveAnswer(memory(asked), never, { issueKey: 'DEMO-9', answer: 'maybe' }), /new or duplicate/);
-  for (const store of [memory(), memory({ ...asked, via: 'panel' })]) {
-    await assert.rejects(saveAnswer(store, never, { issueKey: 'DEMO-9', answer: 'new' }), /did not put/);
-  }
+});
+
+test('a ticket labeled by hand can be answered, and the answer is found again', async () => {
+  const store = memory();
+  assert.equal(await readAnswer(store, 'DEMO-9'), null);
+  await saveAnswer(store, ok, { issueKey: 'DEMO-9', answer: 'new' });
+  assert.equal((await readAnswer(store, 'DEMO-9')).answer, 'new');
 });
 
 test('unreadable answers are unknown, not zero', async () => {

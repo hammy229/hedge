@@ -7,8 +7,8 @@
 // Each entry has its own key, so triages finishing at the same moment cannot drop each
 // other's. The key names the ticket, outcome, budget and caller, so reopening a ticket is
 // not a new entry. Entries expire by themselves. Forge may keep one up to two days past its
-// expiry and promises no order, so readLog sorts and cuts. Verdicts need a decision longer
-// than the log does, so those keys last half a year.
+// expiry and promises no order, so readLog sorts and cuts. The latest call shown on an issue
+// lasts half a year; what the trigger did to it stays, since its label does too.
 
 export const LOG_SIZE = 50;
 export const LOG_PREFIX = 'entry:';
@@ -61,10 +61,17 @@ const logKey = (e) => `${LOG_PREFIX}${e.issueKey}:${e.decision}:${e.budget ?? 'n
 // tell an issue it already handled.
 const decisionKey = (issueKey) => `decision:${issueKey}`;
 
+// The trigger's entry is what Hedge actually did to the issue. It has a key of its own, so
+// a panel view or agent call finishing at the same moment cannot overwrite it.
+const actedKey = (issueKey) => `acted:${issueKey}`;
+
 export async function readDecision(store, issueKey) {
   try {
-    const entry = await store.get(decisionKey(issueKey));
-    return entry && typeof entry === 'object' && entry.issueKey === issueKey ? entry : null;
+    for (const k of [actedKey(issueKey), decisionKey(issueKey)]) {
+      const entry = await store.get(k);
+      if (entry && typeof entry === 'object' && entry.issueKey === issueKey) return entry;
+    }
+    return null;
   } catch {
     return null;
   }
@@ -73,13 +80,12 @@ export async function readDecision(store, issueKey) {
 export async function record(store, result, meta) {
   try {
     const entry = entryFor(result, meta);
-    // The trigger's entry is what Hedge actually did to the issue, so a later panel view
-    // or agent call must not replace it.
-    if (entry.issueKey && (entry.via === 'trigger' || (await readDecision(store, entry.issueKey))?.via !== 'trigger')) {
-      await store.set(decisionKey(entry.issueKey), entry, ttl(DECISION_DAYS));
-    }
+    if (entry.issueKey && entry.via === 'trigger') await store.set(actedKey(entry.issueKey), entry);
+    else if (entry.issueKey) await store.set(decisionKey(entry.issueKey), entry, ttl(DECISION_DAYS));
     const k = logKey(entry);
-    if (!(await store.get(k))) await store.set(k, entry, ttl(LOG_DAYS));
+    const old = await store.get(k);
+    const fresh = Date.parse(old?.at) >= Date.parse(entry.at) - LOG_DAYS * DAY_MS;
+    if (!fresh || old.applied !== entry.applied) await store.set(k, entry, ttl(LOG_DAYS));
   } catch {
     // The log is a record of decisions, not part of them.
   }

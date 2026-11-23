@@ -1,6 +1,6 @@
 // Backend for the issue panel and the admin page (UI Kit, src/frontend/).
 import ResolverModule from '@forge/resolver';
-import { answerSummary, saveAnswer } from './answers.js';
+import { answerSummary, readAnswer, saveAnswer } from './answers.js';
 import { budgetOptions } from './budget.js';
 import { feedbackSummary, feedbackWith, readFeedback, saveFeedback } from './feedback.js';
 import { describePolicy } from './gate.js';
@@ -25,7 +25,8 @@ export const handlers = {
     const issueKey = context?.extension?.issue?.key;
     if (typeof issueKey !== 'string' || issueKey === '') throw new Error('Verdicts can only be given from an issue.');
     const saved = await saveFeedback(store, { issueKey, verdict: payload?.verdict, accountId: context?.accountId });
-    const requeued = await requeueAsUser(saved);
+    // An answered ticket stays out of the queue, whatever anyone thinks of the old call.
+    const requeued = (await readAnswer(store, issueKey)) ? null : await requeueAsUser(saved);
     const pause = await checkEvidence(store, await feedbackWith(store, saved), saved.decision);
     return { ...saved, paused: pause.paused && !pause.already, requeued };
   },

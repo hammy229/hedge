@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { LOG_SIZE, entryFor, readLog, record } from '../src/log.js';
+import { LOG_SIZE, entryFor, readDecision, readLog, record } from '../src/log.js';
 
 const memory = () => {
   const m = new Map();
@@ -102,13 +102,28 @@ test('two triages finishing at the same moment both stay in the log', async () =
   assert.equal((await readLog(store, T)).length, 3);
 });
 
-test('entries and decisions are stored with an expiry, and an expired entry is not shown', async () => {
+test('the log and shown calls expire, what the trigger did does not, and an expired entry is not shown', async () => {
   const store = memory();
   const ttls = {};
   const set = store.set;
   store.set = async (k, v, o) => { ttls[k.split(':')[0]] = o?.ttl; return set(k, v); };
   await record(store, result, { via: 'trigger', at: new Date(T).toISOString() });
-  assert.deepEqual(ttls, { decision: { value: 180, unit: 'DAYS' }, entry: { value: 30, unit: 'DAYS' } });
-  assert.equal((await readLog(store, T + 29 * 86400000)).length, 1);
+  assert.deepEqual(ttls, { acted: undefined, entry: { value: 30, unit: 'DAYS' } });
+  await record(store, result, { via: 'panel', at: new Date(T).toISOString() });
+  assert.deepEqual(ttls.decision, { value: 180, unit: 'DAYS' });
+  assert.equal((await readLog(store, T + 29 * 86400000)).length, 2);
   assert.equal((await readLog(store, T + 31 * 86400000)).length, 0);
+});
+
+test('a panel view racing the trigger cannot overwrite what the trigger did', async () => {
+  const store = memory();
+  await Promise.all([record(store, { ...result, applied: { applied: true } }, { via: 'trigger' }), record(store, result, { via: 'panel' })]);
+  assert.equal((await readDecision(store, 'PROJ-7')).via, 'trigger');
+});
+
+test('an expired entry Forge has not removed yet does not block a new one', async () => {
+  const store = memory();
+  await record(store, result, { via: 'panel', at: new Date(T - 31 * 86400000).toISOString() });
+  await record(store, result, { via: 'panel', at: new Date(T).toISOString() });
+  assert.equal((await readLog(store, T)).length, 1);
 });
