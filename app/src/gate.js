@@ -16,13 +16,17 @@ export function score(features, model) {
   return 1 / (1 + Math.exp(-z));
 }
 
+// A policy closed on purpose (budget.js) says why, so nobody reads it as a missing install.
+const closedReason = (policy, otherwise) =>
+  typeof policy?.closedBecause === 'string' && policy.closedBecause !== '' ? `${policy.closedBecause} Every ticket goes to a person.` : otherwise;
+
 const isNumber = (x) => typeof x === 'number' && Number.isFinite(x);
 
 // Why a policy cannot be trusted, or null if it can. Every check here guards a way a
 // malformed policy file would otherwise act: a null threshold compares as 0, an empty
 // weight map needs no features, a string bias concatenates.
 export function policyProblem(policy, runtime = RUNTIME) {
-  if (policy?.calibrated !== true) return 'No calibrated policy is installed yet, so every ticket goes to a person.';
+  if (policy?.calibrated !== true) return closedReason(policy, 'No calibrated policy is installed yet, so every ticket goes to a person.');
   if (policy.featureSchema !== runtime.featureSchema) {
     return (
       `The policy was trained on feature schema ${policy.featureSchema}, but this app computes ` +
@@ -92,7 +96,7 @@ function decideOrThrow(features, policy, runtime) {
 
 export function describePolicy(policy) {
   if (!policy?.calibrated) {
-    return { calibrated: false, guarantee: 'None yet. Hedge asks a person about every ticket.' };
+    return { calibrated: false, guarantee: closedReason(policy, 'None yet. Hedge asks a person about every ticket.') };
   }
   const { alpha, delta, calibrationSize, minWindow } = policy;
   const history = Number.isInteger(minWindow) && minWindow > 0

@@ -116,3 +116,10 @@ test('the guarantee names the minimum window when there is one', () => {
   assert.doesNotMatch(describePolicy(calibrated).guarantee, /earlier issues/);
   assert.match(describePolicy({ ...calibrated, minWindow: 30 }).guarantee, /fewer than 30 earlier issues/);
 });
+
+test('a policy closed by the dial says why, in the reason and in the guarantee', () => {
+  const closed = { calibrated: false, closedBecause: 'Nothing was certified at a 2% budget.' };
+  assert.match(decide({}, closed).reason, /^Nothing was certified at a 2% budget\. Every ticket/);
+  assert.match(describePolicy(closed).guarantee, /^Nothing was certified at a 2% budget\./);
+  assert.match(decide({}, { calibrated: false, closedBecause: 7 }).reason, /No calibrated policy/);
+});

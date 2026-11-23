@@ -86,7 +86,7 @@ function copyOf(texts, queryText, projectKeys) {
 // A policy certified for one action must never gate the other.
 function checked(policy, action) {
   if (policy?.calibrated === true && policy.action !== action) {
-    return { calibrated: false };
+    return { calibrated: false, closedBecause: 'The installed policy was certified for another action.' };
   }
   return policy;
 }
