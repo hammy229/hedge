@@ -4,12 +4,18 @@
 // copied, only the key. Keys and reasons still span every project, so only the admin
 // page may read the log (resolver.js).
 //
-// The log is one capped list. Two triages finishing at the same moment can drop one
-// entry; that is accepted for a recent-activity view, and a full audit store would use
-// one key per entry instead.
+// Each entry has its own key, so triages finishing at the same moment cannot drop each
+// other's. The key names the ticket, outcome, budget and caller, so reopening a ticket is
+// not a new entry. Entries expire by themselves. Forge may keep one up to two days past its
+// expiry and promises no order, so readLog sorts and cuts. Verdicts need a decision longer
+// than the log does, so those keys last half a year.
 
 export const LOG_SIZE = 50;
-const KEY = 'log:decisions';
+export const LOG_PREFIX = 'entry:';
+const DAY_MS = 86400000;
+const LOG_DAYS = 30;
+const DECISION_DAYS = 180;
+const ttl = (value) => ({ ttl: { value, unit: 'DAYS' } });
 
 const finite = (x) => (typeof x === 'number' && Number.isFinite(x) ? x : null);
 
@@ -36,22 +42,22 @@ export function entryFor(result, { budgets = {}, via, at = new Date().toISOStrin
   return entry;
 }
 
-export async function readLog(store) {
+export async function readLog(store, now = Date.now()) {
   try {
-    const log = await store.get(KEY);
-    return Array.isArray(log) ? log : [];
+    const all = await store.list(LOG_PREFIX);
+    return (Array.isArray(all) ? all : [])
+      .filter((e) => e && typeof e === 'object' && Date.parse(e.at) >= now - LOG_DAYS * DAY_MS)
+      .sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0))
+      .slice(0, LOG_SIZE);
   } catch {
     return [];
   }
 }
 
-// Same ticket, outcome, budget and caller as an earlier entry: the panel re-runs triage
-// each time someone opens the ticket, and a view is not a new decision.
-const same = (a, b) =>
-  a.issueKey === b.issueKey && a.decision === b.decision && a.budget === b.budget && a.via === b.via;
+const logKey = (e) => `${LOG_PREFIX}${e.issueKey}:${e.decision}:${e.budget ?? 'none'}:${e.via}`;
 
 // The latest decision on each issue also gets a key of its own, so a verdict from the
-// panel (feedback.js) finds it after the capped list has moved on, and the trigger can
+// panel (feedback.js) finds it after the log entry expired, and the trigger can
 // tell an issue it already handled.
 const decisionKey = (issueKey) => `decision:${issueKey}`;
 
@@ -66,15 +72,14 @@ export async function readDecision(store, issueKey) {
 
 export async function record(store, result, meta) {
   try {
-    const log = await readLog(store);
     const entry = entryFor(result, meta);
     // The trigger's entry is what Hedge actually did to the issue, so a later panel view
     // or agent call must not replace it.
     if (entry.issueKey && (entry.via === 'trigger' || (await readDecision(store, entry.issueKey))?.via !== 'trigger')) {
-      await store.set(decisionKey(entry.issueKey), entry);
+      await store.set(decisionKey(entry.issueKey), entry, ttl(DECISION_DAYS));
     }
-    if (log.some((e) => same(e, entry))) return;
-    await store.set(KEY, [entry, ...log].slice(0, LOG_SIZE));
+    const k = logKey(entry);
+    if (!(await store.get(k))) await store.set(k, entry, ttl(LOG_DAYS));
   } catch {
     // The log is a record of decisions, not part of them.
   }

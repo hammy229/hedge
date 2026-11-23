@@ -18,7 +18,7 @@ import { PAGE_SIZE, collectWindow, windowJql } from './window.js';
 const LIST_MAX = 5000;
 export const store = {
   get: (k) => kvs.get(k),
-  set: (k, v) => kvs.set(k, v),
+  set: (k, v, options) => kvs.set(k, v, options),
   async list(prefix) {
     const out = [];
     let cursor;
