@@ -5,6 +5,7 @@ import { onCreated } from './created.js';
 import { describePolicy } from './gate.js';
 import { seedStatus, seedStep, seedingNow } from './seeder.js';
 import { readDecision, record } from './log.js';
+import { readPauses, withPauses } from './pause.js';
 import { withRetry } from './retry.js';
 import policies from './policy.js';
 import { activePolicies, readActProjects, readAutoAct, readBudgets } from './settings.js';
@@ -95,6 +96,11 @@ async function projectKeys(as, budget) {
   return Array.isArray(projects) ? projects.map((p) => p.key).filter(Boolean) : [];
 }
 
+// The policies the gates read: at the admin's budgets, closed for any paused action.
+export async function openPolicies(budgets) {
+  return withPauses(activePolicies(policies, budgets), await readPauses(store));
+}
+
 // One triage, shared by the MCP tool, the issue panel and the issue trigger: read the
 // ticket and its window (as the calling user, or as the app for the trigger), gate it at
 // the admin's budgets, and log the decision. `after`, when given, carries the decision out
@@ -103,7 +109,7 @@ export async function runTriage(rawKey, via, as = 'user', after = null) {
   const issueKey = String(rawKey ?? '').trim().toUpperCase();
   if (!ISSUE_KEY.test(issueKey)) return { error: 'issueKey must look like PROJ-123.' };
   const budgets = await readBudgets(store, policies);
-  const result = await triageAt(issueKey, activePolicies(policies, budgets), as);
+  const result = await triageAt(issueKey, await openPolicies(budgets), as);
   if (after) {
     try {
       result.applied = await after(result);
@@ -170,6 +176,6 @@ export async function triageIssue(payload) {
 
 // MCP tool: what guarantee does each installed policy give?
 export async function explainPolicy() {
-  const active = activePolicies(policies, await readBudgets(store, policies));
+  const active = await openPolicies(await readBudgets(store, policies));
   return { link: describePolicy(active.link), clear: describePolicy(active.clear) };
 }
