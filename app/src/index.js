@@ -5,7 +5,7 @@ import { onCreated } from './created.js';
 import { describePolicy } from './gate.js';
 import { seedStatus, seedStep, seedingNow } from './seeder.js';
 import { readDecision, record } from './log.js';
-import { readPauses, withPauses } from './pause.js';
+import { readPauses, recheck, withPauses } from './pause.js';
 import { withRetry } from './retry.js';
 import policies from './policy.js';
 import { activePolicies, readActProjects, readAutoAct, readBudgets } from './settings.js';
@@ -161,7 +161,10 @@ export function issueCreated(event) {
   return onCreated(event, {
     readAutoAct: () => readAutoAct(store),
     readActProjects: () => readActProjects(store),
-    triage: runTriage,
+    triage: async (...args) => {
+      await recheck(store); // an error here leaves the issue alone
+      return runTriage(...args);
+    },
     apply: (result) => applyDecision(result, (path, options) => jiraWrite(path, options, 'app'), route),
     alreadyHandled: async (key) => (await readDecision(store, key))?.via === 'trigger',
     seeding: (projectKey) => seedingNow(store, projectKey),

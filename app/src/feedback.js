@@ -6,13 +6,35 @@
 // budget. The decision a verdict refers to is Hedge's logged one, never taken from the
 // caller, so a panel cannot file a verdict on a call Hedge did not make.
 //
-// Each issue's verdict has its own key, so two people reviewing at once cannot drop each
-// other's verdict, and a new verdict on the same issue replaces the old one.
+// Each person's verdict on an issue has its own key. A person can change their own, but
+// nobody can erase someone else's, and a call counts as wrong if anyone says so. Otherwise
+// one click on Right could hide the verdict that would have paused Hedge (pause.js).
 
 import { readDecision } from './log.js';
 
 export const FEEDBACK_PREFIX = 'feedback:';
 const VERDICTS = ['right', 'wrong'];
+
+const feedbackKey = (f) => `${FEEDBACK_PREFIX}${f.issueKey}:${f.accountId ?? 'unknown'}`;
+
+// One entry per issue: any wrong verdict on it wins.
+export function perIssue(feedback) {
+  const byIssue = new Map();
+  for (const f of Array.isArray(feedback) ? feedback : []) {
+    if (!f || typeof f !== 'object') continue;
+    const seen = byIssue.get(f.issueKey);
+    if (!seen || (seen.verdict !== 'wrong' && f.verdict === 'wrong')) byIssue.set(f.issueKey, f);
+  }
+  return [...byIssue.values()];
+}
+
+// Every stored verdict, with `saved` put in by hand because the list may lag the write.
+// Unlike readFeedback, storage errors are thrown.
+export async function feedbackWith(store, saved = null) {
+  const list = await store.list(FEEDBACK_PREFIX);
+  if (!saved) return list;
+  return [...list.filter((f) => f && feedbackKey(f) !== feedbackKey(saved)), saved];
+}
 
 export async function readFeedback(store) {
   try {
@@ -38,7 +60,7 @@ export async function saveFeedback(store, { issueKey, verdict, accountId = null,
     accountId: typeof accountId === 'string' ? accountId : null,
     at,
   };
-  await store.set(`${FEEDBACK_PREFIX}${issueKey}`, entry);
+  await store.set(feedbackKey(entry), entry);
   return entry;
 }
 
@@ -46,7 +68,7 @@ export async function saveFeedback(store, { issueKey, verdict, accountId = null,
 // that was only shown in the panel changed nothing, and an ask hands the ticket to a
 // person. Both are counted apart.
 export function feedbackSummary(feedback) {
-  const list = Array.isArray(feedback) ? feedback.filter((f) => f && typeof f === 'object') : [];
+  const list = perIssue(feedback);
   const isAction = (f) => f.decision === 'link' || f.decision === 'clear';
   const acted = list.filter((f) => isAction(f) && f.applied === true);
   const wrong = acted.filter((f) => f.verdict === 'wrong').length;

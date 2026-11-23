@@ -266,7 +266,7 @@ export function pauseViews(pauses) {
       const title = `Hedge paused: ${ACTION_TEXT[action].title.toLowerCase()}`;
       const text = p.unreadable
         ? 'Hedge could not read whether it is paused, so it asks a person about every ticket. Resume to save a fresh state.'
-        : `People marked ${p.wrong} of ${p.reviewed} reviewed calls wrong. If Hedge were inside its budget, evidence this strong would come up in at most 5% of sites, so it now asks a person about every ticket. Look at the wrong calls, pick a tighter budget if they look alike, then resume. Only calls made after that will count.`;
+        : `People marked ${p.wrong} of ${p.reviewed} reviewed calls wrong. If Hedge were inside its budget, evidence this strong would come up at most 5% of the time, so it now asks a person about every ticket. Look at the wrong calls, pick a tighter budget if they look alike, then resume. Only calls made after that will count.`;
       return { action, title, text };
     });
 }

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { describePolicy } from '../src/gate.js';
-import { checkEvidence, counted, pauseReason, readPauses, resume, withPauses } from '../src/pause.js';
+import { checkEvidence, counted, pauseReason, readPauses, recheck, resume, withPauses } from '../src/pause.js';
 import policies from '../src/policy.js';
 import seed from '../src/seed.js';
 import { triage } from '../src/triage.js';
@@ -10,14 +10,15 @@ const memory = () => {
   const m = new Map();
   return { get: async (k) => m.get(k), set: async (k, v) => void m.set(k, v), m };
 };
-const call = (verdict, over = {}) => ({ decision: 'clear', applied: true, verdict, budget: 0.03, decidedAt: '2026-11-23T10:00:00.000Z', ...over });
+let n = 0;
+const call = (verdict, over = {}) => ({ issueKey: `DEMO-${(n += 1)}`, decision: 'clear', applied: true, verdict, budget: 0.03, decidedAt: '2026-11-23T10:00:00.000Z', ...over });
 
 test('two wrong clears in a row pause clearing, and a right one later does not lift it', async () => {
   const store = memory();
   assert.equal((await checkEvidence(store, [call('wrong')], 'clear')).paused, false);
   const p = await checkEvidence(store, [call('wrong'), call('wrong')], 'clear', 't');
   assert.deepEqual(p, { paused: true, at: 't', reviewed: 2, wrong: 2, budget: 0.03 });
-  const many = [call('wrong'), call('wrong'), ...Array(200).fill(call('right'))];
+  const many = [call('wrong'), call('wrong'), ...Array.from({ length: 200 }, () => call('right'))];
   assert.equal((await checkEvidence(store, many, 'clear')).paused, true);
   const now = await readPauses(store);
   assert.equal(now.clear.paused, true);
@@ -75,4 +76,22 @@ test('mixed budgets are not named in the reason', async () => {
 test('a storage error is thrown, so the verdict can be retried', async () => {
   const store = { get: async () => undefined, set: async () => { throw new Error('down'); } };
   await assert.rejects(checkEvidence(store, [call('wrong'), call('wrong')], 'clear'), /down/);
+});
+
+test('ten people marking one call wrong is one wrong call', async () => {
+  const same = Array.from({ length: 10 }, () => call('wrong', { issueKey: 'DEMO-1' }));
+  assert.equal((await checkEvidence(memory(), same, 'clear')).paused, false);
+});
+
+test('a recheck pauses on verdicts that missed each other, and fails loudly', async () => {
+  const store = { ...memory(), list: async () => [call('wrong'), call('wrong')] };
+  await recheck(store);
+  assert.equal((await readPauses(store)).clear.paused, true);
+  await assert.rejects(recheck({ ...store, list: async () => { throw new Error('down'); } }), /down/);
+});
+
+test('resuming an action that is not paused keeps its evidence', async () => {
+  const store = memory();
+  await resume(store, 'clear', '2026-11-24T00:00:00.000Z');
+  assert.equal((await checkEvidence(store, [call('wrong'), call('wrong')], 'clear')).paused, true);
 });

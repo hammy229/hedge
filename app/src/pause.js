@@ -11,6 +11,7 @@
 // read, both actions count as paused.
 
 import { evidence } from './evidence.js';
+import { feedbackWith, perIssue } from './feedback.js';
 import { ACTIONS } from './settings.js';
 
 const key = (action) => `pause:${action}`;
@@ -56,7 +57,7 @@ export function withPauses(policies, pauses) {
 // The verdicts that count for one action: calls the trigger carried out since the last
 // resume. Calls logged before verdicts kept their time and budget are left out.
 export function counted(feedback, action, since) {
-  return (Array.isArray(feedback) ? feedback : [])
+  return perIssue(feedback)
     .filter((f) => f?.decision === action && f.applied === true && typeof f.decidedAt === 'string')
     .filter((f) => typeof since !== 'string' || f.decidedAt > since)
     .map((f) => ({ wrong: f.verdict === 'wrong', budget: f.budget }));
@@ -67,7 +68,7 @@ export function counted(feedback, action, since) {
 export async function checkEvidence(store, feedback, action, at = new Date().toISOString()) {
   if (!ACTIONS.includes(action)) return { paused: false };
   const saved = await store.get(key(action));
-  if (saved?.paused === true) return saved;
+  if (saved?.paused === true) return { ...saved, already: true };
   const verdicts = counted(feedback, action, saved?.since);
   const e = evidence(verdicts);
   if (!e.over) return { paused: false };
@@ -79,8 +80,16 @@ export async function checkEvidence(store, feedback, action, at = new Date().toI
   return pause;
 }
 
+// Verdicts given at the same moment may each miss the other in the list, so the trigger and
+// the admin page check again.
+export async function recheck(store) {
+  const feedback = await feedbackWith(store);
+  for (const action of ACTIONS) await checkEvidence(store, feedback, action);
+}
+
 export async function resume(store, action, at = new Date().toISOString()) {
   if (!ACTIONS.includes(action)) throw new Error(`Unknown action ${action}.`);
-  await store.set(key(action), { paused: false, since: at });
+  // Resuming what is not paused would only throw the evidence away.
+  if ((await readPauses(store))[action].paused) await store.set(key(action), { paused: false, since: at });
   return readPauses(store);
 }

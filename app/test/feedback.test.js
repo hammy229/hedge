@@ -72,8 +72,7 @@ test('only applied actions count against the budget; asks and shown-only calls c
     { decision: 'clear', applied: true, verdict: 'right' },
     { decision: 'clear', applied: false, verdict: 'wrong' },
     { decision: 'ask', applied: true, verdict: 'wrong' },
-    null,
-  ]);
+  ].map((f, i) => ({ ...f, issueKey: `DEMO-${i}` })).concat(null));
   assert.deepEqual(s, { reviewed: 4, wrong: 1, rate: 0.25, asks: 1, shownOnly: 1 });
   assert.deepEqual(feedbackSummary(null), { reviewed: 0, wrong: 0, rate: null, asks: 0, shownOnly: 0 });
 });
@@ -81,4 +80,14 @@ test('only applied actions count against the budget; asks and shown-only calls c
 test('broken storage reads as no feedback', async () => {
   const broken = { list: async () => { throw new Error('down'); } };
   assert.deepEqual(await readFeedback(broken), []);
+});
+
+test('nobody can erase another person\'s wrong verdict, but a person can change their own', async () => {
+  const store = memory();
+  await logged(store, 'DEMO-7', 'clear', 'trigger', true);
+  await saveFeedback(store, { issueKey: 'DEMO-7', verdict: 'wrong', accountId: 'a' });
+  await saveFeedback(store, { issueKey: 'DEMO-7', verdict: 'right', accountId: 'b' });
+  assert.deepEqual([feedbackSummary(await readFeedback(store)).reviewed, feedbackSummary(await readFeedback(store)).wrong], [1, 1]);
+  await saveFeedback(store, { issueKey: 'DEMO-7', verdict: 'right', accountId: 'a' });
+  assert.equal(feedbackSummary(await readFeedback(store)).wrong, 0);
 });

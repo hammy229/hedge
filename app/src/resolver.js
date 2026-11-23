@@ -2,11 +2,11 @@
 import ResolverModule from '@forge/resolver';
 import { answerSummary, saveAnswer } from './answers.js';
 import { budgetOptions } from './budget.js';
-import { FEEDBACK_PREFIX, feedbackSummary, readFeedback, saveFeedback } from './feedback.js';
+import { feedbackSummary, feedbackWith, readFeedback, saveFeedback } from './feedback.js';
 import { describePolicy } from './gate.js';
 import { leaveQueueAsUser, openPolicies, queueCount, requeueAsUser, runTriage, seedProgress, seedProject, store } from './index.js';
 import { readLog } from './log.js';
-import { checkEvidence, readPauses, resume } from './pause.js';
+import { checkEvidence, readPauses, recheck, resume } from './pause.js';
 import policies from './policy.js';
 import { ACTIONS, readActProjects, readAutoAct, readBudgets, saveActProjects, saveAutoAct, saveBudget } from './settings.js';
 
@@ -26,10 +26,8 @@ export const handlers = {
     if (typeof issueKey !== 'string' || issueKey === '') throw new Error('Verdicts can only be given from an issue.');
     const saved = await saveFeedback(store, { issueKey, verdict: payload?.verdict, accountId: context?.accountId });
     const requeued = await requeueAsUser(saved);
-    // The list may lag the write, so this verdict is put in by hand.
-    const others = (await store.list(FEEDBACK_PREFIX)).filter((f) => f?.issueKey !== issueKey);
-    const { paused } = await checkEvidence(store, [...others, saved], saved.decision);
-    return { ...saved, paused, requeued };
+    const pause = await checkEvidence(store, await feedbackWith(store, saved), saved.decision);
+    return { ...saved, paused: pause.paused && !pause.already, requeued };
   },
   answer: async ({ payload, context } = {}) => {
     const issueKey = context?.extension?.issue?.key;
@@ -47,6 +45,8 @@ export const handlers = {
   },
   pauses: async ({ context } = {}) => {
     adminOnly(context, 'Pauses can only be read from the admin page.');
+    // A failed check must not hide the banner; the trigger runs it again before acting.
+    await recheck(store).catch(() => {});
     return readPauses(store);
   },
   // Lifting a pause lets Hedge act again, so only the admin page may.
