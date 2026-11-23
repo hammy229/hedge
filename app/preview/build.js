@@ -11,7 +11,7 @@ await rm(out, { recursive: true, force: true });
 await mkdir(`${out}data`, { recursive: true });
 await mkdir(`${out}src`, { recursive: true });
 for (const f of ['index.html', 'app.js', 'style.css']) await cp(at(`./${f}`), `${out}${f}`);
-for (const f of ['view.js', 'act.js']) await cp(at(`../src/${f}`), `${out}src/${f}`);
+for (const f of ['view.js', 'act.js', 'evidence.js']) await cp(at(`../src/${f}`), `${out}src/${f}`);
 
 const index = budgetIndex();
 await writeFile(`${out}data/index.json`, JSON.stringify(index));

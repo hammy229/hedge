@@ -1,6 +1,7 @@
 // Hedge demo page. The panel's words come from src/view.js, the module the Jira app
 // renders, so this page cannot drift from it. Data is the sample project replayed at each
 // budget (preview/replay.js), loaded as static JSON.
+import { LIMIT, evidence } from '/src/evidence.js';
 import { ACTION_TEXT, PANEL_TEXT, dialView, panelView, verdictStatus } from '/src/view.js';
 
 const state = { budget: null, budgets: [], data: null, settings: null, selected: 'DEMO-50', filter: 'all', verdicts: {} };
@@ -209,6 +210,51 @@ function renderDial() {
   );
 }
 
+/* ---------- the breaker: verdicts against the budget ---------- */
+const BREAKER_BUDGET = 0.03;
+const review = { verdicts: [], paused: null };
+
+function addVerdict(wrong) {
+  if (review.paused) return;
+  review.verdicts.push({ wrong, budget: BREAKER_BUDGET });
+  const e = evidence(review.verdicts);
+  if (e.over) review.paused = e;
+}
+
+function simulate(rate) {
+  Object.assign(review, { verdicts: [], paused: null });
+  for (let i = 0; i < 200 && !review.paused; i += 1) addVerdict(Math.random() < rate);
+  renderBreaker();
+}
+
+function renderBreaker() {
+  const e = evidence(review.verdicts);
+  const value = Math.exp(e.log);
+  const width = Math.max(0, Math.min(100, (e.log / Math.log(LIMIT)) * 100));
+  const shown = value >= 1000 ? 'over 1,000' : value.toFixed(value < 10 ? 2 : 0);
+  const press = (wrong) => () => { addVerdict(wrong); renderBreaker(); };
+  const status = review.paused
+    ? `Paused after ${e.reviewed} verdicts, ${e.wrong} of them wrong. Hedge now asks about every ticket.`
+    : e.reviewed === 0
+      ? 'No verdicts yet. Mark some calls, or simulate 200 of them.'
+      : `${e.reviewed} verdict${e.reviewed === 1 ? '' : 's'}, ${e.wrong} wrong (${pct(e.wrong / e.reviewed)}). Hedge keeps acting.`;
+  document.getElementById('breaker').replaceChildren(
+    h('div.breaker', {},
+      h('p.label', {}, `Budget ${pct(BREAKER_BUDGET)}. Was this call right?`),
+      h('div.breaker-row', {},
+        h('button.btn', { type: 'button', disabled: !!review.paused, onclick: press(false) }, 'Right'),
+        h('button.btn', { type: 'button', disabled: !!review.paused, onclick: press(true) }, 'Wrong')),
+      h('div.meter', { role: 'meter', 'aria-label': 'Evidence that Hedge is over budget', 'aria-valuemin': '0', 'aria-valuemax': String(LIMIT), 'aria-valuenow': String(Math.min(value, LIMIT).toFixed(2)) },
+        h(`span${review.paused ? '.over' : ''}`, { style: `width:${width}%` })),
+      h('p.note', {}, `Evidence ${shown}. Hedge pauses at ${LIMIT}. The bar fills on a log scale and is empty at 1 or less.`),
+      h(`p.breaker-status${review.paused ? '.bad' : ''}`, { 'aria-live': 'polite' }, status),
+      h('div.breaker-row', {},
+        h('button.chip', { type: 'button', onclick: () => simulate(BREAKER_BUDGET) }, 'Simulate 200 calls, 3% wrong'),
+        h('button.chip', { type: 'button', onclick: () => simulate(0.15) }, 'Simulate 200 calls, 15% wrong'),
+        h('button.chip', { type: 'button', onclick: () => { Object.assign(review, { verdicts: [], paused: null }); renderBreaker(); } }, 'Start over'))),
+  );
+}
+
 function renderResults() {
   document.getElementById('results-bars').replaceWith(
     Object.assign(bars('Risk-coverage area on test tickets with every tracker included, lower is better', [
@@ -240,6 +286,7 @@ for (const a of links) {
 }
 
 renderResults();
+renderBreaker();
 load(null).catch((e) => {
   document.getElementById('field').replaceChildren(h('p.muted', {}, `The demo data did not load (${e.message}).`));
 });

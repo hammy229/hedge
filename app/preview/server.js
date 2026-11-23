@@ -15,6 +15,7 @@ const FILES = {
   '/app.js': [here('./app.js'), 'text/javascript; charset=utf-8'],
   '/style.css': [here('./style.css'), 'text/css; charset=utf-8'],
   '/src/view.js': [here('../src/view.js'), 'text/javascript; charset=utf-8'],
+  '/src/evidence.js': [here('../src/evidence.js'), 'text/javascript; charset=utf-8'],
   '/src/act.js': [here('../src/act.js'), 'text/javascript; charset=utf-8'],
 };
 

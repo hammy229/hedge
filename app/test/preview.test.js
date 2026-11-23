@@ -33,7 +33,7 @@ test('the server serves the page, the shared view code and the API, and nothing 
   const server = await start(0);
   const base = `http://127.0.0.1:${server.address().port}`;
   try {
-    for (const path of ['/', '/app.js', '/style.css', '/src/view.js', '/src/act.js']) {
+    for (const path of ['/', '/app.js', '/style.css', '/src/view.js', '/src/act.js', '/src/evidence.js']) {
       assert.equal((await fetch(base + path)).status, 200, path);
     }
     const r = await (await fetch(`${base}/data/replay-0.025.json`)).json();

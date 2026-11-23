@@ -98,6 +98,16 @@ button.sq:hover, button.sq:focus-visible { transform: scale(1.18); position: rel
 .switch button:hover { color: var(--ink); background: var(--paper-deep); }
 .switch button[aria-checked="true"] { background: var(--cobalt); color: #fff; }
 
+/* ---------- breaker ---------- */
+.breaker { border: 1px solid var(--rule); border-radius: 4px; background: var(--card); padding: clamp(20px, 3vw, 36px); display: grid; gap: 18px; }
+.breaker-row { display: flex; flex-wrap: wrap; gap: 10px; }
+.breaker .btn:disabled { opacity: .45; cursor: not-allowed; }
+.meter { height: 14px; border-radius: 2px; background: var(--paper-deep); overflow: hidden; }
+.meter span { display: block; height: 100%; background: var(--cobalt); transition: width .25s; }
+.meter span.over { background: var(--vermilion); }
+.breaker-status { font-weight: 500; }
+.breaker-status.bad { color: var(--vermilion-ink); }
+
 /* ---------- bands ---------- */
 .band { padding: clamp(80px, 10vw, 150px) var(--gutter); border-top: 1px solid var(--rule); }
 .split { display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); gap: clamp(40px, 5vw, 96px); align-items: start; }
