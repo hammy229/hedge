@@ -3,7 +3,7 @@ import ResolverModule from '@forge/resolver';
 import { budgetOptions } from './budget.js';
 import { FEEDBACK_PREFIX, feedbackSummary, readFeedback, saveFeedback } from './feedback.js';
 import { describePolicy } from './gate.js';
-import { openPolicies, runTriage, seedProgress, seedProject, store } from './index.js';
+import { openPolicies, requeueAsUser, runTriage, seedProgress, seedProject, store } from './index.js';
 import { readLog } from './log.js';
 import { checkEvidence, readPauses, resume } from './pause.js';
 import policies from './policy.js';
@@ -24,10 +24,11 @@ export const handlers = {
     const issueKey = context?.extension?.issue?.key;
     if (typeof issueKey !== 'string' || issueKey === '') throw new Error('Verdicts can only be given from an issue.');
     const saved = await saveFeedback(store, { issueKey, verdict: payload?.verdict, accountId: context?.accountId });
+    const requeued = await requeueAsUser(saved);
     // The list may lag the write, so this verdict is put in by hand.
     const others = (await store.list(FEEDBACK_PREFIX)).filter((f) => f?.issueKey !== issueKey);
     const { paused } = await checkEvidence(store, [...others, saved], saved.decision);
-    return { ...saved, paused };
+    return { ...saved, paused, requeued };
   },
   // Verdicts span every project, like the log, so only the admin page may read them.
   feedbackSummary: async ({ context } = {}) => {

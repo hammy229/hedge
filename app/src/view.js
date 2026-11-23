@@ -127,10 +127,16 @@ export function panelView(result) {
 }
 
 // The line under the verdict buttons, for the state of the verdict control.
-export function verdictStatus(state, counts, error) {
+// outcome is what the feedback resolver returned: whether the ticket moved to the queue, and
+// whether this verdict paused Hedge.
+export function verdictStatus(state, counts, error, outcome = null) {
   if (state === 'right' || state === 'wrong') {
     const extra = counts === true ? ' The admin page compares these verdicts with the error budget.' : '';
-    return { done: true, text: `Thanks. You marked this call ${state}.${extra}` };
+    let moved = '';
+    if (outcome?.requeued?.ok === true) moved = ` The ticket is now in the queue for a person (label ${LABELS.ask}).`;
+    else if (outcome?.requeued?.ok === false) moved = ` The ticket kept its label: ${sentence(outcome.requeued.error)}`;
+    const paused = outcome?.paused === true ? ' Hedge is now paused: it asks about every ticket until an admin resumes it.' : '';
+    return { done: true, text: `Thanks. You marked this call ${state}.${moved}${paused}${extra}` };
   }
   if (state === 'failed') return { done: false, error: `${sentence(error || 'Could not save that')} Try again.` };
   return { done: false, error: null };

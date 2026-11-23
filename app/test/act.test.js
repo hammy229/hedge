@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { LABELS, applyDecision } from '../src/act.js';
+import { LABELS, applyDecision, requeue } from '../src/act.js';
 
 const plain = (strings, ...values) => String.raw({ raw: strings }, ...values.map(encodeURIComponent));
 
@@ -84,4 +84,26 @@ test('any other write failure reports only the status', async () => {
   };
   const out = await applyDecision({ issueKey: 'DEMO-40', decision: 'clear' }, jira, plain);
   assert.deepEqual(out, { applied: false, error: 'Jira returned 403' });
+});
+
+const route = (s, ...v) => String.raw({ raw: s }, ...v);
+
+test('a call marked wrong swaps its label for hedge-ask', async () => {
+  const sent = [];
+  const out = await requeue({ issueKey: 'DEMO-9', decision: 'clear', applied: true, verdict: 'wrong' }, async (path, o) => void sent.push([path, JSON.parse(o.body)]), route);
+  assert.deepEqual(out, { ok: true });
+  assert.deepEqual(sent, [['/rest/api/2/issue/DEMO-9', { update: { labels: [{ remove: 'hedge-cleared' }, { add: 'hedge-ask' }] } }]]);
+});
+
+test('right verdicts, asks and calls Hedge only showed move nothing', async () => {
+  const never = async () => assert.fail('wrote to Jira');
+  const base = { issueKey: 'DEMO-9', decision: 'clear', applied: true, verdict: 'wrong' };
+  for (const over of [{ verdict: 'right' }, { decision: 'ask' }, { applied: false }, { decision: 'x' }]) {
+    assert.equal(await requeue({ ...base, ...over }, never, route), null);
+  }
+});
+
+test('a person who may not edit the issue gets the status, not an error', async () => {
+  const out = await requeue({ issueKey: 'DEMO-9', decision: 'clear', applied: true, verdict: 'wrong' }, async () => { throw Object.assign(new Error('secret'), { status: 403 }); }, route);
+  assert.deepEqual(out, { ok: false, error: 'Jira returned 403' });
 });

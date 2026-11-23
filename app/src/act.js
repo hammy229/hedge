@@ -44,6 +44,24 @@ export async function applyDecision(result, jira, route) {
   return out;
 }
 
+// A person marked a call Hedge carried out as wrong: swap its label for hedge-ask, so the
+// ticket goes to the queue instead of staying cleared. Called as that person, so Jira's own
+// permissions decide whether they may edit the issue. The verdict is saved either way.
+export async function requeue(saved, jira, route) {
+  const label = LABELS[saved?.decision];
+  if (saved?.verdict !== 'wrong' || saved.applied !== true || !label || saved.decision === 'ask') return null;
+  return editLabels(saved.issueKey, [{ remove: label }, { add: LABELS.ask }], jira, route);
+}
+
+async function editLabels(issueKey, labels, jira, route) {
+  try {
+    await jira(route`/rest/api/2/issue/${issueKey}`, { method: 'PUT', headers: JSON_HEADERS, body: JSON.stringify({ update: { labels } }) });
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: writeError(e) };
+  }
+}
+
 // The result reaches the panel, the agent and the log, so Jira's text stays out of it:
 // only a known cause, or the status. Jira answers 400 with errors.labels when the project's
 // edit screen has no Labels field, which an admin can fix in a minute.

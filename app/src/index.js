@@ -1,6 +1,6 @@
 import api, { route } from '@forge/api';
 import { WhereConditions, kvs } from '@forge/kvs';
-import { applyDecision } from './act.js';
+import { applyDecision, requeue } from './act.js';
 import { onCreated } from './created.js';
 import { describePolicy } from './gate.js';
 import { seedStatus, seedStep, seedingNow } from './seeder.js';
@@ -166,6 +166,10 @@ export function issueCreated(event) {
     seeding: (projectKey) => seedingNow(store, projectKey),
   });
 }
+
+// The panel's label edits, as the person using it.
+const writeAsUser = (path, options) => jiraWrite(path, options, 'user');
+export const requeueAsUser = (saved) => requeue(saved, writeAsUser, route);
 
 // MCP tool: may an agent act on this ticket (link it as a duplicate, or clear it as new),
 // or must it ask a person? Reads Jira as the calling user, so the tool never sees more

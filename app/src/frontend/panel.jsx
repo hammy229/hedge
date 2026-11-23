@@ -25,18 +25,22 @@ function Eyebrow({ children }) {
 function Verdict({ counts }) {
   const [state, setState] = useState('idle');
   const [error, setError] = useState(null);
+  const [outcome, setOutcome] = useState(null);
   const send = (verdict) => {
     setState('sending');
     setError(null);
     invoke('feedback', { verdict }).then(
-      () => setState(verdict),
+      (saved) => {
+        setOutcome(saved ?? null);
+        setState(verdict);
+      },
       (e) => {
         setError(e?.message ?? null);
         setState('failed');
       },
     );
   };
-  const status = verdictStatus(state, counts, error);
+  const status = verdictStatus(state, counts, error, outcome);
   if (status.done) return <Text color="color.text.accent.blue">{status.text}</Text>;
   return (
     <Stack space="space.075">

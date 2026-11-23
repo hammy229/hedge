@@ -1,7 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  AUTO_ACT_TEXT, FEW_REVIEWS, TONE, actProjectsSaved, autoActSaved, budgetSaved, dialView, logRows, panelFailure, panelView, summaryView, verdictStatus, verdictView, pauseViews, resumed } from '../src/view.js';
+  AUTO_ACT_TEXT, FEW_REVIEWS, TONE, actProjectsSaved, autoActSaved, budgetSaved, dialView, logRows, panelFailure, panelView, summaryView, verdictStatus, verdictView,
+  pauseViews, resumed,
+} from '../src/view.js';
 
 test('a cleared ticket shows its budget and what was searched', () => {
   const v = panelView({
@@ -220,4 +222,10 @@ test('a paused action gets a banner with the counts, and nothing shows when none
   assert.match(v.text, /3 of 10/);
   assert.match(pauseViews({ link: { paused: true, unreadable: true } })[0].text, /could not read/);
   assert.match(resumed('clear'), /new report calls again/);
+});
+
+test('the verdict line says whether the ticket moved and whether Hedge paused', () => {
+  assert.match(verdictStatus('wrong', true, null, { requeued: { ok: true }, paused: true }).text, /hedge-ask.*now paused/);
+  assert.match(verdictStatus('wrong', true, null, { requeued: { ok: false, error: 'Jira returned 403' } }).text, /kept its label: Jira returned 403\./);
+  assert.doesNotMatch(verdictStatus('right', true, null, { requeued: null, paused: false }).text, /queue|paused/);
 });
