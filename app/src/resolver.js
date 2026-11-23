@@ -1,12 +1,13 @@
 // Backend for the issue panel and the admin page (UI Kit, src/frontend/).
 import ResolverModule from '@forge/resolver';
 import { budgetOptions } from './budget.js';
-import { feedbackSummary, readFeedback, saveFeedback } from './feedback.js';
+import { FEEDBACK_PREFIX, feedbackSummary, readFeedback, saveFeedback } from './feedback.js';
 import { describePolicy } from './gate.js';
-import { runTriage, seedProgress, seedProject, store } from './index.js';
+import { openPolicies, runTriage, seedProgress, seedProject, store } from './index.js';
 import { readLog } from './log.js';
+import { checkEvidence, readPauses, resume } from './pause.js';
 import policies from './policy.js';
-import { ACTIONS, activePolicies, readActProjects, readAutoAct, readBudgets, saveActProjects, saveAutoAct, saveBudget } from './settings.js';
+import { ACTIONS, readActProjects, readAutoAct, readBudgets, saveActProjects, saveAutoAct, saveBudget } from './settings.js';
 
 export const ADMIN_MODULE = 'hedge-admin';
 
@@ -22,12 +23,25 @@ export const handlers = {
   feedback: async ({ payload, context } = {}) => {
     const issueKey = context?.extension?.issue?.key;
     if (typeof issueKey !== 'string' || issueKey === '') throw new Error('Verdicts can only be given from an issue.');
-    return saveFeedback(store, { issueKey, verdict: payload?.verdict, accountId: context?.accountId });
+    const saved = await saveFeedback(store, { issueKey, verdict: payload?.verdict, accountId: context?.accountId });
+    // The list may lag the write, so this verdict is put in by hand.
+    const others = (await store.list(FEEDBACK_PREFIX)).filter((f) => f?.issueKey !== issueKey);
+    const { paused } = await checkEvidence(store, [...others, saved], saved.decision);
+    return { ...saved, paused };
   },
   // Verdicts span every project, like the log, so only the admin page may read them.
   feedbackSummary: async ({ context } = {}) => {
     adminOnly(context, 'Verdicts can only be read from the admin page.');
     return feedbackSummary(await readFeedback(store));
+  },
+  pauses: async ({ context } = {}) => {
+    adminOnly(context, 'Pauses can only be read from the admin page.');
+    return readPauses(store);
+  },
+  // Lifting a pause lets Hedge act again, so only the admin page may.
+  resume: async ({ payload, context } = {}) => {
+    adminOnly(context, 'Hedge can only be resumed from the admin page.');
+    return resume(store, payload?.action);
   },
   settings,
   setBudget,
@@ -70,7 +84,7 @@ for (const [name, fn] of Object.entries(handlers)) resolver.define(name, fn);
 
 async function settings() {
   const budgets = await readBudgets(store, policies);
-  const active = activePolicies(policies, budgets);
+  const active = await openPolicies(budgets);
   return Object.fromEntries(
     ACTIONS.map((a) => [
       a,

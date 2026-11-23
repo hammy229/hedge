@@ -11,12 +11,12 @@
 
 import { readDecision } from './log.js';
 
-const PREFIX = 'feedback:';
+export const FEEDBACK_PREFIX = 'feedback:';
 const VERDICTS = ['right', 'wrong'];
 
 export async function readFeedback(store) {
   try {
-    const list = await store.list(PREFIX);
+    const list = await store.list(FEEDBACK_PREFIX);
     return Array.isArray(list) ? list.filter((f) => f && typeof f === 'object') : [];
   } catch {
     return [];
@@ -32,11 +32,13 @@ export async function saveFeedback(store, { issueKey, verdict, accountId = null,
     decision: decided.decision,
     via: decided.via ?? null,
     applied: decided.applied === true,
+    budget: Number.isFinite(decided.budget) ? decided.budget : null,
+    decidedAt: typeof decided.at === 'string' ? decided.at : null,
     verdict,
     accountId: typeof accountId === 'string' ? accountId : null,
     at,
   };
-  await store.set(`${PREFIX}${issueKey}`, entry);
+  await store.set(`${FEEDBACK_PREFIX}${issueKey}`, entry);
   return entry;
 }
 

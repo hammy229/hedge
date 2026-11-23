@@ -13,12 +13,12 @@ test('only the admin page may move the dial', async () => {
   assert.equal(ADMIN_MODULE, 'hedge-admin');
 });
 
-test('settings fall back to the certified defaults when storage is unreachable', async () => {
+test('unreachable storage keeps the default budget on the dial but closes the gate, since Hedge may be paused', async () => {
   const s = await handlers.settings();
   assert.equal(s.clear.budget, policies.clear.alpha);
   assert.ok(s.clear.options.some((o) => o.isDefault && o.certified));
-  assert.match(s.clear.guarantee, /at most 3\.0% are wrong/);
-  assert.match(s.link.guarantee, /asks a person about every ticket/);
+  assert.match(s.clear.guarantee, /could not read whether it is paused/);
+  assert.match(s.link.guarantee, /Every ticket goes to a person/);
   assert.equal(s.clear.minWindow, policies.clear.minWindow);
 });
 
@@ -63,4 +63,12 @@ test('only the admin page may change which projects Hedge acts in', async () => 
     await assert.rejects(handlers.actProjects({ context }), /admin page/);
   }
   await assert.rejects(handlers.setActProjects(), /admin page/);
+});
+
+test('only the admin page may read pauses or resume Hedge', async () => {
+  for (const context of [{ moduleKey: 'hedge-panel' }, {}, undefined]) {
+    await assert.rejects(handlers.pauses({ context }), /admin page/);
+    await assert.rejects(handlers.resume({ payload: { action: 'clear' }, context }), /admin page/);
+  }
+  await assert.rejects(handlers.resume(), /admin page/);
 });

@@ -23,7 +23,7 @@ test('a verdict is stored against the decision Hedge logged, with who gave it', 
   const store = memory();
   await logged(store, 'DEMO-50', 'clear', 'trigger', true);
   const saved = await saveFeedback(store, { issueKey: 'DEMO-50', verdict: 'wrong', accountId: 'u1', at: 't1' });
-  assert.deepEqual(saved, { issueKey: 'DEMO-50', decision: 'clear', via: 'trigger', applied: true, verdict: 'wrong', accountId: 'u1', at: 't1' });
+  assert.deepEqual(saved, { issueKey: 'DEMO-50', decision: 'clear', via: 'trigger', applied: true, budget: null, decidedAt: '2026-11-21T00:00:00.000Z', verdict: 'wrong', accountId: 'u1', at: 't1' });
   assert.deepEqual(await readFeedback(store), [saved]);
 });
 
