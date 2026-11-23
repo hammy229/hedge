@@ -9,9 +9,9 @@
 
 > Status: in progress for Atlassian Codegeist 2026 (due Dec 22, 2026). The certified 3% clear
 > policy ships in the app, with an issue panel, an admin error-budget dial, a decision log,
-> an opt-in trigger that labels new issues with Hedge's call, right-or-wrong verdicts from
-> the panel, and a Rovo agent.
-> Next: deploying to a Forge site. Judges' steps are in [docs/TESTING.md](docs/TESTING.md).
+> an opt-in trigger that labels new issues with Hedge's call, right-or-wrong verdicts that
+> pause Hedge when they show it is over budget, and a Rovo agent.
+> It runs on a Forge development install. Next: the production install link. Judges' steps are in [docs/TESTING.md](docs/TESTING.md).
 > See [docs/PLAN.md](docs/PLAN.md).
 
 ## Results
@@ -23,6 +23,7 @@ Only numbers this repo produces. Real-data rows come from [docs/results.md](docs
 |---|---|---|
 | An admin can move the budget without breaking the guarantee | every dial row is certified at the full delta, valid for all rows at once ([ADR 7](docs/adr/0007-one-delta-for-every-dial-budget.md)); clear acts on 61.8% of calibration tickets at 2.5%, 82.8% at 3%, 96.5% at 3.5% (2% certifies nothing). Only 1 of 400 synthetic calibration draws had any of five budgets certify a threshold above its budget (allowed: 10%) | `python -m hedge.calibrate --budgets`, `ml/tests/test_risk.py` |
 | Clearing new tickets from duplicate review is safe at a 3% budget | without Mojang, 79.6% [74.4, 83.8] of test tickets cleared with 1.8% [1.3, 2.3] of them duplicates; certified on a fresh calibration draw, checked on the later test window. This policy ships in the app | `python -m hedge.report --min-window 30`, [results](docs/results.md) |
+| It stops itself when people's verdicts show it is over budget | checked after every verdict, 2.1% of 1,000 simulated sites running exactly at 3% were paused (allowed: 5%), and all sites at 15% were. At 6% it caught 41.7% within 200 verdicts | `app/test/evidence.test.js`, [ADR 9](docs/adr/0009-pause-on-evidence-that-survives-repeated-checks.md) |
 | A new project with little history is never acted on | below 30 earlier issues both gates ask. Before this rule, a ten-ticket project had a restated ticket cleared as new; the rule costs 0.8 points of test coverage (80.4% to 79.6%) and is certified with the policy | [ADR 8](docs/adr/0008-ask-below-a-minimum-window.md), `app/test/triage.test.js` |
 | Context features make the gate beat the raw score | with every Jira, clear AURC 0.066 [0.023, 0.124] for the gate against 0.133 for the top BM25 score; window size, summary overlap and match age lifted certified coverage at 3% from 36.9% to 57.8% without Mojang | same report, [ADR 6](docs/adr/0006-window-aware-gate-features.md) |
 | On real sample data, the misses are visible | 150 public Jira Software Server issues seeded into an empty project: at 3% Hedge clears 119, asks about 31, and clears 3 of the 5 known duplicates by mistake (2.5% of its clears), each with the right original as its top candidate | `app/test/seed.test.js`, [results](docs/results.md) |
@@ -81,6 +82,10 @@ tickets where a calibrated statistical test shows the error rate among its actio
    `hedge-cleared`, `hedge-duplicate` or `hedge-ask`. It never writes a duplicate link,
    since the app can see issues the reporter cannot. People mark calls right or wrong in
    the panel, and the admin page compares the share marked wrong with the budget.
+   A wrong call goes back to the `hedge-ask` queue, and a queued ticket is answered from
+   its panel.
+8. Every verdict is tested against the budget. When the evidence is strong enough, Hedge
+   pauses that action everywhere until an admin resumes it.
 
 | Choice | Why |
 |---|---|

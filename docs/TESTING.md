@@ -2,7 +2,8 @@
 
 These steps start from an empty Jira Cloud site. They take about fifteen minutes.
 
-> Steps 2 to 5 were checked on a deployed install on Nov 22 2026. Step 1 (the install link)
+> Steps 2 to 5 were checked on a deployed install on Nov 22 2026, except steps 5.5 to 5.7,
+> which are new and covered by unit tests so far. Step 1 (the install link)
 > and the MCP steps in 6 get checked when the production build is shared.
 
 ## 1. Install
@@ -78,7 +79,13 @@ issues).
    example `DEMO`) and choose **Save projects**. Leave it empty to act in every project.
    If a project's edit screen has no Labels field, Hedge cannot label its issues: the
    admin log marks them **Failed** and says how to add the field.
-5. Mark a few of those calls right or wrong in the panel; **What people said** on the admin
+5. On a ticket labeled `hedge-ask`, choose **New report** or **Duplicate** in the panel. The
+   label comes off, and **Waiting for a person** on the admin page goes down.
+6. On a ticket labeled `hedge-cleared`, choose **Wrong**. Its label becomes `hedge-ask`.
+7. Do that on a second cleared ticket, with no right verdicts in between. Two wrong calls out
+   of two are too many for a 3% budget, so Hedge pauses: every ticket now gets **Needs a
+   person**, and the admin page shows a banner with **Resume**.
+8. Mark a few calls right or wrong in the panel; **What people said** on the admin
    page compares the share marked wrong with the budget, and says when there are too few
    reviews to tell.
 
