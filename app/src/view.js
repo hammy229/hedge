@@ -36,7 +36,6 @@ export const PANEL_TEXT = Object.freeze({
   match: "Hedge's match",
   verdictQuestion: 'Was this call right?',
   answerQuestion: 'Which is it?',
-  answerLabel: 'Answer this ticket',
   verdictLabel: "Review Hedge's call",
 });
 
@@ -151,10 +150,22 @@ export function verdictStatus(state, counts, error, outcome = null) {
   return { done: false, error: null };
 }
 
+// The answers a person can give a queued ticket: one per shown candidate, so a duplicate is
+// linked in one click, and one for a duplicate of something Hedge did not list.
+export function answerChoices(candidates) {
+  const list = Array.isArray(candidates) ? candidates : [];
+  return [
+    { id: 'new', label: 'New report', payload: { answer: 'new' } },
+    ...list.map((c) => ({ id: c.key, label: `Duplicate of ${c.key}`, payload: { answer: 'duplicate', duplicateOf: c.key } })),
+    { id: 'duplicate', label: list.length > 0 ? 'Duplicate of another issue' : 'Duplicate', payload: { answer: 'duplicate' } },
+  ];
+}
+
 // The line under the answer buttons of a queued ticket.
-export function answerStatus(state, error) {
+export function answerStatus(state, error, duplicateOf = null) {
+  if (state === 'duplicate' && duplicateOf) return { done: true, text: `Thanks. It left the queue and is linked as a duplicate of ${duplicateOf}.` };
   if (state === 'new') return { done: true, text: `Thanks. This is a new report, and it left the queue.` };
-  if (state === 'duplicate') return { done: true, text: 'Thanks. It left the queue. Hedge never links issues, so add the duplicate link yourself.' };
+  if (state === 'duplicate') return { done: true, text: 'Thanks. It left the queue. Add the duplicate link yourself.' };
   if (state === 'failed') return { done: false, error: `${sentence(error || 'Could not save that')} Try again.` };
   return { done: false, error: null };
 }

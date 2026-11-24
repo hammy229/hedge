@@ -4,6 +4,7 @@ import { LABELS, applyDecision, leaveQueue, requeue } from './act.js';
 import { onCreated } from './created.js';
 import { describePolicy } from './gate.js';
 import { seedStatus, seedStep, seedingNow } from './seeder.js';
+import { linkDuplicate } from './link.js';
 import { readDecision, record } from './log.js';
 import { readPauses, recheck, withPauses } from './pause.js';
 import { withRetry } from './retry.js';
@@ -86,8 +87,8 @@ export async function jiraError(res) {
 
 // Writes (labels) answer 204 with no body. On failure the body rides along as jiraBody, so
 // act.js can name a cause it knows; its message never shows Jira's text.
-async function jiraWrite(path, options, as) {
-  const res = await send(as, path, options);
+async function jiraWrite(path, options, as, retry) {
+  const res = await send(as, path, options, retry);
   if (!res.ok) throw await jiraError(res);
   return null;
 }
@@ -175,11 +176,18 @@ export function issueCreated(event) {
 const writeAsUser = (path, options) => jiraWrite(path, options, 'user');
 export const requeueAsUser = (saved) => requeue(saved, writeAsUser, route);
 
-export async function leaveQueueAsUser(issueKey) {
+async function ifQueued(issueKey, write) {
   const issue = await jira(route`/rest/api/2/issue/${issueKey}?fields=labels`);
   if (!issue.fields?.labels?.includes(LABELS.ask)) return { ok: false, error: `${issueKey} is not in the queue.` };
-  return leaveQueue(issueKey, writeAsUser, route);
+  return write();
 }
+
+export const leaveQueueAsUser = (issueKey) => ifQueued(issueKey, () => leaveQueue(issueKey, writeAsUser, route));
+
+// A second person answering the same ticket must not add a second link, so the queue is
+// checked before the link too.
+export const linkAsUser = (issueKey, original) =>
+  ifQueued(issueKey, () => linkDuplicate(issueKey, original, (path, options) => jiraWrite(path, options, 'user', ONLY_RATE_LIMIT), route));
 
 // How many tickets wait for a person, as the admin sees them. null when Jira did not say.
 export async function queueCount() {

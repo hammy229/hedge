@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   AUTO_ACT_TEXT, FEW_REVIEWS, TONE, actProjectsSaved, autoActSaved, budgetSaved, dialView, logRows, panelFailure, panelView, summaryView, verdictStatus, verdictView,
-  ASK_QUEUE_HREF, answerStatus, answersText, pauseViews, resumed,
+  ASK_QUEUE_HREF, answerChoices, answerStatus, answersText, pauseViews, resumed,
 } from '../src/view.js';
 
 test('a cleared ticket shows its budget and what was searched', () => {
@@ -240,7 +240,7 @@ test('a queued ticket gets an answer control, even when its call is now a clear'
 });
 
 test('answers are confirmed and counted in plain words', () => {
-  assert.match(answerStatus('duplicate').text, /add the duplicate link yourself/);
+  assert.match(answerStatus('duplicate').text, /add the duplicate link yourself/i);
   assert.match(answerStatus('failed', 'Jira returned 403').error, /403\. Try again/);
   assert.match(answersText({ fresh: 3, duplicate: 1 }), /4 queued tickets: 3 new, 1 duplicate\./);
   assert.match(answersText(null), /could not be read/);
@@ -253,4 +253,13 @@ test('the queue tile links to the search and never shows an unknown count as zer
   assert.equal(tile(null).value, 'Unknown');
   assert.equal(tile(4).href, ASK_QUEUE_HREF);
   assert.match(decodeURIComponent(ASK_QUEUE_HREF), /labels = hedge-ask AND statusCategory != Done$/);
+});
+
+test('a queued ticket offers one duplicate answer per candidate, and one for any other issue', () => {
+  const choices = answerChoices([{ key: 'P-1' }, { key: 'P-2' }]);
+  assert.deepEqual(choices.map((c) => c.label), ['New report', 'Duplicate of P-1', 'Duplicate of P-2', 'Duplicate of another issue']);
+  assert.deepEqual(choices[1].payload, { answer: 'duplicate', duplicateOf: 'P-1' });
+  assert.deepEqual(choices.at(-1).payload, { answer: 'duplicate' });
+  assert.deepEqual(answerChoices(undefined).map((c) => c.label), ['New report', 'Duplicate']);
+  assert.match(answerStatus('duplicate', null, 'P-1').text, /linked as a duplicate of P-1/);
 });

@@ -4,7 +4,7 @@ import { answerSummary, readAnswer, saveAnswer } from './answers.js';
 import { budgetOptions } from './budget.js';
 import { feedbackSummary, feedbackWith, readFeedback, saveFeedback } from './feedback.js';
 import { describePolicy } from './gate.js';
-import { leaveQueueAsUser, openPolicies, queueCount, requeueAsUser, runTriage, seedProgress, seedProject, store } from './index.js';
+import { leaveQueueAsUser, linkAsUser, openPolicies, queueCount, requeueAsUser, runTriage, seedProgress, seedProject, store } from './index.js';
 import { readLog } from './log.js';
 import { checkEvidence, readPauses, recheck, resume } from './pause.js';
 import policies from './policy.js';
@@ -33,7 +33,12 @@ export const handlers = {
   answer: async ({ payload, context } = {}) => {
     const issueKey = context?.extension?.issue?.key;
     if (typeof issueKey !== 'string' || issueKey === '') throw new Error('Answers can only be given from an issue.');
-    return saveAnswer(store, leaveQueueAsUser, { issueKey, answer: payload?.answer, accountId: context?.accountId });
+    return saveAnswer(
+      store,
+      leaveQueueAsUser,
+      { issueKey, answer: payload?.answer, duplicateOf: payload?.duplicateOf, accountId: context?.accountId },
+      linkAsUser,
+    );
   },
   answerSummary: ({ context } = {}) => {
     adminOnly(context, 'Answers can only be read from the admin page.');

@@ -3,7 +3,7 @@ import ForgeReconciler, {
   Box, Button, ButtonGroup, Heading, Inline, Link, Lozenge, SectionMessage, Spinner, Stack, Strong, Text, xcss,
 } from '@forge/react';
 import { invoke } from '@forge/bridge';
-import { PANEL_TEXT, TONE, answerStatus, panelFailure, panelView, verdictStatus } from '../view.js';
+import { PANEL_TEXT, TONE, answerChoices, answerStatus, panelFailure, panelView, verdictStatus } from '../view.js';
 
 const card = xcss({
   borderColor: 'color.border',
@@ -54,30 +54,36 @@ function Verdict({ counts }) {
   );
 }
 
-// A queued ticket gets an answer, not a verdict: the question is what the ticket is.
-function Answer() {
+// A queued ticket gets an answer, not a verdict: the question is what the ticket is. Naming
+// the earlier issue also links the two, as the person clicking.
+function Answer({ candidates }) {
   const [state, setState] = useState('idle');
   const [error, setError] = useState(null);
-  const send = (answer) => {
+  const [duplicateOf, setDuplicateOf] = useState(null);
+  const send = (payload) => {
     setState('sending');
     setError(null);
-    invoke('answer', { answer }).then(
-      () => setState(answer),
+    invoke('answer', payload).then(
+      () => {
+        setDuplicateOf(payload.duplicateOf ?? null);
+        setState(payload.answer);
+      },
       (e) => {
         setError(e?.message ?? null);
         setState('failed');
       },
     );
   };
-  const status = answerStatus(state, error);
+  const status = answerStatus(state, error, duplicateOf);
   if (status.done) return <Text color="color.text.accent.blue">{status.text}</Text>;
   return (
     <Stack space="space.075">
       <Text weight="semibold">{PANEL_TEXT.answerQuestion}</Text>
-      <ButtonGroup label={PANEL_TEXT.answerLabel}>
-        <Button isDisabled={state === 'sending'} onClick={() => send('new')}>New report</Button>
-        <Button isDisabled={state === 'sending'} onClick={() => send('duplicate')}>Duplicate</Button>
-      </ButtonGroup>
+      <Inline space="space.100" rowSpace="space.100" shouldWrap>
+        {answerChoices(candidates).map((c) => (
+          <Button key={c.id} isDisabled={state === 'sending'} onClick={() => send(c.payload)}>{c.label}</Button>
+        ))}
+      </Inline>
       {status.error ? <Text color="color.text.danger">{status.error}</Text> : null}
     </Stack>
   );
@@ -192,7 +198,7 @@ function Panel() {
 
       {v.notes.map((n) => <Text key={n} size="small" color="color.text.subtlest">{n}</Text>)}
 
-      {v.queued ? <Answer /> : <Verdict counts={v.verdictCounts} />}
+      {v.queued ? <Answer candidates={v.candidates} /> : <Verdict counts={v.verdictCounts} />}
     </Stack>
   );
 }

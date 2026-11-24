@@ -57,3 +57,25 @@ test('leaving the queue removes only the hedge-ask label', async () => {
   await leaveQueue('DEMO-9', async (path, o) => { body = JSON.parse(o.body); }, route);
   assert.deepEqual(body, { update: { labels: [{ remove: LABELS.ask }] } });
 });
+
+test('a named duplicate is linked before it leaves the queue, and the answer keeps the name', async () => {
+  const store = memory(asked);
+  const order = [];
+  const out = await saveAnswer(store, async () => { order.push('leave'); return { ok: true }; }, { issueKey: 'DEMO-9', answer: 'duplicate', duplicateOf: 'DEMO-2' }, async (a, b) => { order.push(`${a} ${b}`); return { ok: true }; });
+  assert.deepEqual(order, ['DEMO-9 DEMO-2', 'leave']);
+  assert.equal(out.duplicateOf, 'DEMO-2');
+  assert.equal((await readAnswer(store, 'DEMO-9')).duplicateOf, 'DEMO-2');
+});
+
+test('a refused link leaves the ticket in the queue with no answer', async () => {
+  const store = memory(asked);
+  const stay = async () => assert.fail('left the queue');
+  await assert.rejects(saveAnswer(store, stay, { issueKey: 'DEMO-9', answer: 'duplicate', duplicateOf: 'DEMO-2' }, async () => ({ ok: false, error: 'no link type' })), /no link type/);
+  await assert.rejects(saveAnswer(store, stay, { issueKey: 'DEMO-9', answer: 'duplicate', duplicateOf: 'DEMO-2' }), /cannot be written/);
+  assert.equal(await readAnswer(store, 'DEMO-9'), null);
+});
+
+test('a new report cannot name an earlier issue', async () => {
+  const never = async () => assert.fail('wrote to Jira');
+  await assert.rejects(saveAnswer(memory(asked), never, { issueKey: 'DEMO-9', answer: 'new', duplicateOf: 'DEMO-2' }, never), /Only a duplicate/);
+});
