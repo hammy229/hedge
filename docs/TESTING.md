@@ -2,8 +2,8 @@
 
 These steps start from an empty Jira Cloud site. They take about fifteen minutes.
 
-> Steps 2 to 5 were checked on a deployed install on Nov 22 2026, except steps 5.5 to 5.9,
-> which are new and covered by unit tests so far. Step 1 (the install link)
+> Steps 2 to 5 were checked on a deployed install on Nov 22 2026, and step 5.5 on Nov 24. Steps
+> 5.6 to 5.9 are covered by unit tests so far. Step 1 (the install link)
 > and the MCP steps in 6 get checked when the production build is shared.
 
 ## 1. Install
@@ -79,8 +79,7 @@ issues).
    example `DEMO`) and choose **Save projects**. Leave it empty to act in every project.
    If a project's edit screen has no Labels field, Hedge cannot label its issues: the
    admin log marks them **Failed** and says how to add the field.
-5. Open the **Hedge queue** page from the project's sidebar or tabs (under **Apps** or
-   **More**, depending on the template). It lists the tickets labeled `hedge-ask`, oldest
+5. Open the **Hedge queue** page from the project's tabs, next to the board. It lists the tickets labeled `hedge-ask`, oldest
    first. Choose **Compare** on one to see the closest earlier issues with their titles.
 6. Choose **New report**, or **Duplicate of** one of those issues. The `hedge-ask` label comes
    off, and a named duplicate is linked as you. The same buttons are in the panel of a
