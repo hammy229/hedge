@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   AUTO_ACT_TEXT, FEW_REVIEWS, TONE, actProjectsSaved, autoActSaved, budgetSaved, dialView, logRows, panelFailure, panelView, summaryView, verdictStatus, verdictView,
-  ASK_QUEUE_HREF, answerChoices, answerStatus, answersText, pauseViews, resumed,
+  ASK_QUEUE_HREF, answerChoices, answerStatus, answersText, pauseViews, queueView, resumed,
 } from '../src/view.js';
 
 test('a cleared ticket shows its budget and what was searched', () => {
@@ -262,4 +262,28 @@ test('a queued ticket offers one duplicate answer per candidate, and one for any
   assert.deepEqual(choices.at(-1).payload, { answer: 'duplicate' });
   assert.deepEqual(answerChoices(undefined).map((c) => c.label), ['New report', 'Duplicate']);
   assert.match(answerStatus('duplicate', null, 'P-1').text, /linked as a duplicate of P-1/);
+});
+
+test('the queue page counts what is left and says how long each ticket waited', () => {
+  const now = Date.parse('2026-11-24T12:00:00Z');
+  const queue = {
+    projectKey: 'DEMO',
+    more: false,
+    tickets: [
+      { key: 'DEMO-9', summary: 'Crash', created: '2026-11-21T00:00:00.000+0000' },
+      { key: 'DEMO-10', summary: '', created: null },
+      { key: 'DEMO-11', summary: 'New', created: '2026-11-24T09:00:00.000+0000' },
+    ],
+  };
+  const v = queueView(queue, ['DEMO-9'], now);
+  assert.equal(v.headline, '2 tickets wait for a person in DEMO');
+  assert.deepEqual(v.rows.map((r) => [r.title, r.waited, r.done]), [['Crash', 'Filed 3 days ago', true], ['DEMO-10', '', false], ['New', 'Filed today', false]]);
+  assert.equal(queueView({ ...queue, tickets: queue.tickets.slice(0, 1) }, [], now).headline, '1 ticket waits for a person in DEMO');
+});
+
+test('the queue page is empty only when Jira listed nothing and has no more', () => {
+  assert.equal(queueView({ projectKey: 'DEMO', tickets: [], more: false }).empty, true);
+  const more = queueView({ projectKey: 'DEMO', tickets: [{ key: 'DEMO-9', summary: 'x', created: null }], more: true }, ['DEMO-9']);
+  assert.equal(more.empty, false);
+  assert.match(more.moreNote, /refresh/);
 });

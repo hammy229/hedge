@@ -170,6 +170,47 @@ export function answerStatus(state, error, duplicateOf = null) {
   return { done: false, error: null };
 }
 
+// Fixed words on the project's queue page.
+export const QUEUE_TEXT = Object.freeze({
+  loading: 'Reading the queue.',
+  failedTitle: 'The queue could not be read',
+  intro: 'Hedge was not sure enough to act on these tickets, or someone marked its call wrong. Compare each with the closest earlier issues, then say what it is. Naming the earlier issue links the two as you.',
+  emptyTitle: 'Nothing is waiting',
+  empty: 'Every open ticket Hedge asked about in this project has an answer.',
+  compare: 'Compare',
+  comparing: 'Looking for the closest earlier issues.',
+  noCandidates: 'Hedge found no earlier issues to compare with.',
+  refresh: 'Refresh',
+});
+
+const DAY = 86400000;
+function waitedText(created, now) {
+  const days = Math.floor((now - Date.parse(created ?? '')) / DAY);
+  if (!Number.isFinite(days) || days < 0) return '';
+  if (days === 0) return 'Filed today';
+  return `Filed ${days} day${days === 1 ? '' : 's'} ago`;
+}
+
+// The queue page for a projectQueue result. doneKeys are tickets answered since it was read:
+// Jira's search can list one for a while after its label is gone.
+export function queueView(queue, doneKeys = [], now = Date.now()) {
+  const done = new Set(doneKeys);
+  const tickets = Array.isArray(queue?.tickets) ? queue.tickets : [];
+  const rows = tickets.map((t) => ({
+    key: t.key,
+    href: `/browse/${t.key}`,
+    title: t.summary === '' ? t.key : t.summary,
+    waited: waitedText(t.created, now),
+    done: done.has(t.key),
+  }));
+  const left = rows.filter((r) => !r.done).length;
+  const more = queue?.more === true;
+  let headline = `${left} ticket${left === 1 ? ' waits' : 's wait'} for a person in ${queue?.projectKey ?? 'this project'}`;
+  if (more) headline = `The ${left} oldest tickets waiting for a person in ${queue?.projectKey ?? 'this project'}`;
+  // Not empty while more pages exist, however many of this page are answered.
+  return { rows, headline, empty: rows.length === 0 && !more, moreNote: more ? 'More tickets wait. Answer these, then refresh.' : '' };
+}
+
 export function answersText(summary) {
   if (!summary) return 'The answers people gave could not be read.';
   const { fresh, duplicate } = summary;
