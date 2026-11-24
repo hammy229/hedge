@@ -2,7 +2,7 @@
 
 These steps start from an empty Jira Cloud site. They take about fifteen minutes.
 
-> Steps 2 to 5 were checked on a deployed install on Nov 22 2026, except steps 5.5 to 5.7,
+> Steps 2 to 5 were checked on a deployed install on Nov 22 2026, except steps 5.5 to 5.9,
 > which are new and covered by unit tests so far. Step 1 (the install link)
 > and the MCP steps in 6 get checked when the production build is shared.
 
@@ -79,13 +79,17 @@ issues).
    example `DEMO`) and choose **Save projects**. Leave it empty to act in every project.
    If a project's edit screen has no Labels field, Hedge cannot label its issues: the
    admin log marks them **Failed** and says how to add the field.
-5. On a ticket labeled `hedge-ask`, choose **New report** or **Duplicate** in the panel. The
-   label comes off, and **Waiting for a person** on the admin page goes down.
-6. On a ticket labeled `hedge-cleared`, choose **Wrong**. Its label becomes `hedge-ask`.
-7. Do that on a second cleared ticket, with no right verdicts in between. Two wrong calls out
+5. Open the **Hedge queue** page from the project's sidebar or tabs (under **Apps** or
+   **More**, depending on the template). It lists the tickets labeled `hedge-ask`, oldest
+   first. Choose **Compare** on one to see the closest earlier issues with their titles.
+6. Choose **New report**, or **Duplicate of** one of those issues. The `hedge-ask` label comes
+   off, and a named duplicate is linked as you. The same buttons are in the panel of a
+   queued ticket. **Waiting for a person** on the admin page goes down.
+7. On a ticket labeled `hedge-cleared`, choose **Wrong**. Its label becomes `hedge-ask`.
+8. Do that on a second cleared ticket, with no right verdicts in between. Two wrong calls out
    of two are too many for a 3% budget, so Hedge pauses: every ticket now gets **Needs a
    person**, and the admin page shows a banner with **Resume**.
-8. Mark a few calls right or wrong in the panel; **What people said** on the admin
+9. Mark a few calls right or wrong in the panel; **What people said** on the admin
    page compares the share marked wrong with the budget, and says when there are too few
    reviews to tell.
 
@@ -104,4 +108,5 @@ For an external agent over MCP:
    (the app id is on the submission page).
 3. Ask it: "Use Hedge to triage PROJ-12." The tool returns the same decision as the panel,
    and the decision shows up in the admin page log with source `mcp`.
-4. Ask "What guarantee does Hedge give?" to call `explain-policy`.
+4. Ask "What is waiting for a person in DEMO?" to call `list-queue`.
+5. Ask "What guarantee does Hedge give?" to call `explain-policy`.

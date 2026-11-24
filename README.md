@@ -79,11 +79,12 @@ tickets where a calibrated statistical test shows the error rate among its actio
 6. The same gate is exposed through `rovo:mcp` and a Rovo agent, so external agents such as
    Claude Desktop and Rovo chat go through it too. They only report the call.
 7. If an admin turns it on, a trigger triages each new issue as it is filed and labels it
-   `hedge-cleared`, `hedge-duplicate` or `hedge-ask`. It never writes a duplicate link,
-   since the app can see issues the reporter cannot. People mark calls right or wrong in
+   `hedge-cleared`, `hedge-duplicate` or `hedge-ask`. It never writes a duplicate link by
+   itself, since the app can see issues the reporter cannot. People mark calls right or wrong in
    the panel, and the admin page compares the share marked wrong with the budget.
-   A wrong call goes back to the `hedge-ask` queue, and a queued ticket is answered from
-   its panel.
+   A wrong call goes back to the `hedge-ask` queue. A queued ticket is answered from its
+   panel or from the project's Hedge queue page, which shows the closest earlier issues and
+   writes the duplicate link as the person who picks one.
 8. Every verdict is tested against the budget. When the evidence is strong enough, Hedge
    pauses that action everywhere until an admin resumes it.
 
@@ -143,15 +144,17 @@ endpoint" for the app under Atlassian Administration, Apps, Sites, Connected app
 ```
 hedge/
 ├── app/                    Forge app
-│   ├── manifest.yml        rovo:mcp module and its two tools
+│   ├── manifest.yml        modules, the agent, the MCP tools and the issue trigger
 │   ├── src/gate.js         fail-closed act-or-ask decision
 │   ├── src/features.js     gate features (shared definitions with ml/)
 │   ├── src/text.js         answer-text stripping and the description cut, as in ml/
 │   ├── src/bm25.js         the window retriever, bm25-recent1000-v1
 │   ├── src/window.js       reads a project's latest 1,000 earlier issues from Jira search
 │   ├── src/triage.js       link and clear gates for one ticket
-│   ├── src/policy.js       calibrated policies per action, written by ml/ (placeholders now)
-│   ├── src/index.js        tool handlers: triage-issue, explain-policy
+│   ├── src/policy.js       calibrated policies per action, written by ml/ (link is not certified)
+│   ├── src/index.js        tool handlers: triage-issue, explain-policy, list-queue
+│   ├── src/queue.js        the tickets of a project that wait for a person
+│   ├── src/frontend/       issue panel, project queue page and admin page (UI Kit)
 │   └── test/               node:test suite
 ├── fixtures/features.json  feature cases shared by the Python and JavaScript tests
 ├── fixtures/bm25.json      retrieval cases shared by both, written by hedge.contract
@@ -184,8 +187,8 @@ hedge/
 ## Testing
 
 ```bash
-cd ml && ../.venv/bin/pytest -q     # 211 tests, including Python to JavaScript parity checks
-cd app && npm test                  # 50 tests
+cd ml && ../.venv/bin/pytest -q     # includes Python to JavaScript parity checks
+cd app && npm test
 ```
 
 CI runs both suites on every push and pull request to main.
