@@ -229,3 +229,13 @@ export async function explainPolicy() {
   const active = await openPolicies(await readBudgets(store, policies));
   return { link: describePolicy(active.link), clear: describePolicy(active.clear) };
 }
+
+// MCP tool: which tickets in a project wait for a person? A failure is said as one, so an
+// agent never reports an unreadable queue as an empty one.
+export async function listQueue(payload) {
+  try {
+    return await projectQueue(payload?.projectKey);
+  } catch (e) {
+    return { error: `The queue could not be read: ${e.message}` };
+  }
+}

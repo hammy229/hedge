@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { ADMIN_MODULE, QUEUE_MODULE, handlers } from '../src/resolver.js';
+import { listQueue } from '../src/index.js';
 import policies from '../src/policy.js';
 
 test('only the admin page may move the dial', async () => {
@@ -101,4 +102,11 @@ test('the queue page cannot name a ticket from another project', async () => {
     await assert.rejects(handlers.compare({ payload: { issueKey }, context: queuePage }), /not in this project/);
     await assert.rejects(handlers.answerQueued({ payload: { issueKey, answer: 'new' }, context: queuePage }), /not in this project/);
   }
+});
+
+test('the queue tool says so when it cannot read, instead of listing nothing', async () => {
+  const bad = await listQueue({ projectKey: 'DEMO" OR project = HR' });
+  assert.match(bad.error, /must look like PROJ/);
+  assert.equal(bad.tickets, undefined);
+  assert.match((await listQueue()).error, /could not be read/);
 });
