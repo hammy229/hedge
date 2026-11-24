@@ -2,8 +2,8 @@
 
 These steps start from an empty Jira Cloud site. They take about fifteen minutes.
 
-> Steps 2 to 5 were checked on a deployed install on Nov 22 2026, and step 5.5 on Nov 24. Steps
-> 5.6 to 5.9 are covered by unit tests so far. Step 1 (the install link)
+> Steps 2 to 5 were checked on a deployed install on Nov 22 2026, and steps 5.5 and 5.6 on
+> Nov 24, with the queue question in Rovo chat. Steps 5.7 to 5.9 are covered by unit tests so far. Step 1 (the install link)
 > and the MCP steps in 6 get checked when the production build is shared.
 
 ## 1. Install
