@@ -11,12 +11,18 @@ export const NO_LINK =
 
 // Jira reads a link as "inwardIssue duplicates outwardIssue", so the ticket is the inward
 // end and the earlier issue the outward one.
-export async function linkDuplicate(issueKey, original, jira, route) {
+export async function linkDuplicate(issueKey, original, jira, route, readLinks) {
   if (!ISSUE_KEY.test(String(issueKey ?? '')) || !ISSUE_KEY.test(String(original ?? ''))) {
     return { ok: false, error: 'Both issue keys must look like PROJ-123.' };
   }
   if (issueKey === original) return { ok: false, error: 'A ticket cannot duplicate itself.' };
   try {
+    // The link may be there already: a person made it, or a first try failed after writing it.
+    const links = await readLinks(issueKey);
+    const linked = (Array.isArray(links) ? links : []).some(
+      (l) => l?.type?.name === LINK_TYPE && (l.outwardIssue?.key === original || l.inwardIssue?.key === original),
+    );
+    if (linked) return { ok: true, original };
     await jira(route`/rest/api/2/issueLink`, {
       method: 'POST',
       headers: JSON_HEADERS,

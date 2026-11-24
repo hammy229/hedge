@@ -187,8 +187,9 @@ export const leaveQueueAsUser = (issueKey) => ifQueued(issueKey, () => leaveQueu
 
 // A second person answering the same ticket must not add a second link, so the queue is
 // checked before the link too.
+const readLinks = async (issueKey) => (await jira(route`/rest/api/2/issue/${issueKey}?fields=issuelinks`)).fields?.issuelinks;
 export const linkAsUser = (issueKey, original) =>
-  ifQueued(issueKey, () => linkDuplicate(issueKey, original, (path, options) => jiraWrite(path, options, 'user', ONLY_RATE_LIMIT), route));
+  ifQueued(issueKey, () => linkDuplicate(issueKey, original, (path, options) => jiraWrite(path, options, 'user', ONLY_RATE_LIMIT), route, readLinks));
 
 // The tickets of one project that wait for a person, as the caller sees them.
 export function projectQueue(projectKey) {
