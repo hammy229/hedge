@@ -165,7 +165,7 @@ function issueDetail() {
       v.reasons.length ? h('div.why', {}, h('p.label', {}, PANEL_TEXT.whyTitle), v.reasons.map((r) => h('p', {}, r.label ? h('b', {}, `${r.label}: `) : null, r.text))) : null,
       v.candidates.length ? h('div', {}, h('p.label', {}, PANEL_TEXT.candidatesTitle),
         h('ul.cands', {}, v.candidates.map((c) => h('li', {},
-          h('span', {}, h('button', { type: 'button', onclick: () => select(c.key, false) }, c.key), c.isMatch ? h('span.lozenge.link', {}, PANEL_TEXT.match) : null),
+          h('span', {}, h('button', { type: 'button', onclick: () => select(c.key, false) }, c.key), c.title ? h('span.title', {}, c.title) : null, c.isMatch ? h('span.lozenge.link', {}, PANEL_TEXT.match) : null),
           h('span.score', {}, c.score)))),
         h('p.note', {}, PANEL_TEXT.candidatesNote)) : null,
       v.notes.map((n) => h('p.note', {}, n)),
