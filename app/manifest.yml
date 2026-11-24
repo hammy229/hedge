@@ -77,6 +77,14 @@ modules:
       resolver:
         function: resolver-fn
       render: native
+  jira:projectPage:
+    - key: hedge-queue
+      title: Hedge queue
+      icon: resource:static;icon.svg
+      resource: queue
+      resolver:
+        function: resolver-fn
+      render: native
   jira:adminPage:
     - key: hedge-admin
       title: Hedge error budget
@@ -101,6 +109,8 @@ modules:
 resources:
   - key: panel
     path: src/frontend/panel.jsx
+  - key: queue
+    path: src/frontend/queue.jsx
   - key: admin
     path: src/frontend/admin.jsx
   - key: static
