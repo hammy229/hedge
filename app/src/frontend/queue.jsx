@@ -15,7 +15,7 @@ const card = (tone) =>
 
 // One waiting ticket. The comparison is read only when asked for, since each one searches up
 // to 1,000 earlier issues.
-function Ticket({ row, onDone }) {
+function Ticket({ row, onSending, onDone }) {
   const [result, setResult] = useState(null);
   const [comparing, setComparing] = useState(false);
   const [sending, setSending] = useState(false);
@@ -36,6 +36,7 @@ function Ticket({ row, onDone }) {
   const send = (payload) => {
     setError(null);
     setSending(true);
+    onSending(1);
     invoke('answerQueued', { issueKey: row.key, ...payload })
       .then(
         () => {
@@ -44,7 +45,10 @@ function Ticket({ row, onDone }) {
         },
         (e) => setError(answerStatus('failed', e?.message).error),
       )
-      .finally(() => setSending(false));
+      .finally(() => {
+        setSending(false);
+        onSending(-1);
+      });
   };
 
   const v = result ? panelView(result) : null;
@@ -106,9 +110,12 @@ function Queue() {
   const [done, setDone] = useState([]);
   const [failed, setFailed] = useState(null);
   const [loading, setLoading] = useState(false);
+  // Answers on their way. Refreshing then would drop the card that shows the result.
+  const [sending, setSending] = useState(0);
   // Each read gets a number, so refreshed cards start fresh.
   const [read, setRead] = useState(0);
   const busy = useRef(false);
+  const doneNow = useRef([]);
 
   const load = () => {
     if (busy.current) return;
@@ -119,7 +126,7 @@ function Queue() {
       .then(
         (q) => {
           // Jira's search can still list a ticket answered a moment ago.
-          setQueue({ ...q, tickets: q.tickets.filter((t) => !done.includes(t.key)) });
+          setQueue({ ...q, tickets: q.tickets.filter((t) => !doneNow.current.includes(t.key)) });
           setRead((n) => n + 1);
         },
         (e) => setFailed(e?.message ?? 'Unknown error'),
@@ -128,6 +135,11 @@ function Queue() {
         busy.current = false;
         setLoading(false);
       });
+  };
+
+  const markDone = (key) => {
+    doneNow.current = [...doneNow.current, key];
+    setDone(doneNow.current);
   };
 
   useEffect(load, []);
@@ -160,7 +172,7 @@ function Queue() {
     <Stack space="space.200">
       <Inline spread="space-between" alignBlock="center" space="space.200">
         <Heading size="medium">{v.headline}</Heading>
-        <Button isDisabled={loading} onClick={load}>{QUEUE_TEXT.refresh}</Button>
+        <Button isDisabled={loading || sending > 0} onClick={load}>{QUEUE_TEXT.refresh}</Button>
       </Inline>
       {failure}
       {v.empty ? (
@@ -169,7 +181,7 @@ function Queue() {
         <Stack space="space.150">
           <Text color="color.text.subtle">{QUEUE_TEXT.intro}</Text>
           {v.rows.map((r) => (
-            <Ticket key={`${read}-${r.key}`} row={r} onDone={(key) => setDone((d) => [...d, key])} />
+            <Ticket key={`${read}-${r.key}`} row={r} onSending={(n) => setSending((s) => s + n)} onDone={markDone} />
           ))}
           {v.moreNote ? <Text color="color.text.subtle">{v.moreNote}</Text> : null}
         </Stack>
