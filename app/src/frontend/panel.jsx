@@ -93,6 +93,7 @@ function Candidates({ candidates }) {
             <Inline key={c.key} spread="space-between" alignBlock="center">
               <Inline space="space.100" alignBlock="center">
                 <Link href={c.href}>{c.key}</Link>
+                {c.title ? <Text size="small">{c.title}</Text> : null}
                 {c.isMatch ? <Lozenge appearance="new">{PANEL_TEXT.match}</Lozenge> : null}
               </Inline>
               <Text size="small" color="color.text.subtle">{c.score}</Text>

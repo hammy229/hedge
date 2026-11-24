@@ -112,6 +112,7 @@ export function panelView(result) {
   }
   const candidates = (Array.isArray(result.candidates) ? result.candidates : []).map((c) => ({
     key: c.key,
+    title: typeof c.summary === 'string' ? c.summary : '',
     score: Number(c.score).toFixed(2),
     href: `/browse/${c.key}`,
     isMatch: decision === 'link' && c.key === result.duplicateOf,

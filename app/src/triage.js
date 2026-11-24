@@ -30,7 +30,7 @@ export function triage({ issue, window, projectKeys = [], policies, runtime = RU
       ageSeconds: best ? jiraSeconds(issue?.fields?.created) - jiraSeconds(best.fields?.created) : null,
     }),
   };
-  const candidates = top.slice(0, SHOWN).map((i) => ({ key: window[i].key, score: scores[i] }));
+  const candidates = top.slice(0, SHOWN).map((i) => ({ key: window[i].key, summary: String(window[i].fields?.summary ?? ''), score: scores[i] }));
   const copy = copyOf(texts, `${q.summary}\n${q.description}`, projectKeys);
   // Every feature must be a finite number, not only the ones a policy weighs: a policy
   // that happens to give a feature no weight must not let a broken input through.

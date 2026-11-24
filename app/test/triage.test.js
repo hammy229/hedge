@@ -219,3 +219,11 @@ test('a copy is never linked either, since copies were never calibrated', () => 
   assert.equal(out.decision, 'ask');
   assert.match(out.gates.link.reason, /repeats the text of P-1/);
 });
+
+test('each candidate carries its title, and one without a summary gets an empty title', () => {
+  const bare = { key: 'P-0', fields: { description: 'Crash when submitting the login page', created: '2023-12-31T00:00:00.000+0000' } };
+  const out = triage({ issue: ticket, window: [bare, ...window], policies });
+  const titles = Object.fromEntries(out.candidates.map((c) => [c.key, c.summary]));
+  assert.equal(titles['P-1'], 'Login page crashes on submit');
+  assert.equal(titles['P-0'], '');
+});

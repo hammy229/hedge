@@ -10,7 +10,7 @@ test('a cleared ticket shows its budget and what was searched', () => {
     decision: 'clear',
     reason: 'Confidence 0.981 is at or above the calibrated threshold 0.964.',
     searched: 412,
-    candidates: [{ key: 'P-1', score: 3.14159 }],
+    candidates: [{ key: 'P-1', summary: 'Login crash', score: 3.14159 }],
     budgets: { clear: 0.03 },
   });
   assert.equal(v.kind, 'decided');
@@ -18,7 +18,7 @@ test('a cleared ticket shows its budget and what was searched', () => {
   assert.equal(v.budget.value, '3%');
   assert.match(v.budget.text, /At most 3% of the tickets Hedge clears/);
   assert.match(v.notes[0], /412/);
-  assert.deepEqual(v.candidates, [{ key: 'P-1', score: '3.14', href: '/browse/P-1', isMatch: false }]);
+  assert.deepEqual(v.candidates, [{ key: 'P-1', title: 'Login crash', score: '3.14', href: '/browse/P-1', isMatch: false }]);
   assert.match(v.headline, /^Hedge's call: a new report/);
   assert.deepEqual(v.reasons, [{ label: null, text: 'Confidence 0.981 is at or above the calibrated threshold 0.964.' }]);
   assert.equal(v.carriedOut, null);
