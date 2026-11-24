@@ -25,6 +25,11 @@ another's. Names and email addresses are never read or stored.
 The reason in a decision names issue keys, never issue text. Forge may keep an expired entry
 for a short time, and Atlassian handles the stored data after the app is uninstalled.
 
+## Logs
+
+Hedge's own code writes no log lines. Forge records function runs and errors, which the developer can
+see to fix problems. A site admin can turn that access off in Atlassian Administration.
+
 ## Questions and deletion
 
 Open an issue at <https://github.com/hammy229/hedge/issues>. Do not put private data in it.
