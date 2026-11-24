@@ -7,6 +7,7 @@ import { seedStatus, seedStep, seedingNow } from './seeder.js';
 import { linkDuplicate } from './link.js';
 import { readDecision, record } from './log.js';
 import { readPauses, recheck, withPauses } from './pause.js';
+import { readQueue } from './queue.js';
 import { withRetry } from './retry.js';
 import policies from './policy.js';
 import { activePolicies, readActProjects, readAutoAct, readBudgets } from './settings.js';
@@ -188,6 +189,19 @@ export const leaveQueueAsUser = (issueKey) => ifQueued(issueKey, () => leaveQueu
 // checked before the link too.
 export const linkAsUser = (issueKey, original) =>
   ifQueued(issueKey, () => linkDuplicate(issueKey, original, (path, options) => jiraWrite(path, options, 'user', ONLY_RATE_LIMIT), route));
+
+// The tickets of one project that wait for a person, as the caller sees them.
+export function projectQueue(projectKey) {
+  return readQueue(
+    (body) =>
+      jira(route`/rest/api/2/search/jql`, {
+        method: 'POST',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      }, 'user', { ms: TRIAGE_RETRY_MS }),
+    projectKey,
+  );
+}
 
 // How many tickets wait for a person, as the admin sees them. null when Jira did not say.
 export async function queueCount() {

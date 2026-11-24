@@ -287,7 +287,7 @@ export function resumed(action) {
   return `Resumed. Hedge can act on ${ACTION_TEXT[action]?.noun ?? action} calls again, and the count of reviewed calls starts over.`;
 }
 
-const VIA = { panel: 'Issue panel', mcp: 'Agent (MCP)', trigger: 'New issue' };
+const VIA = { panel: 'Issue panel', queue: 'Queue page', mcp: 'Agent (MCP)', trigger: 'New issue' };
 
 export const LOG_HEAD = ['Time (UTC)', 'Issue', 'Decision', 'Score', 'Budget', 'Source', 'Carried out'];
 

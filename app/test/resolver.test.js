@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { ADMIN_MODULE, handlers } from '../src/resolver.js';
+import { ADMIN_MODULE, QUEUE_MODULE, handlers } from '../src/resolver.js';
 import policies from '../src/policy.js';
 
 test('only the admin page may move the dial', async () => {
@@ -83,5 +83,22 @@ test('an answer needs an issue from Jira context, and only the admin page reads 
 test('only the admin page may count the queue', () => {
   for (const context of [{ moduleKey: 'hedge-panel' }, {}, undefined]) {
     assert.throws(() => handlers.queue({ context }), /admin page/);
+  }
+});
+
+const queuePage = { moduleKey: QUEUE_MODULE, extension: { project: { key: 'DEMO' } } };
+
+test('the queue opens only on its project page', async () => {
+  for (const context of [{ ...queuePage, moduleKey: 'hedge-panel' }, { moduleKey: QUEUE_MODULE }, {}, undefined]) {
+    await assert.rejects(handlers.waiting({ context }), /project page/);
+    await assert.rejects(handlers.compare({ payload: { issueKey: 'DEMO-1' }, context }), /project page/);
+    await assert.rejects(handlers.answerQueued({ payload: { issueKey: 'DEMO-1', answer: 'new' }, context }), /project page/);
+  }
+});
+
+test('the queue page cannot name a ticket from another project', async () => {
+  for (const issueKey of ['HR-1', 'DEMO2-1', 'DEMO-1/../HR-1', undefined]) {
+    await assert.rejects(handlers.compare({ payload: { issueKey }, context: queuePage }), /not in this project/);
+    await assert.rejects(handlers.answerQueued({ payload: { issueKey, answer: 'new' }, context: queuePage }), /not in this project/);
   }
 });

@@ -4,13 +4,15 @@ import { answerSummary, readAnswer, saveAnswer } from './answers.js';
 import { budgetOptions } from './budget.js';
 import { feedbackSummary, feedbackWith, readFeedback, saveFeedback } from './feedback.js';
 import { describePolicy } from './gate.js';
-import { leaveQueueAsUser, linkAsUser, openPolicies, queueCount, requeueAsUser, runTriage, seedProgress, seedProject, store } from './index.js';
+import { leaveQueueAsUser, linkAsUser, openPolicies, projectQueue, queueCount, requeueAsUser, runTriage, seedProgress, seedProject, store } from './index.js';
 import { readLog } from './log.js';
 import { checkEvidence, readPauses, recheck, resume } from './pause.js';
+import { inProject } from './queue.js';
 import policies from './policy.js';
 import { ACTIONS, readActProjects, readAutoAct, readBudgets, saveActProjects, saveAutoAct, saveBudget } from './settings.js';
 
 export const ADMIN_MODULE = 'hedge-admin';
+export const QUEUE_MODULE = 'hedge-queue';
 
 // @forge/resolver is CommonJS: Node's ESM loader wraps it, the Forge bundler does not.
 const Resolver = ResolverModule.default ?? ResolverModule;
@@ -40,6 +42,17 @@ export const handlers = {
       linkAsUser,
     );
   },
+  // The queue page of a project. The project comes from Jira's context, never the payload,
+  // and every read and write is the viewer's own, so Jira's permissions decide the rest.
+  waiting: async ({ context } = {}) => projectQueue(queueProject(context)),
+  compare: async ({ payload, context } = {}) => runTriage(queuedKey(payload, context), 'queue'),
+  answerQueued: async ({ payload, context } = {}) =>
+    saveAnswer(
+      store,
+      leaveQueueAsUser,
+      { issueKey: queuedKey(payload, context), answer: payload?.answer, duplicateOf: payload?.duplicateOf, accountId: context?.accountId },
+      linkAsUser,
+    ),
   answerSummary: ({ context } = {}) => {
     adminOnly(context, 'Answers can only be read from the admin page.');
     return answerSummary(store);
@@ -99,6 +112,20 @@ export const handlers = {
 
 function adminOnly(context, message) {
   if (context?.moduleKey !== ADMIN_MODULE) throw new Error(message);
+}
+
+function queueProject(context) {
+  const key = context?.extension?.project?.key;
+  if (context?.moduleKey !== QUEUE_MODULE || typeof key !== 'string' || key === '') {
+    throw new Error('The queue can only be opened from its project page.');
+  }
+  return key;
+}
+
+function queuedKey(payload, context) {
+  const projectKey = queueProject(context);
+  if (!inProject(payload?.issueKey, projectKey)) throw new Error('That ticket is not in this project.');
+  return payload.issueKey;
 }
 
 for (const [name, fn] of Object.entries(handlers)) resolver.define(name, fn);
