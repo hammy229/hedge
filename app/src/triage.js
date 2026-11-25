@@ -9,7 +9,7 @@
 
 import { K, topK, windowScores } from './bm25.js';
 import { contextFeatures, featurize, scoreFeatures } from './features.js';
-import { RUNTIME, decide, policyProblem } from './gate.js';
+import { RUNTIME, decide, score, policyProblem } from './gate.js';
 import { copyKey, retrievalParts, retrievalText } from './text.js';
 
 const SHOWN = 3;
@@ -55,7 +55,9 @@ export function triage({ issue, window, projectKeys = [], policies, runtime = RU
   };
   const link = guard('link');
   const clear = guard('clear');
-  const facts = { searched: window.length, candidates, gates: { link, clear } };
+  // The clear gate's score whatever the budget, even one that certified nothing, so the admin
+  // page can say what another budget would have done. null: no budget would clear this.
+  const facts = { searched: window.length, candidates, gates: { link, clear }, clearScore: clearScore(features, policies?.clear, broken.length > 0 || copy !== -1 || window.length < (policies?.clear?.minWindow ?? Infinity)) };
   if (copy !== -1) facts.copyOf = window[copy].key;
 
   if (link.decision === 'act' && clear.decision === 'act') {
@@ -75,6 +77,12 @@ export function triage({ issue, window, projectKeys = [], policies, runtime = RU
 const JIRA_TIME = /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?(?:Z|[+-]\d\d:?\d\d)$/;
 function jiraSeconds(created) {
   return typeof created === 'string' && JIRA_TIME.test(created) ? Date.parse(created) / 1000 : NaN;
+}
+
+function clearScore(features, policy, refused) {
+  if (refused || !policy?.model?.weights) return null;
+  const s = score(features, policy.model);
+  return Number.isFinite(s) ? s : null;
 }
 
 // Index of the first window issue whose text the ticket copies, or -1.

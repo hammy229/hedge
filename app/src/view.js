@@ -257,6 +257,18 @@ export function dialView(setting) {
   };
 }
 
+// What each budget would have done with the tickets in the log (whatif.js). null when no
+// logged ticket has a score.
+export function whatIfView(result, budget) {
+  const n = result?.tickets;
+  if (!Number.isInteger(n) || n < 1 || !Array.isArray(result.rows) || result.rows.length === 0) return null;
+  return {
+    title: 'On your tickets',
+    text: `How each budget would treat the last ${n === 1 ? 'ticket' : `${n} tickets`} Hedge checked here. Acting on more does not mean more of the calls are right.`,
+    rows: result.rows.map((r) => ({ key: String(r.alpha), label: trimPct(r.alpha), value: `acts on ${r.acts} of ${n}`, current: r.alpha === budget })),
+  };
+}
+
 // The value a summary tile shows for one action's budget.
 function budgetValue(setting) {
   const chosen = selectedOption(setting);

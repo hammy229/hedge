@@ -36,6 +36,8 @@ export function entryFor(result, { budgets = {}, via, at = new Date().toISOStrin
     // Only the issue trigger carries decisions out; the panel and MCP only report them.
     applied: typeof result?.applied?.applied === 'boolean' ? result.applied.applied : null,
   };
+  // Only triages that reached the gates have one; null means no budget would clear it.
+  if (result?.clearScore !== undefined) entry.clearScore = finite(result.clearScore);
   // Why a call was not carried out. act.js keeps Jira's text out of it, so it is a fixed
   // message or a status, and the log is admin-only anyway.
   if (entry.applied === false && result?.applied?.error) entry.appliedError = String(result.applied.error).slice(0, 300);

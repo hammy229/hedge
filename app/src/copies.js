@@ -82,6 +82,7 @@ export async function guardCopies(result, check) {
     ...rest,
     ...blocked,
     gates: { ...result.gates, [action]: blocked },
+    clearScore: null, // no budget would clear it
     ...(typeof found?.copy === 'string' ? { copyOf: found.copy } : {}),
   };
 }
