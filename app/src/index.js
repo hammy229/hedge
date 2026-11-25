@@ -58,8 +58,9 @@ const ONLY_RATE_LIMIT = { statuses: [429] };
 // Waiting on rate limits, shared by all reads of one triage (retry.js).
 export const TRIAGE_RETRY_MS = 8000;
 
-// The copy search starts no page after this, so a triage ends inside Forge's 25 s.
-const COPY_DEADLINE_MS = 20000;
+// The copy search starts no page after this, which leaves time to label and log inside
+// Forge's 25 s.
+const COPY_DEADLINE_MS = 15000;
 
 async function jira(path, options, as = 'user', budget = null) {
   const res = await send(as, path, options, budget ? { budget } : undefined);
@@ -149,7 +150,7 @@ async function triageAt(issueKey, active, as) {
     }
     const labels = Array.isArray(issue.fields?.labels) ? issue.fields.labels : [];
     const call = triage({ issue, window, projectKeys: keys, policies: active });
-    const checked = await guardCopies(call, () => findCopy(search, issue, keys, deadline));
+    const checked = await guardCopies(call, () => findCopy(search, issue, keys, { deadline, projectId: as === 'app' ? issue.fields?.project?.id ?? NaN : null }));
     return { issueKey, summary: issue.fields?.summary ?? '', labels, ...checked };
   } catch (e) {
     // failed: the ask is about Jira, not the ticket, so the trigger leaves the issue alone.

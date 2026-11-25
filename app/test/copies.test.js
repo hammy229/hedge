@@ -37,7 +37,7 @@ test('every page is read, and a search too long to read is incomplete', async ()
 });
 
 test('a passed deadline or an unreadable page is incomplete, not "no copy"', async () => {
-  assert.equal((await findCopy(one(), ticket, [], Date.now() - 1)).complete, false);
+  assert.equal((await findCopy(one(), ticket, [], { deadline: Date.now() - 1 })).complete, false);
   assert.equal((await findCopy(async () => ({}), ticket)).complete, false);
 });
 
@@ -49,13 +49,14 @@ test('an empty text is never a copy, and a text with no searchable word cannot b
 
 test('the query holds only plain lowercase words, so a summary cannot change it', () => {
   const words = searchWords('Crash" OR project = SECRET \\ AND can\'t load OPS-12 (NullPointerException) naïve');
-  for (const w of words) assert.match(w, /^[a-z0-9]{2,}$/);
+  for (const w of words) assert.match(w, /^[a-z]{2,}$/);
   assert.equal(words.includes('nullpointerexception'), true);
   assert.equal(words.includes('12'), false);
   assert.deepEqual(searchWords('This is not the crash'), ['crash']); // Jira's index drops stop words
   const jql = copyJql(words, ticket);
-  assert.match(jql, /^(summary ~ "[a-z0-9]+" AND )+created < "2024-01-11" ORDER BY created ASC$/);
-  assert.equal(searchWords('one two three four five six seven eight nine ten').length, MAX_WORDS);
+  assert.match(jql, /^(summary ~ "[a-z]+" AND )+created < "2024-01-11" ORDER BY created ASC$/);
+  assert.deepEqual(searchWords('utf8 v2 crash'), ['crash']);
+  assert.equal(searchWords('alpha beta gamma delta epsilon zeta theta iota kappa lambda').length, MAX_WORDS);
 });
 
 const acting = { issueKey: 'P-9', decision: 'clear', reason: 'ok', gates: { link: { decision: 'ask' }, clear: { decision: 'act', score: 0.99 } } };
@@ -79,4 +80,16 @@ test('a ticket with no copy keeps its call, and an ask is never searched', async
   assert.equal(await guardCopies(acting, async () => ({ copy: null, complete: true })), acting);
   const ask = { decision: 'ask' };
   assert.equal(await guardCopies(ask, async () => assert.fail('searched')), ask);
+});
+
+test('a search run as the app stays in one project, and needs its numeric id', async () => {
+  const seen = [];
+  await findCopy(async (jql) => { seen.push(jql); return { issues: [] }; }, ticket, [], { projectId: '10001' });
+  assert.match(seen[0], /^project = 10001 AND summary ~ /);
+  await assert.rejects(findCopy(one(), ticket, [], { projectId: NaN }), /numeric/);
+  assert.throws(() => copyJql(['crash'], ticket, '1 OR project = 2'), /numeric/);
+});
+
+test('a page that hangs past the deadline fails the check', async () => {
+  await assert.rejects(findCopy(() => new Promise(() => {}), ticket, [], { deadline: Date.now() + 50 }), /too long/);
 });

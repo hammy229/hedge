@@ -13,6 +13,7 @@ import { copyKey, retrievalText, stripAnswerText } from './text.js';
 
 export const COPY_PAGES = 4;
 export const MAX_WORDS = 8;
+export const PAGE_GRACE_MS = 3000;
 
 // Jira's English text index drops these, so a search for one may match nothing.
 const STOP_WORDS = new Set(
@@ -21,36 +22,54 @@ const STOP_WORDS = new Set(
 
 // Whole words of the summary that Jira's text search and copyKey read the same way. Copies
 // may name different issue keys, so those are stripped, as copyKey does. Words with
-// punctuation inside are left out: Jira may split them differently.
+// punctuation or digits inside are left out: Jira may split them differently.
 export function searchWords(summary, projectKeys = []) {
   const words = stripAnswerText(summary, projectKeys)
     .split(' ')
     .map((w) => w.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '').toLowerCase())
-    .filter((w) => /^[a-z0-9]{2,}$/.test(w) && !STOP_WORDS.has(w));
+    .filter((w) => /^[a-z]{2,}$/.test(w) && !STOP_WORDS.has(w));
   return [...new Set(words)].sort((a, b) => b.length - a.length || (a < b ? -1 : 1)).slice(0, MAX_WORDS);
 }
 
-// Every project the reader can see, since calibration compared across projects. The date
+// Every project the reader can see, since calibration compared across projects. The trigger
+// reads as the app, past anyone's permissions, so it passes its ticket's own project: across
+// projects, its label would tell a reporter whether a hidden issue has their text. The date
 // bound is loose, as in windowJql; exact times are compared below.
-export function copyJql(words, ticket) {
+export function copyJql(words, ticket, projectId = null) {
+  if (projectId !== null && !/^\d+$/.test(String(projectId))) throw new Error('project id must be numeric');
   const d = new Date(createdMs(ticket) + 2 * 86400000).toISOString().slice(0, 10);
   const terms = words.map((w) => `summary ~ "${w}"`).join(' AND ');
-  return `${terms} AND created < "${d}" ORDER BY created ASC`;
+  const scope = projectId === null ? '' : `project = ${projectId} AND `;
+  return `${scope}${terms} AND created < "${d}" ORDER BY created ASC`;
+}
+
+// A page that started just before the deadline may not run past it for long.
+async function within(promise, until) {
+  if (!Number.isFinite(until)) return promise;
+  let timer;
+  const late = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error('the copy search took too long')), Math.max(0, until - Date.now()));
+  });
+  try {
+    return await Promise.race([promise, late]);
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 // { copy: key or null, complete }. complete is false when not every match could be read.
-export async function findCopy(fetchPage, issue, projectKeys = [], deadline = Infinity) {
+export async function findCopy(fetchPage, issue, projectKeys = [], { deadline = Infinity, projectId = null } = {}) {
   const text = (i) => copyKey(retrievalText(i?.fields?.summary, i?.fields?.description, projectKeys), projectKeys);
   const mine = text(issue);
   if (mine === '') return { copy: null, complete: true }; // empty texts are never copies, as in calibration
   const before = createdMs(issue);
   const words = searchWords(issue?.fields?.summary, projectKeys);
   if (words.length === 0 || !Number.isFinite(before)) return { copy: null, complete: false };
-  const jql = copyJql(words, issue);
+  const jql = copyJql(words, issue, projectId);
   let token;
   for (let page = 0; page < COPY_PAGES; page += 1) {
     if (Date.now() > deadline) break;
-    const out = await fetchPage(jql, token);
+    const out = await within(fetchPage(jql, token), deadline + PAGE_GRACE_MS);
     if (!Array.isArray(out?.issues)) break;
     const hit = out.issues.find((i) => i.key !== issue.key && createdMs(i) < before && text(i) === mine);
     if (hit) return { copy: hit.key, complete: true };
@@ -82,7 +101,8 @@ export async function guardCopies(result, check) {
     ...rest,
     ...blocked,
     gates: { ...result.gates, [action]: blocked },
-    clearScore: null, // no budget would clear it
+    // No budget would clear a copy. A search that failed says nothing, so the score is unknown.
+    clearScore: typeof found?.copy === 'string' ? null : undefined,
     ...(typeof found?.copy === 'string' ? { copyOf: found.copy } : {}),
   };
 }

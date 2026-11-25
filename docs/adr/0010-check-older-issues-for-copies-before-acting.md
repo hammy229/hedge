@@ -12,20 +12,24 @@ project, could be cleared as new, outside what was certified.
 
 ## Decision
 
-When a gate would act, search Jira for earlier issues in every project the reader can see whose
+When a gate would act, search Jira for earlier issues in every project the reader can see (the
+new-issue trigger: only the ticket's own project) whose
 summary holds the ticket's words, and compare normalized texts. A copy becomes an ask that names
 the older issue. So does a search that failed, ran out of time or had more than 400 matches.
 
 - The search runs only when Hedge would act, so asked tickets cost no extra request.
 - The query holds up to eight lowercase ASCII words and no text from the ticket beyond them, so a
-  summary cannot change the query. Stop words and words with punctuation inside are left out,
+  summary cannot change the query. Stop words and words with punctuation or digits inside are left out,
   since Jira's index may drop or split them.
+- The trigger reads as the app, past the reporter's permissions. Across projects, its label would
+  tell a reporter whether a hidden issue has the text they filed, so it stays in one project.
 - The result only ever moves from act to ask, so the error bound cannot get worse from it.
 
 ## Limits
 
 - Jira's index decides what the search returns. An issue it does not match, or that the reader
   cannot see, is not compared.
+- The trigger does not see copies in other projects, so its calls keep that part of the gap.
 - Very new issues may not be indexed yet. Those are in the window, which is read by date.
 - A ticket whose summary has no searchable word is asked about, if its text is not empty.
 - A short, common summary such as "Build failed" can match more than 400 issues, which asks.
