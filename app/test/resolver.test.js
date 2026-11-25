@@ -110,3 +110,9 @@ test('the queue tool says so when it cannot read, instead of listing nothing', a
   assert.equal(bad.tickets, undefined);
   assert.match((await listQueue()).error, /could not be read/);
 });
+
+test('only the admin page may read the budget preview', async () => {
+  for (const context of [{ moduleKey: 'hedge-panel' }, {}, undefined]) {
+    await assert.rejects(handlers.whatIf({ context }), /admin page/);
+  }
+});

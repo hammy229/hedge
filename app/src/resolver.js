@@ -10,6 +10,7 @@ import { checkEvidence, readPauses, recheck, resume } from './pause.js';
 import { inProject } from './queue.js';
 import policies from './policy.js';
 import { ACTIONS, readActProjects, readAutoAct, readBudgets, saveActProjects, saveAutoAct, saveBudget } from './settings.js';
+import { whatIf } from './whatif.js';
 
 export const ADMIN_MODULE = 'hedge-admin';
 export const QUEUE_MODULE = 'hedge-queue';
@@ -98,6 +99,11 @@ export const handlers = {
   log: ({ context } = {}) => {
     adminOnly(context, 'The decision log can only be read from the admin page.');
     return readLog(store);
+  },
+  // Computed from the log, so the same rule applies.
+  whatIf: async ({ context } = {}) => {
+    adminOnly(context, 'The budget preview can only be read from the admin page.');
+    return whatIf(await readLog(store), policies.clear);
   },
   // Sample data writes issues, so only the admin page may start it.
   seed: ({ payload, context } = {}) => {

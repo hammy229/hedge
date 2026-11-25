@@ -7,7 +7,7 @@ import { invoke } from '@forge/bridge';
 import { runSeed } from '../seedloop.js';
 import {
   TONE, ACTION_TEXT, ACT_PROJECTS_HINT, ASK_QUEUE_HREF, ASK_QUEUE_JQL, AUTO_ACT_TEXT, actProjectsSaved, answersText, pauseViews, resumed, CHART_NOTE, LOG_HEAD, autoActSaved, budgetSaved, dialView, logRows, seedView,
-  summaryView, verdictView,
+  summaryView, verdictView, whatIfView,
 } from '../view.js';
 
 const card = xcss({
@@ -69,7 +69,23 @@ function Summary({ view }) {
   );
 }
 
-function Dial({ action, setting, saving, status, onChange }) {
+function WhatIf({ view }) {
+  if (!view) return null;
+  return (
+    <Stack space="space.050">
+      <Text weight="semibold">{view.title}</Text>
+      <Text size="small" color="color.text.subtle">{view.text}</Text>
+      {view.rows.map((r) => (
+        <Inline key={r.key} space="space.100" alignBlock="center">
+          <Text>{`${r.label} budget: ${r.value}`}</Text>
+          {r.current ? <Lozenge appearance="inprogress">Current</Lozenge> : null}
+        </Inline>
+      ))}
+    </Stack>
+  );
+}
+
+function Dial({ action, setting, saving, status, onChange, preview = null }) {
   const v = dialView(setting);
   const copy = ACTION_TEXT[action];
   return (
@@ -86,6 +102,7 @@ function Dial({ action, setting, saving, status, onChange }) {
           <Text>No budget was certified for this action, so Hedge always asks a person.</Text>
         </SectionMessage>
       )}
+      <WhatIf view={preview} />
       <Text weight="semibold">Error budget</Text>
       <RadioGroup
         name={`budget-${action}`}
@@ -231,6 +248,7 @@ function Admin() {
   const [answers, setAnswers] = useState(null);
   const [pauses, setPauses] = useState(null);
   const [verdicts, setVerdicts] = useState(null);
+  const [preview, setPreview] = useState(null);
   const [loadError, setLoadError] = useState(null);
   // Which control is saving, and the last saved or failed change: { where, ok, text }.
   const [saving, setSaving] = useState(null);
@@ -251,6 +269,7 @@ function Admin() {
   useEffect(() => {
     // Apart from load(): a slow or failed count must not hold up the page.
     invoke('queue').then(setWaiting, () => setWaiting(null));
+    invoke('whatIf').then(setPreview, () => setPreview(null));
     load();
   }, []);
 
@@ -346,7 +365,7 @@ function Admin() {
           </SectionMessage>
         ) : null}
       </Stack>
-      <Dial action="clear" setting={settings.clear} saving={saving === 'clear'} status={at('clear')} onChange={change} />
+      <Dial action="clear" setting={settings.clear} saving={saving === 'clear'} status={at('clear')} onChange={change} preview={whatIfView(preview, settings.clear.budget)} />
       <Dial action="link" setting={settings.link} saving={saving === 'link'} status={at('link')} onChange={change} />
       <AutoAct on={autoAct} saving={saving === 'autoAct'} status={at('autoAct')} onChange={switchAutoAct} projects={actProjects} onSaveProjects={saveProjects} />
       <Section title="What people said">
