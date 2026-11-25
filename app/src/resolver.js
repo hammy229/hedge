@@ -39,7 +39,7 @@ export const handlers = {
     return saveAnswer(
       store,
       leaveQueueAsUser,
-      { issueKey, answer: payload?.answer, duplicateOf: payload?.duplicateOf, accountId: context?.accountId },
+      { issueKey, answer: payload?.answer, duplicateOf: payload?.duplicateOf },
       linkAsUser,
     );
   },
@@ -51,7 +51,7 @@ export const handlers = {
     saveAnswer(
       store,
       leaveQueueAsUser,
-      { issueKey: queuedKey(payload, context), answer: payload?.answer, duplicateOf: payload?.duplicateOf, accountId: context?.accountId },
+      { issueKey: queuedKey(payload, context), answer: payload?.answer, duplicateOf: payload?.duplicateOf },
       linkAsUser,
     ),
   answerSummary: ({ context } = {}) => {

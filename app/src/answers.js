@@ -6,13 +6,15 @@
 // It comes off first, as the person. If Jira refuses, nothing is stored, so an
 // answered ticket is never left in the queue.
 //
+// Who answered is not stored: nothing uses it, and Jira's own history has the label change.
+//
 // A duplicate answer may name the earlier issue. Then the link is written first, so a
 // refused link leaves the ticket in the queue instead of dropping what the person said.
 
 export const ANSWER_PREFIX = 'answer:';
 const ANSWERS = ['new', 'duplicate'];
 
-export async function saveAnswer(store, leave, { issueKey, answer, duplicateOf = null, accountId = null, at = new Date().toISOString() }, link = null) {
+export async function saveAnswer(store, leave, { issueKey, answer, duplicateOf = null, at = new Date().toISOString() }, link = null) {
   if (!ANSWERS.includes(answer)) throw new Error('An answer must be new or duplicate.');
   const named = duplicateOf !== null && duplicateOf !== undefined;
   if (named) {
@@ -23,7 +25,7 @@ export async function saveAnswer(store, leave, { issueKey, answer, duplicateOf =
   }
   const left = await leave(issueKey);
   if (left?.ok !== true) throw new Error(left?.error ?? 'Jira could not be updated.');
-  const entry = { issueKey, answer, accountId: typeof accountId === 'string' ? accountId : null, at };
+  const entry = { issueKey, answer, at };
   if (named) entry.duplicateOf = duplicateOf;
   await store.set(`${ANSWER_PREFIX}${issueKey}`, entry);
   return entry;

@@ -79,3 +79,10 @@ test('a new report cannot name an earlier issue', async () => {
   const never = async () => assert.fail('wrote to Jira');
   await assert.rejects(saveAnswer(memory(asked), never, { issueKey: 'DEMO-9', answer: 'new', duplicateOf: 'DEMO-2' }, never), /Only a duplicate/);
 });
+
+test('an answer does not say who gave it', async () => {
+  const saved = [];
+  const store = { set: async (k, v) => void saved.push(v) };
+  await saveAnswer(store, async () => ({ ok: true }), { issueKey: 'DEMO-9', answer: 'new', accountId: '5f0-person' });
+  assert.equal(JSON.stringify(saved).includes('5f0-person'), false);
+});
