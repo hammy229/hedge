@@ -5,10 +5,13 @@ import { record } from '../src/log.js';
 
 const memory = () => {
   const m = new Map();
+  const secrets = new Map();
   return {
     get: async (k) => m.get(k),
     set: async (k, v) => void m.set(k, v),
     list: async (prefix) => [...m].filter(([k]) => k.startsWith(prefix)).map(([, v]) => v),
+    getSecret: async (k) => secrets.get(k),
+    createSecret: async (k, v) => void secrets.set(k, v),
     m,
   };
 };
@@ -19,11 +22,12 @@ async function logged(store, issueKey, decision, via = 'panel', applied = null) 
   await record(store, result, { via, at: '2026-11-21T00:00:00.000Z' });
 }
 
-test('a verdict is stored against the decision Hedge logged, with who gave it', async () => {
+test('a verdict is stored against the decision Hedge logged, with a mark for who gave it', async () => {
   const store = memory();
   await logged(store, 'DEMO-50', 'clear', 'trigger', true);
   const saved = await saveFeedback(store, { issueKey: 'DEMO-50', verdict: 'wrong', accountId: 'u1', at: 't1' });
-  assert.deepEqual(saved, { issueKey: 'DEMO-50', decision: 'clear', via: 'trigger', applied: true, budget: null, decidedAt: '2026-11-21T00:00:00.000Z', verdict: 'wrong', accountId: 'u1', at: 't1' });
+  assert.deepEqual(saved, { issueKey: 'DEMO-50', decision: 'clear', via: 'trigger', applied: true, budget: null, decidedAt: '2026-11-21T00:00:00.000Z', verdict: 'wrong', person: saved.person, at: 't1' });
+  assert.match(saved.person, /^[0-9a-f]{32}$/);
   assert.deepEqual(await readFeedback(store), [saved]);
 });
 

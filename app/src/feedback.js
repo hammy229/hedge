@@ -6,16 +6,18 @@
 // budget. The decision a verdict refers to is Hedge's logged one, never taken from the
 // caller, so a panel cannot file a verdict on a call Hedge did not make.
 //
-// Each person's verdict on an issue has its own key. A person can change their own, but
+// Each person's verdict on an issue has its own key, under a mark that is not their account
+// id (person.js). A person can change their own, but
 // nobody can erase someone else's, and a call counts as wrong if anyone says so. Otherwise
 // one click on Right could hide the verdict that would have paused Hedge (pause.js).
 
 import { readDecision } from './log.js';
+import { personMark } from './person.js';
 
 export const FEEDBACK_PREFIX = 'feedback:';
 const VERDICTS = ['right', 'wrong'];
 
-const feedbackKey = (f) => `${FEEDBACK_PREFIX}${f.issueKey}:${f.accountId ?? 'unknown'}`;
+const feedbackKey = (f) => `${FEEDBACK_PREFIX}${f.issueKey}:${f.person ?? 'unknown'}`;
 
 // One entry per issue: any wrong verdict on it wins.
 export function perIssue(feedback) {
@@ -57,7 +59,7 @@ export async function saveFeedback(store, { issueKey, verdict, accountId = null,
     budget: Number.isFinite(decided.budget) ? decided.budget : null,
     decidedAt: typeof decided.at === 'string' ? decided.at : null,
     verdict,
-    accountId: typeof accountId === 'string' ? accountId : null,
+    person: await personMark(store, issueKey, accountId),
     at,
   };
   await store.set(feedbackKey(entry), entry);

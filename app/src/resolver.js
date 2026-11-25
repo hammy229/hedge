@@ -3,6 +3,7 @@ import ResolverModule from '@forge/resolver';
 import { answerSummary, readAnswer, saveAnswer } from './answers.js';
 import { budgetOptions } from './budget.js';
 import { feedbackSummary, feedbackWith, readFeedback, saveFeedback } from './feedback.js';
+import { forgetAccounts } from './forget.js';
 import { describePolicy } from './gate.js';
 import { leaveQueueAsUser, linkAsUser, openPolicies, projectQueue, queueCount, requeueAsUser, runTriage, seedProgress, seedProject, store } from './index.js';
 import { readLog } from './log.js';
@@ -65,6 +66,8 @@ export const handlers = {
   },
   pauses: async ({ context } = {}) => {
     adminOnly(context, 'Pauses can only be read from the admin page.');
+    // Entries saved before account ids were dropped. A failure is retried on the next load.
+    await forgetAccounts(store).catch(() => {});
     // A failed check must not hide the banner; the trigger runs it again before acting.
     await recheck(store).catch(() => {});
     return readPauses(store);

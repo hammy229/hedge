@@ -22,6 +22,9 @@ const LIST_MAX = 5000;
 export const store = {
   get: (k) => kvs.get(k),
   set: (k, v, options) => kvs.set(k, v, options),
+  delete: (k) => kvs.delete(k),
+  getSecret: (k) => kvs.getSecret(k),
+  createSecret: (k, v) => kvs.setSecret(k, v, { keyPolicy: 'FAIL_IF_EXISTS' }),
   async list(prefix) {
     const out = [];
     let cursor;
