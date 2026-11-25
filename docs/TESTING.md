@@ -63,7 +63,9 @@ issues).
 2. The chart shows how many held-out tickets Hedge would act on at each budget.
 3. Pick 2.5% and the sample gets 114 clears instead of 119. Pick 2%: nothing was
    certified at 2%, so Hedge asks about every ticket. Pick 3.5% and it acts on more.
-4. **Recent decisions** lists each decision with its score, budget, source (issue panel,
+4. **On your tickets** says how each budget would treat the tickets in the recent log. Open a few
+   tickets' Hedge panels first. Changing the budget does not change these numbers.
+5. **Recent decisions** lists each decision with its score, budget, source (issue panel,
    agent or new issue) and whether it was carried out.
 
 ## 5. Let Hedge act on new issues (optional)

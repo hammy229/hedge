@@ -11,7 +11,7 @@
 > policy ships in the app, with an issue panel, an admin error-budget dial, a decision log,
 > an opt-in trigger that labels new issues with Hedge's call, right-or-wrong verdicts that
 > pause Hedge when they show it is over budget, and a Rovo agent.
-> It runs on a Forge development install. Next: the production install link. Judges' steps are in [docs/TESTING.md](docs/TESTING.md).
+> It runs on a Forge development install, and a production build has an install link. Judges' steps are in [docs/TESTING.md](docs/TESTING.md).
 > See [docs/PLAN.md](docs/PLAN.md).
 
 ## Results
@@ -77,6 +77,8 @@ tickets where a calibrated statistical test shows the error rate among its actio
 4. A later test window checks that the certified error held under drift.
 5. Inside Forge, each gate compares the ticket's score to its threshold. Below both, with
    both above, or with any missing signal or unreadable window, the ticket goes to a person.
+   Before acting it also searches older issues for a copy of the ticket, since copies were left
+   out of calibration ([ADR 10](docs/adr/0010-check-older-issues-for-copies-before-acting.md)).
 6. The same gate is exposed through `rovo:mcp` and a Rovo agent, so external agents such as
    Claude Desktop and Rovo chat go through it too. They only report the call.
 7. If an admin turns it on, a trigger triages each new issue as it is filed and labels it
@@ -151,6 +153,8 @@ hedge/
 │   ├── src/text.js         answer-text stripping and the description cut, as in ml/
 │   ├── src/bm25.js         the window retriever, bm25-recent1000-v1
 │   ├── src/window.js       reads a project's latest 1,000 earlier issues from Jira search
+│   ├── src/copies.js       looks for older copies of a ticket before acting
+│   ├── src/whatif.js       what each budget would do on the logged tickets
 │   ├── src/triage.js       link and clear gates for one ticket
 │   ├── src/policy.js       calibrated policies per action, written by ml/ (link is not certified)
 │   ├── src/index.js        tool handlers: triage-issue, explain-policy, list-queue
@@ -198,6 +202,8 @@ CI runs both suites on every push and pull request to main.
 
 - Only the clear action is certified and installed; the app always asks before calling a
   ticket a duplicate.
+- Duplicates are only 2.1% of test tickets, so the gate's gain over clearing everything is modest:
+  1.6x better than asking at random at 3%, and nothing at 5%. A better retriever is the next lever.
 - Auto-linking is not certified at any budget with BM25. It needs a better retriever (week 2)
   or should stay a suggestion for a person.
 - Without Mojang the gate ranks tickets no better than the raw BM25 top score (AURC 0.012
