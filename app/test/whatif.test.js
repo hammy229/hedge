@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { whatIf } from '../src/whatif.js';
 import { whatIfView } from '../src/view.js';
-import { entryFor } from '../src/log.js';
+import { entryFor, readLog, record } from '../src/log.js';
 import { guardCopies } from '../src/copies.js';
 import { triage } from '../src/triage.js';
 import { activePolicies } from '../src/settings.js';
@@ -65,11 +65,23 @@ test('the log keeps the score, and a triage that failed has none', () => {
 
 test('the admin page marks the current budget and says nothing with no tickets', () => {
   const v = whatIfView(whatIf([entry('P-1', 0.95), entry('P-2', 0.6)], policy), 0.03);
-  assert.match(v.text, /last 2 tickets/);
+  assert.match(v.text, /the 2 tickets in the recent log/);
   assert.deepEqual(v.rows.map((r) => [r.label, r.value, r.current]), [
     ['2%', 'acts on 0 of 2', false], ['3%', 'acts on 1 of 2', true], ['5%', 'acts on 2 of 2', false],
   ]);
   assert.equal(whatIfView({ tickets: 0, rows: [] }, 0.03), null);
   assert.equal(whatIfView(undefined, 0.03), null);
-  assert.match(whatIfView(whatIf([entry('P-1', 0.95)], policy), 0.03).text, /last ticket/);
+  assert.match(whatIfView(whatIf([entry('P-1', 0.95)], policy), 0.03).text, /the one ticket in the recent log/);
+});
+
+test('a new score on the same call replaces the logged one, and an unfinished copy check leaves none', async () => {
+  const m = new Map();
+  const store = { get: async (k) => m.get(k), set: async (k, v) => void m.set(k, v), list: async (p) => [...m].filter(([k]) => k.startsWith(p)).map(([, v]) => v) };
+  const meta = { via: 'panel', at: new Date().toISOString() };
+  const ask = { issueKey: 'P-1', decision: 'ask', reason: 'r', gates: {} };
+  await record(store, ask, meta); // logged before scores were kept
+  await record(store, { ...ask, clearScore: 0.8 }, meta);
+  assert.equal((await readLog(store))[0].clearScore, 0.8);
+  const unknown = await guardCopies({ decision: 'clear', clearScore: 0.99, gates: {} }, async () => ({ copy: null, complete: false }));
+  assert.equal('clearScore' in entryFor({ ...unknown, issueKey: 'P-1' }, meta), false);
 });

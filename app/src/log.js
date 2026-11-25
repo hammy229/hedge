@@ -87,7 +87,7 @@ export async function record(store, result, meta) {
     const k = logKey(entry);
     const old = await store.get(k);
     const fresh = Date.parse(old?.at) >= Date.parse(entry.at) - LOG_DAYS * DAY_MS;
-    if (!fresh || old.applied !== entry.applied) await store.set(k, entry, ttl(LOG_DAYS));
+    if (!fresh || old.applied !== entry.applied || old.clearScore !== entry.clearScore) await store.set(k, entry, ttl(LOG_DAYS));
   } catch {
     // The log is a record of decisions, not part of them.
   }

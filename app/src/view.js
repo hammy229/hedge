@@ -264,7 +264,7 @@ export function whatIfView(result, budget) {
   if (!Number.isInteger(n) || n < 1 || !Array.isArray(result.rows) || result.rows.length === 0) return null;
   return {
     title: 'On your tickets',
-    text: `How each budget would treat the last ${n === 1 ? 'ticket' : `${n} tickets`} Hedge checked here. Acting on more does not mean more of the calls are right.`,
+    text: `How each budget would treat the ${n === 1 ? 'one ticket' : `${n} tickets`} in the recent log. Acting on more does not mean more of the calls are right.`,
     rows: result.rows.map((r) => ({ key: String(r.alpha), label: trimPct(r.alpha), value: `acts on ${r.acts} of ${n}`, current: r.alpha === budget })),
   };
 }
