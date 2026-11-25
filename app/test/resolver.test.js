@@ -116,3 +116,9 @@ test('only the admin page may read the budget preview', async () => {
     await assert.rejects(handlers.whatIf({ context }), /admin page/);
   }
 });
+
+test('only the admin page may rewrite stored entries', async () => {
+  for (const context of [{ moduleKey: 'hedge-panel' }, {}, undefined]) {
+    await assert.rejects(handlers.forget({ context }), /admin page/);
+  }
+});
