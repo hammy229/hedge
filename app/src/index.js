@@ -1,6 +1,7 @@
 import api, { route } from '@forge/api';
 import { WhereConditions, kvs } from '@forge/kvs';
 import { LABELS, applyDecision, leaveQueue, requeue } from './act.js';
+import { findCopy, guardCopies } from './copies.js';
 import { onCreated } from './created.js';
 import { describePolicy } from './gate.js';
 import { seedStatus, seedStep, seedingNow } from './seeder.js';
@@ -53,6 +54,9 @@ const ONLY_RATE_LIMIT = { statuses: [429] };
 
 // Waiting on rate limits, shared by all reads of one triage (retry.js).
 export const TRIAGE_RETRY_MS = 8000;
+
+// The copy search starts no page after this, so a triage ends inside Forge's 25 s.
+const COPY_DEADLINE_MS = 20000;
 
 async function jira(path, options, as = 'user', budget = null) {
   const res = await send(as, path, options, budget ? { budget } : undefined);
@@ -126,21 +130,24 @@ export async function runTriage(rawKey, via, as = 'user', after = null) {
 
 async function triageAt(issueKey, active, as) {
   const budget = { ms: TRIAGE_RETRY_MS };
+  const deadline = Date.now() + COPY_DEADLINE_MS;
   try {
     const issue = await jira(route`/rest/api/2/issue/${issueKey}?fields=${[...FIELDS, 'labels'].join(',')}`, undefined, as, budget);
     const jql = windowJql(issue.fields?.project?.id, issue);
-    const fetchPage = (nextPageToken) =>
+    const search = (query, nextPageToken) =>
       jira(route`/rest/api/2/search/jql`, {
         method: 'POST',
         headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jql, fields: FIELDS, maxResults: PAGE_SIZE, nextPageToken }),
+        body: JSON.stringify({ jql: query, fields: FIELDS, maxResults: PAGE_SIZE, nextPageToken }),
       }, as, budget);
-    const [{ window, complete }, keys] = await Promise.all([collectWindow(fetchPage, issue), projectKeys(as, budget)]);
+    const [{ window, complete }, keys] = await Promise.all([collectWindow((token) => search(jql, token), issue), projectKeys(as, budget)]);
     if (!complete) {
       return { issueKey, decision: 'ask', failed: true, reason: 'Could not read the full search window, so a person decides.' };
     }
     const labels = Array.isArray(issue.fields?.labels) ? issue.fields.labels : [];
-    return { issueKey, summary: issue.fields?.summary ?? '', labels, ...triage({ issue, window, projectKeys: keys, policies: active }) };
+    const call = triage({ issue, window, projectKeys: keys, policies: active });
+    const checked = await guardCopies(call, () => findCopy(search, issue, keys, deadline));
+    return { issueKey, summary: issue.fields?.summary ?? '', labels, ...checked };
   } catch (e) {
     // failed: the ask is about Jira, not the ticket, so the trigger leaves the issue alone.
     return { issueKey, decision: 'ask', failed: true, reason: `Hedge could not triage this ticket (${e.message}), so a person decides.` };
