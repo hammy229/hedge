@@ -137,3 +137,30 @@ def test_min_window_needs_a_window_on_every_test_row():
     next(r for r in data if r["split"] == "test").pop("window")
     with pytest.raises(ValueError, match="integer window on every test row"):
         report(data, alphas=(0.2,), n_boot=10, min_window=30)
+
+
+def test_report_compares_the_gate_with_acting_on_every_ticket():
+    clear = report(rows(), alphas=(0.05,), n_boot=50)["actions"]["clear"]
+    point, lo, hi = clear["base_error_ci"]
+    assert point == clear["base_error"] and lo <= point <= hi
+    c = clear["certified"][0]
+    assert c["calibrated"]
+    # Errors the gate makes plus errors it keeps are the errors of acting on everything.
+    made = c["test_error"][0] * c["test_coverage"][0]
+    assert abs(made + c["test_kept"][0] * point - point) < 1e-9
+    assert abs(c["test_lift"][0] - c["test_kept"][0] / (1 - c["test_coverage"][0])) < 1e-9
+    assert c["test_lift"][0] > 1  # these rows are separable, so it beats asking at random
+
+
+def test_markdown_shows_the_error_of_acting_on_every_ticket():
+    md = to_markdown(report(rows(), alphas=(0.05,), n_boot=20))
+    assert "Error if it acted on every ticket" in md and "Against asking at random" in md
+
+
+def test_main_reports_the_budgets_it_is_given(tmp_path):
+    path = tmp_path / "rows.jsonl"
+    path.write_text("".join(json.dumps(r) + "\n" for r in rows(900)))
+    out = tmp_path / "report.json"
+    assert main([str(path), "--out", str(out), "--alphas", "0.025,0.2", "--n-boot", "10"]) == 0
+    assert json.loads(out.read_text())["alphas"] == [0.025, 0.2]
+    assert "| clear | 2.5% |" in out.with_suffix(".md").read_text()

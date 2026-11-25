@@ -6,6 +6,12 @@ rows, created after every calibration row, then show what the threshold does und
 the error rate among acted tickets, and how many tickets it acted on. Intervals resample
 whole projects, since tickets from one project are correlated.
 
+Duplicates are rare, so an error rate alone flatters any rule that clears: clearing every
+ticket is wrong only as often as a ticket is a duplicate. Each certified row therefore also
+reports ``kept``, the share of the wrong actions that acting on every ticket would make and
+the gate leaves to a person, next to the share of tickets it leaves. A gate that asks at
+random keeps as large a share of the errors as of the tickets.
+
 A second table ranks the confidence signals with no certification: the gate's probability
 against the raw BM25 top score, the obvious signal an agent would use on its own.
 
@@ -151,13 +157,26 @@ def report(
                 row["test_coverage"] = cluster_bootstrap_ci(lambda i, act=act: float(act[i].mean()), **boot)
                 row["test_error"] = cluster_bootstrap_ci(risk, **boot)
                 row["test_acted"] = int(act.sum())
+
+                def kept(i, act=act):
+                    total = wrong[i].sum()
+                    return float(wrong[i][~act[i]].sum() / total) if total else float("nan")
+
+                def lift(i, act=act, kept=kept):
+                    asked = float((~act[i]).mean())
+                    return kept(i) / asked if asked else float("nan")
+
+                row["test_kept"] = cluster_bootstrap_ci(kept, **boot)
+                row["test_lift"] = cluster_bootstrap_ci(lift, **boot)
             certified.append(row)
         ranking = {
             # Both signals rank tickets below the minimum window last, as the app never acts on them.
             "Hedge gate": evaluate_method(np.where(windows >= min_window, probs, -np.inf), wrong, projects, alphas, n_boot=n_boot, seed=seed),
             "BM25 top score": evaluate_method(np.where(windows >= min_window, baseline_scores(action, test), -np.inf), wrong, projects, alphas, n_boot=n_boot, seed=seed),
         }
-        out["actions"][action] = {"base_error": float(wrong.mean()), "certified": certified, "ranking": ranking}
+        out["actions"][action] = {"base_error": float(wrong.mean()),
+            "base_error_ci": cluster_bootstrap_ci(lambda i, wrong=wrong: float(wrong[i].mean()), clusters=projects, n_boot=n_boot, seed=seed),
+            "certified": certified, "ranking": ranking}
     return out
 
 
@@ -169,15 +188,24 @@ def to_markdown(result: dict) -> str:
     for action, a in result["actions"].items():
         for c in a["certified"]:
             if not c["calibrated"]:
-                lines.append(f"| {action} | {c['alpha']:.0%} | nothing certified | 0% | 0 | n/a | n/a |")
+                lines.append(f"| {action} | {c['alpha'] * 100:g}% | nothing certified | 0% | 0 | n/a | n/a |")
                 continue
             lines.append(
-                f"| {action} | {c['alpha']:.0%} | acts on {c['calibration_coverage']:.1%} | "
+                f"| {action} | {c['alpha'] * 100:g}% | acts on {c['calibration_coverage']:.1%} | "
                 f"{_fmt(c['test_coverage'], True)} | {c['test_acted']:,} | "
                 f"{_fmt(c['test_error'], True)} | {verdict(c)} |"
             )
+    lines += ["", "| Action | Budget | Error if it acted on every ticket | Tickets it asks about | Of those errors, kept for a person | Against asking at random |"]
+    lines.append("|---|---|---|---|---|---|")
+    for action, a in result["actions"].items():
+        for c in a["certified"]:
+            if c["calibrated"]:
+                lines.append(
+                    f"| {action} | {c['alpha'] * 100:g}% | {_fmt(a['base_error_ci'], True)} | {1 - c['test_coverage'][0]:.1%} | "
+                    f"{_fmt(c['test_kept'], True)} | {_fmt(c['test_lift'], False)}x |"
+                )
     alphas = result["alphas"]
-    lines += ["", "| Action | Signal | AURC (lower is better) | " + " | ".join(f"Coverage at {a:.0%} error" for a in alphas) + " |"]
+    lines += ["", "| Action | Signal | AURC (lower is better) | " + " | ".join(f"Coverage at {a * 100:g}% error" for a in alphas) + " |"]
     lines.append("|---|---|---|" + "---|" * len(alphas))
     for action, a in result["actions"].items():
         for name, r in a["ranking"].items():
@@ -196,6 +224,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--delta", type=float, default=0.1)
     ap.add_argument("--n-boot", type=int, default=1000)
+    ap.add_argument("--alphas", type=lambda t: tuple(float(x) for x in t.split(",")), default=ALPHAS, help="error budgets to report, e.g. 0.025,0.03,0.035")
     ap.add_argument("--min-window", type=int, default=0, help="ask about tickets that searched fewer earlier issues (ADR 8)")
     args = ap.parse_args(argv)
     with args.rows.open() as f:
@@ -206,7 +235,7 @@ def main(argv: list[str] | None = None) -> int:
     held: set[str] = set()
     if args.holdout_projects:
         rows, held = hold_out_projects(rows, args.holdout_projects, args.seed)
-    result = report(rows, delta=args.delta, n_boot=args.n_boot, min_window=args.min_window)
+    result = report(rows, alphas=args.alphas, delta=args.delta, n_boot=args.n_boot, min_window=args.min_window)
     result["excluded_jiras"] = args.exclude_jira
     result["mature_days"] = args.mature_days
     result["held_out_projects"] = sorted(held)
