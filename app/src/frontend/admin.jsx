@@ -269,6 +269,9 @@ function Admin() {
   useEffect(() => {
     // Apart from load(): a slow or failed count must not hold up the page.
     invoke('queue').then(setWaiting, () => setWaiting(null));
+    // A batch per call. One that changed nothing, or failed, waits for the next load.
+    const forget = () => invoke('forget').then((r) => (r?.left > 0 && r.changed > 0 ? forget() : null), () => null);
+    forget();
     invoke('whatIf').then(setPreview, () => setPreview(null));
     load();
   }, []);

@@ -66,11 +66,14 @@ export const handlers = {
   },
   pauses: async ({ context } = {}) => {
     adminOnly(context, 'Pauses can only be read from the admin page.');
-    // Entries saved before account ids were dropped. A failure is retried on the next load.
-    await forgetAccounts(store).catch(() => {});
     // A failed check must not hide the banner; the trigger runs it again before acting.
     await recheck(store).catch(() => {});
     return readPauses(store);
+  },
+  // Rewrites entries saved before account ids were dropped.
+  forget: async ({ context } = {}) => {
+    adminOnly(context, 'Stored entries can only be rewritten from the admin page.');
+    return forgetAccounts(store);
   },
   // Lifting a pause lets Hedge act again, so only the admin page may.
   resume: async ({ payload, context } = {}) => {
