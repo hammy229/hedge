@@ -26,6 +26,29 @@ cd ml
 The admin dial's rows (calibration share cleared): 2% nothing certified, 2.5% 61.8%,
 3% 82.8%, 3.5% 96.5%, 5% 99.4%.
 
+### Against clearing every ticket
+
+Duplicates are 2.1% [1.6%, 2.8%] of test tickets without Mojang, so a rule that clears
+every ticket is wrong 2.1% of the time. An error rate under 3% is therefore not evidence of
+skill by itself. What the gate adds is which tickets it leaves to a person:
+
+| Budget | Tickets asked about | Test error | Duplicates kept for a person | Against asking at random |
+|---|---:|---:|---:|---:|
+| clear everything | 0% | 2.1% [1.6%, 2.8%] | 0% | n/a |
+| 2.5% | 39.7% | 1.5% [1.1%, 2.0%] | 57.6% [48.2%, 65.0%] | 1.45x [1.24, 1.70] |
+| 3% (default) | 20.4% | 1.8% [1.3%, 2.3%] | 32.5% [25.5%, 38.4%] | 1.59x [1.19, 2.04] |
+| 3.5% | 5.6% | 2.0% [1.5%, 2.6%] | 9.5% [5.9%, 13.3%] | 1.69x [0.86, 3.12] |
+| 5% | 0.8% | 2.2% [1.6%, 2.8%] | 0.0% | 0x |
+
+So the gate beats asking at random at 2.5% and 3%, by a modest factor. At 3.5% the interval
+includes 1, and at 5% the gate does no better than clearing everything. A site that cares
+about caught duplicates should pick 2.5%. The certificate is still what tells an admin that
+the rate holds; on a site with many more duplicates (Mojang: 15%) it certifies nothing at 3%.
+
+```bash
+../.venv/bin/python -m hedge.report ../data/rows-fresh.jsonl --out ../data/report4-dial.json --exclude-jira Mojang --min-window 30 --alphas 0.02,0.025,0.03,0.035,0.05
+```
+
 The same fresh draw with no minimum window certifies 83.4% and covers 80.4% [75.1%, 84.6%]
 of test tickets with 1.8% error. The old draw certified 59.9% for that rule-free policy:
 gate scores bunch between 0.95 and 0.97, so coverage swings with the draw while the error
