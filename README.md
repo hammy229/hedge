@@ -21,18 +21,19 @@ Only numbers this repo produces. Real-data rows come from [docs/results.md](docs
 
 | Claim | Measured | How it is checked |
 |---|---|---|
-| An admin can move the budget without breaking the guarantee | every dial row is certified at the full delta, valid for all rows at once ([ADR 7](docs/adr/0007-one-delta-for-every-dial-budget.md)); clear acts on 61.8% of calibration tickets at 2.5%, 82.8% at 3%, 96.5% at 3.5% (2% certifies nothing). Only 1 of 400 synthetic calibration draws had any of five budgets certify a threshold above its budget (allowed: 10%) | `python -m hedge.calibrate --budgets`, `ml/tests/test_risk.py` |
-| Clearing new tickets from duplicate review is safe at a 3% budget | without Mojang, 79.6% [74.4, 83.8] of test tickets cleared with 1.8% [1.3, 2.3] of them duplicates; certified on a fresh calibration draw, checked on the later test window. This policy ships in the app | `python -m hedge.report --min-window 30`, [results](docs/results.md) |
-| It beats clearing everything, modestly | clearing every ticket is wrong 2.1% [1.6, 2.8] of the time, so a low error rate alone proves little. At 2.5% Hedge asks about 39.7% of tickets and those hold 57.6% [48.2, 65.0] of the duplicates (1.45x asking at random); at 3%, 20.4% and 32.5% [25.5, 38.4] (1.59x). At 5% it is no better than clearing everything | `python -m hedge.report --min-window 30 --alphas 0.025,0.03,0.035,0.05`, [results](docs/results.md#against-clearing-every-ticket) |
+| An admin can move the budget without breaking the guarantee | every dial row is certified at the full delta, valid for all rows at once ([ADR 7](docs/adr/0007-one-delta-for-every-dial-budget.md)); clear acts on 42.5% of calibration tickets at 2%, 65.4% at 2.5%, 82.5% at 3%, 96.5% at 3.5%. Only 1 of 400 synthetic calibration draws had any of five budgets certify a threshold above its budget (allowed: 10%) | `python -m hedge.calibrate --budgets`, `ml/tests/test_risk.py` |
+| Clearing new tickets from duplicate review is safe at a 3% budget | without Mojang, 79.5% [74.1, 83.8] of test tickets cleared with 1.8% [1.3, 2.3] of them duplicates; certified on a fresh calibration draw, checked on the later test window. This policy ships in the app | `python -m hedge.report --min-window 30`, [results](docs/results.md) |
+| It beats clearing everything, modestly | clearing every ticket is wrong 2.1% [1.6, 2.8] of the time, so a low error rate alone proves little. At 2% Hedge asks about 58.5% of tickets and those hold 77.4% [69.4, 83.1] of the duplicates (1.32x asking at random); at 2.5%, 36.8% and 55.1% [46.0, 61.1] (1.50x); at 3%, 20.5% and 33.2% [27.1, 39.7] (1.62x). At 5% it is no better than clearing everything | `python -m hedge.report --min-window 30 --alphas 0.02,0.025,0.03,0.035,0.05`, [results](docs/results.md#against-clearing-every-ticket) |
 | It stops itself when people's verdicts show it is over budget | checked after every verdict, 2.1% of 1,000 simulated sites running exactly at 3% were paused (allowed: 5%), and all sites at 15% were. At 6% it caught 41.7% within 200 verdicts | `app/test/evidence.test.js`, [ADR 9](docs/adr/0009-pause-on-evidence-that-survives-repeated-checks.md) |
-| A new project with little history is never acted on | below 30 earlier issues both gates ask. Before this rule, a ten-ticket project had a restated ticket cleared as new; the rule costs 0.8 points of test coverage (80.4% to 79.6%) and is certified with the policy | [ADR 8](docs/adr/0008-ask-below-a-minimum-window.md), `app/test/triage.test.js` |
+| A new project with little history is never acted on | below 30 earlier issues both gates ask. Before this rule, a ten-ticket project had a restated ticket cleared as new; the rule cost 0.8 points of test coverage with the v1 retriever (80.4% to 79.6%) and is certified with the policy | [ADR 8](docs/adr/0008-ask-below-a-minimum-window.md), `app/test/triage.test.js` |
 | Context features make the gate beat the raw score | with every Jira, clear AURC 0.066 [0.023, 0.124] for the gate against 0.133 for the top BM25 score; window size, summary overlap and match age lifted certified coverage at 3% from 36.9% to 57.8% without Mojang | same report, [ADR 6](docs/adr/0006-window-aware-gate-features.md) |
-| On real sample data, the misses are visible | 150 public Jira Software Server issues seeded into an empty project: at 3% Hedge clears 119, asks about 31, and clears 3 of the 5 known duplicates by mistake (2.5% of its clears), each with the right original as its top candidate | `app/test/seed.test.js`, [results](docs/results.md) |
+| On real sample data, the misses are visible | 150 public Jira Software Server issues seeded into an empty project: at 3% Hedge clears 118, asks about 32, and clears 3 of the 5 known duplicates by mistake (2.5% of its clears); at 2% it clears 105 and catches one of those three | `app/test/seed.test.js`, [results](docs/results.md) |
 | Late labels barely move it | on test tickets filed 180+ days before the dump, clear error 1.6% [1.1, 2.1] against 1.4% on all | `--mature-days 180` |
 | Unseen projects are the open risk | on held-out projects, test error 2.5% [1.8, 3.2], 2.1% [1.2, 2.9] and 1.4% [0.7, 2.2] in three draws: under 3% at the point, over it at the upper end once | `--holdout-projects 0.25` |
 | Auto-linking duplicates with BM25 signals is not safe | no threshold certified at any budget up to 10%, with or without Mojang; linking the top candidate is right for 2.8% of test tickets | same report |
 | One ticket per cluster certified the wrong quantity | on calibration, duplicates are 15.1% of tickets but 8.2% of clusters; the old test certified 5% and 10% budgets that the test window broke (6.9%, 15.4% error). The per-cluster bound falsely certifies 1.3% of synthetic draws where the old test did 83.7% | `tests/test_risk.py`, [ADR 5](docs/adr/0005-per-ticket-risk-under-clustering.md) |
-| BM25 over the project's last 1,000 issues, the corpus the app can read | recall@1 33.9%, recall@10 51.2%, MRR 0.391 on test tickets with a duplicate (without Mojang); 72.1% of answers fall inside the window | `python -m hedge.rows`, [ADR 4](docs/adr/0004-calibrate-on-the-scores-the-app-computes.md) |
+| BM25 over the project's last 1,000 issues, the corpus the app can read | recall@1 37.5%, recall@10 54.4%, MRR 0.428 on test tickets with a duplicate (without Mojang); 72.1% of answers fall inside the window | `python -m hedge.rows`, [ADR 4](docs/adr/0004-calibrate-on-the-scores-the-app-computes.md) |
+| Counting the summary three times finds more duplicates | picked on training tickets only: hit@1 41.3% to 45.0% (without Mojang), 48.9% to 51.0% (Mojang). On test, recall@1 33.9% to 37.5% and the 2% budget now certifies (41.5% of test tickets cleared, 1.2% error) | `python -m hedge.sweep`, [ADR 11](docs/adr/0011-count-the-summary-three-times.md) |
 | The Forge retriever scores exactly like the Python one | 11 of 11 shared cases agree to 1e-9 on texts, scores, top candidates, features and copy detection, including Unicode and emoji cuts | `fixtures/bm25.json`, read by both test suites |
 | The selective risk guarantee holds | 0 of 400 calibration draws certified a threshold with true error above 10% (allowed: 10% of draws) | `ml/tests/test_risk.py`, synthetic tickets with a known error curve |
 | It still acts on a useful share | 28.6% of tickets certified at a 10% budget, where the best possible is 40% | same test file, 5,000 synthetic tickets |
@@ -151,7 +152,7 @@ hedge/
 │   ├── src/gate.js         fail-closed act-or-ask decision
 │   ├── src/features.js     gate features (shared definitions with ml/)
 │   ├── src/text.js         answer-text stripping and the description cut, as in ml/
-│   ├── src/bm25.js         the window retriever, bm25-recent1000-v1
+│   ├── src/bm25.js         the window retriever, bm25-recent1000-title3-v2
 │   ├── src/window.js       reads a project's latest 1,000 earlier issues from Jira search
 │   ├── src/copies.js       looks for older copies of a ticket before acting
 │   ├── src/whatif.js       what each budget would do on the logged tickets
@@ -203,7 +204,8 @@ CI runs both suites on every push and pull request to main.
 - Only the clear action is certified and installed; the app always asks before calling a
   ticket a duplicate.
 - Duplicates are only 2.1% of test tickets, so the gate's gain over clearing everything is modest:
-  1.6x better than asking at random at 3%, and nothing at 5%. A better retriever is the next lever.
+  1.6x better than asking at random at 3%, and nothing at 5%. Weighting the summary helped a
+  little (ADR 11); a trained encoder is the next lever.
 - Auto-linking is not certified at any budget with BM25. It needs a better retriever (week 2)
   or should stay a suggestion for a person.
 - Without Mojang the gate ranks tickets no better than the raw BM25 top score (AURC 0.012
