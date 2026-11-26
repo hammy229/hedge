@@ -30,25 +30,46 @@ K1, B = 1.2, 0.75
 RETRIEVER = f"bm25-recent{WINDOW}-v1"
 
 
+def weighted(text: str, summary_weight: int) -> str:
+    """The text with its summary (the first line) written ``summary_weight`` times.
+
+    Retrieval texts are "summary\\ndescription" and stripping turns every whitespace run
+    into one space, so the first newline always ends the summary. Repeating it multiplies
+    its term counts and its share of the document length, which is how BM25 weights a
+    field without a second index.
+    """
+    if summary_weight < 1:
+        raise ValueError("summary weight must be at least 1")
+    if summary_weight == 1:
+        return text
+    summary, _, description = text.partition("\n")
+    return "\n".join([summary] * summary_weight) + "\n" + description
+
+
 @dataclass(frozen=True)
 class TokenIndex:
-    """Every document's tokens as ids into one vocabulary, in CSR form."""
+    """Every document's tokens as ids into one vocabulary, in CSR form.
+
+    Documents and queries both have their summary weighted by ``summary_weight``.
+    """
 
     vocab: dict[str, int]
     ptr: np.ndarray  # document d's tokens are ids[ptr[d]:ptr[d + 1]]
     ids: np.ndarray
+    summary_weight: int = 1
 
     @classmethod
-    def build(cls, texts: Sequence[str]) -> TokenIndex:
+    def build(cls, texts: Sequence[str], summary_weight: int = 1) -> TokenIndex:
         vocab: dict[str, int] = {}
         ptr, ids = array("q", [0]), array("i")
         for text in texts:
-            ids.extend(vocab.setdefault(t, len(vocab)) for t in tokenize(text))
+            ids.extend(vocab.setdefault(t, len(vocab)) for t in tokenize(weighted(text, summary_weight)))
             ptr.append(len(ids))
-        return cls(vocab, np.frombuffer(ptr, dtype=np.int64), np.frombuffer(ids, dtype=np.int32))
+        return cls(vocab, np.frombuffer(ptr, dtype=np.int64), np.frombuffer(ids, dtype=np.int32), summary_weight)
 
     def query(self, text: str) -> Counter:
-        return Counter(j for t in tokenize(text) if (j := self.vocab.get(t)) is not None)
+        toks = tokenize(weighted(text, self.summary_weight))
+        return Counter(j for t in toks if (j := self.vocab.get(t)) is not None)
 
 
 def window_bounds(starts: np.ndarray, created: np.ndarray, i: int, size: int = WINDOW) -> tuple[int, int]:

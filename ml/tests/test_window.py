@@ -83,3 +83,25 @@ def test_answer_outside_the_window_is_reported():
     index = TokenIndex.build(c.text)
     got = retrieve(c, index, 2, group_starts(c.group), size=1)
     assert got.window == 1 and not got.answer_in_window
+
+
+def test_weighted_repeats_only_the_summary():
+    from hedge.window import weighted
+
+    assert weighted("npe login\nstack trace here", 3) == "npe login\nnpe login\nnpe login\nstack trace here"
+    assert weighted("npe login\nstack", 1) == "npe login\nstack"
+    assert weighted("only a summary", 2) == "only a summary\nonly a summary\n"
+    with pytest.raises(ValueError):
+        weighted("x\ny", 0)
+
+
+def test_summary_weight_counts_title_words_more():
+    texts = ["login crash\nrender", "render crash\nlogin"]
+    plain = TokenIndex.build(texts)
+    heavy = TokenIndex.build(texts, summary_weight=3)
+    q = "login\n"
+    p = window_scores(plain, 0, 2, plain.query(q))
+    h = window_scores(heavy, 0, 2, heavy.query(q))
+    assert p[0] == pytest.approx(p[1])
+    assert h[0] > h[1]
+    assert heavy.summary_weight == 3
