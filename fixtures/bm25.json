@@ -5,6 +5,7 @@
   "k": 10,
   "k1": 1.2,
   "b": 0.75,
+  "summaryWeight": 1,
   "maxDescription": 1000,
   "projectKeys": [
     "HADOOP",

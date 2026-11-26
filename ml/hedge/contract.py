@@ -18,7 +18,7 @@ from pathlib import Path
 from .corpus import MAX_DESCRIPTION, retrieval_parts
 from .features import score_features
 from .leakage import normalize
-from .window import B, K, K1, RETRIEVER, WINDOW, TokenIndex, top_k, window_scores
+from .window import B, K, K1, RETRIEVER, SUMMARY_WEIGHT, WINDOW, TokenIndex, top_k, window_scores
 
 PATH = Path(__file__).resolve().parents[2] / "fixtures" / "bm25.json"
 PROJECT_KEYS = ["HADOOP", "MC", "SPARK"]
@@ -82,7 +82,7 @@ def case(name: str, query: dict, window: list[dict]) -> dict:
     for doc in [*window, query]:
         s, d = retrieval_parts(doc["summary"], doc["description"], keys)
         texts.append(s + "\n" + d)
-    index = TokenIndex.build(texts)
+    index = TokenIndex.build(texts, summary_weight=SUMMARY_WEIGHT)
     scores = window_scores(index, 0, len(window), index.query(texts[-1]))
     top = top_k(scores, K)
     return {
@@ -110,6 +110,7 @@ def contract() -> dict:
         "k": K,
         "k1": K1,
         "b": B,
+        "summaryWeight": SUMMARY_WEIGHT,
         "maxDescription": MAX_DESCRIPTION,
         "projectKeys": PROJECT_KEYS,
         "cases": [case(*c) for c in CASES],

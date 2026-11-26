@@ -30,7 +30,7 @@ import numpy as np
 from .corpus import Corpus
 from .features import gate_features
 from .splits import Split, quantile_temporal_split
-from .window import K, RETRIEVER, WINDOW, TokenIndex, group_starts, retrieve
+from .window import K, RETRIEVER, SUMMARY_WEIGHT, WINDOW, TokenIndex, group_starts, retrieve
 
 
 def query_split(corpus: Corpus, cal_frac: float = 0.15, test_frac: float = 0.15) -> tuple[Split, dict]:
@@ -121,7 +121,7 @@ def main(argv: list[str] | None = None) -> int:
     args = ap.parse_args(argv)
     start = time.monotonic()
     corpus = Corpus.load(args.corpus)
-    index = TokenIndex.build(corpus.text)
+    index = TokenIndex.build(corpus.text, summary_weight=SUMMARY_WEIGHT)
     print(f"indexed {len(corpus):,} issues in {time.monotonic() - start:.0f} s", file=sys.stderr)
     split, info = query_split(corpus)
     rng = np.random.default_rng(args.seed)

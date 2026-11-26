@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { K, RETRIEVER, WINDOW, topK, windowScores } from '../src/bm25.js';
+import { K, RETRIEVER, SUMMARY_WEIGHT, WINDOW, topK, weighted, windowScores } from '../src/bm25.js';
 import { MAX_DESCRIPTION, codePointPrefix, copyKey, retrievalText } from '../src/text.js';
 import { scoreFeatures } from '../src/features.js';
 
@@ -11,6 +11,7 @@ test('constants match the Python retriever', () => {
   assert.equal(RETRIEVER, contract.retriever);
   assert.equal(WINDOW, contract.window);
   assert.equal(K, contract.k);
+  assert.equal(SUMMARY_WEIGHT, contract.summaryWeight);
   assert.equal(MAX_DESCRIPTION, contract.maxDescription);
 });
 
@@ -38,4 +39,11 @@ for (const c of contract.cases) {
 test('codePointPrefix counts code points, not UTF-16 units', () => {
   assert.equal(codePointPrefix('😀😀😀', 2), '😀😀');
   assert.equal(codePointPrefix('ab', 5), 'ab');
+});
+
+test('weighted repeats only the summary, as window.py does', () => {
+  assert.equal(weighted('npe login\nstack trace', 3), 'npe login\nnpe login\nnpe login\nstack trace');
+  assert.equal(weighted('npe login\nstack', 1), 'npe login\nstack');
+  assert.equal(weighted('only a summary', 2), 'only a summary\nonly a summary\n');
+  assert.throws(() => weighted('x', 0), /at least 1/);
 });

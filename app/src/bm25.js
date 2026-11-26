@@ -5,6 +5,8 @@
 export const RETRIEVER = 'bm25-recent1000-v1';
 export const WINDOW = 1000;
 export const K = 10;
+// How many times the summary counts against the description (window.py SUMMARY_WEIGHT).
+export const SUMMARY_WEIGHT = 1;
 const K1 = 1.2;
 const B = 0.75;
 
@@ -22,12 +24,26 @@ function counts(tokens) {
   return m;
 }
 
+// The text with its summary, the part before the first newline, written `summaryWeight`
+// times. Stripping turned every whitespace run in the summary into one space, so the first
+// newline always ends it. Same as weighted() in window.py.
+export function weighted(text, summaryWeight) {
+  if (!(summaryWeight >= 1)) throw new Error('The summary weight must be at least 1.');
+  if (summaryWeight === 1) return text;
+  const s = String(text);
+  const cut = s.indexOf('\n');
+  const summary = cut < 0 ? s : s.slice(0, cut);
+  const description = cut < 0 ? '' : s.slice(cut + 1);
+  return `${Array(summaryWeight).fill(summary).join('\n')}\n${description}`;
+}
+
 // BM25 score of the query against every window document (Lucene's always-positive IDF).
-export function windowScores(windowTexts, queryText) {
+// Documents and query both have their summary weighted.
+export function windowScores(windowTexts, queryText, summaryWeight = SUMMARY_WEIGHT) {
   const n = windowTexts.length;
   if (n === 0) return [];
-  const query = counts(tokenize(queryText));
-  const docs = windowTexts.map((t) => tokenize(t));
+  const query = counts(tokenize(weighted(queryText, summaryWeight)));
+  const docs = windowTexts.map((t) => tokenize(weighted(t, summaryWeight)));
   const lengths = docs.map((d) => d.length);
   const total = lengths.reduce((a, b) => a + b, 0);
   const avg = total > 0 ? total / n : 1;
