@@ -31,9 +31,12 @@ export function perIssue(feedback) {
 }
 
 // Every stored verdict, with `saved` put in by hand because the list may lag the write.
-// Unlike readFeedback, storage errors are thrown.
+// Unlike readFeedback, storage errors are thrown, and so is a list cut at the storage cap:
+// the pause check counts wrong calls, and a part of the verdicts could leave some out. The
+// trigger then leaves issues alone, as it does on any failed check.
 export async function feedbackWith(store, saved = null) {
   const list = await store.list(FEEDBACK_PREFIX);
+  if (list?.truncated) throw new Error('Too many verdicts are stored to check them all.');
   if (!saved) return list;
   return [...list.filter((f) => f && feedbackKey(f) !== feedbackKey(saved)), saved];
 }

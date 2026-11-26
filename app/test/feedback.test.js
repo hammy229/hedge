@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { feedbackSummary, readFeedback, saveFeedback } from '../src/feedback.js';
+import { feedbackSummary, feedbackWith, readFeedback, saveFeedback } from '../src/feedback.js';
 import { record } from '../src/log.js';
 
 const memory = () => {
@@ -94,4 +94,10 @@ test('nobody can erase another person\'s wrong verdict, but a person can change 
   assert.deepEqual([feedbackSummary(await readFeedback(store)).reviewed, feedbackSummary(await readFeedback(store)).wrong], [1, 1]);
   await saveFeedback(store, { issueKey: 'DEMO-7', verdict: 'right', accountId: 'a' });
   assert.equal(feedbackSummary(await readFeedback(store)).wrong, 0);
+});
+
+test('verdicts cut at the storage cap are an error, not a smaller count', async () => {
+  const cut = Object.assign([], { truncated: true });
+  const store = { list: async () => cut };
+  await assert.rejects(feedbackWith(store), /too many verdicts/i);
 });

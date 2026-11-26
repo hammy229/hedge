@@ -6,6 +6,7 @@ import { onCreated } from './created.js';
 import { describePolicy } from './gate.js';
 import { seedStatus, seedStep, seedingNow } from './seeder.js';
 import { linkDuplicate } from './link.js';
+import { listAll } from './listing.js';
 import { readDecision, record } from './log.js';
 import { readPauses, recheck, withPauses } from './pause.js';
 import { readQueue } from './queue.js';
@@ -17,8 +18,16 @@ import { ASK_QUEUE_JQL } from './view.js';
 import { PAGE_SIZE, collectWindow, windowJql } from './window.js';
 
 // Forge storage, through the small interface settings.js, log.js and feedback.js take.
-// list(prefix) reads every value under a key prefix, page by page, up to LIST_MAX.
+// list(prefix) reads every value under a key prefix, page by page, up to LIST_MAX, and
+// marks a list it had to cut (listing.js).
 const LIST_MAX = 5000;
+const kvsPages = (prefix) => ({
+  page(cursor) {
+    let q = kvs.query().where('key', WhereConditions.beginsWith(prefix)).limit(100);
+    if (cursor) q = q.cursor(cursor);
+    return q.getMany();
+  },
+});
 export const store = {
   get: (k) => kvs.get(k),
   set: (k, v, options) => kvs.set(k, v, options),
@@ -26,18 +35,7 @@ export const store = {
   delete: (k) => kvs.delete(k),
   getSecret: (k) => kvs.getSecret(k),
   createSecret: (k, v) => kvs.setSecret(k, v, { keyPolicy: 'FAIL_IF_EXISTS' }),
-  async list(prefix) {
-    const out = [];
-    let cursor;
-    do {
-      let q = kvs.query().where('key', WhereConditions.beginsWith(prefix)).limit(100);
-      if (cursor) q = q.cursor(cursor);
-      const page = await q.getMany();
-      out.push(...(page?.results ?? []).map((r) => r.value));
-      cursor = page?.nextCursor;
-    } while (cursor && out.length < LIST_MAX);
-    return out;
-  },
+  list: (prefix) => listAll(kvsPages, prefix, LIST_MAX),
 };
 
 const ISSUE_KEY = /^[A-Z][A-Z0-9_]+-\d+$/;
