@@ -1,12 +1,12 @@
-// The deployed retriever, bm25-recent1000-v1: BM25 over the most recent earlier issues of
+// The deployed retriever, bm25-recent1000-title3-v2: BM25 over the most recent earlier issues of
 // the ticket's project, indexed on that window alone. Mirrors ml/hedge/window.py, because
 // the policy's threshold is certified on exactly these scores (docs/adr/0004).
 
-export const RETRIEVER = 'bm25-recent1000-v1';
+export const RETRIEVER = 'bm25-recent1000-title3-v2';
 export const WINDOW = 1000;
 export const K = 10;
 // How many times the summary counts against the description (window.py SUMMARY_WEIGHT).
-export const SUMMARY_WEIGHT = 1;
+export const SUMMARY_WEIGHT = 3;
 const K1 = 1.2;
 const B = 0.75;
 

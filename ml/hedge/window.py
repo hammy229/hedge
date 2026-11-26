@@ -28,8 +28,8 @@ WINDOW = 1000
 K = 10
 K1, B = 1.2, 0.75
 # How many times the summary counts against the description (weighted()).
-SUMMARY_WEIGHT = 1
-RETRIEVER = f"bm25-recent{WINDOW}-v1"
+SUMMARY_WEIGHT = 3
+RETRIEVER = f"bm25-recent{WINDOW}-title{SUMMARY_WEIGHT}-v2"
 
 
 def weighted(text: str, summary_weight: int) -> str:

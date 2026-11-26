@@ -40,8 +40,13 @@ const t = (n) => new Date(Date.UTC(2024, 0, 1, 0, n)).toISOString().replace('Z',
 const issue = (key, summary, n) => ({ key, fields: { summary, description: 'Something about it.', created: t(n) } });
 const words = ['login', 'export', 'search', 'billing', 'theme', 'upload', 'invite', 'report'];
 const window = Array.from({ length: 40 }, (_, i) => issue(`P-${i + 1}`, `${words[i % 8]} ${words[(i * 3 + 1) % 8]} number ${i}`, i));
-const at = (budget, w = window, ticket = issue('P-99', 'Zebra stripes appear on the kiosk', 500)) =>
-  triage({ issue: ticket, window: w, policies: activePolicies(installed, { link: 0.03, clear: budget }) });
+// The installed policy with its 2% row uncertified, as it was before the v2 retriever.
+const no2 = {
+  ...installed,
+  clear: { ...installed.clear, budgets: installed.clear.budgets.map((b) => (b.alpha === 0.02 ? { ...b, calibrated: false, threshold: null } : b)) },
+};
+const at = (budget, w = window, ticket = issue('P-99', 'Zebra stripes appear on the kiosk', 500), policies = no2) =>
+  triage({ issue: ticket, window: w, policies: activePolicies(policies, { link: 0.03, clear: budget }) });
 
 test('the score is kept at every budget, even one that certified nothing, and agrees with the gate', () => {
   const now = at(0.03);

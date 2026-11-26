@@ -83,7 +83,7 @@ def test_main_writes_rows_and_meta(tmp_path):
     rows = [json.loads(line) for line in out.read_text().splitlines()]
     assert {r["split"] for r in rows} == {"train", "calibration", "test"}
     meta = json.loads(out.with_suffix(".meta.json").read_text())
-    assert meta["retriever"] == "bm25-recent1000-v1" and meta["sampled"]["test"] == 5
+    assert meta["retriever"] == "bm25-recent1000-title3-v2" and meta["sampled"]["test"] == 5
 
 
 def test_train_keeps_rows_that_share_a_cluster_with_later_parts():

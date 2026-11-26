@@ -6,7 +6,7 @@ import { start } from '../preview/server.js';
 test('the local replay gives the same calls as the CI replay of the sample', () => {
   const r = replay(0.03);
   assert.equal(r.issues.length, 150);
-  assert.deepEqual(r.counts, { link: 0, clear: 119, ask: 31 });
+  assert.deepEqual(r.counts, { link: 0, clear: 118, ask: 32 });
   assert.deepEqual(r.missed, ['DEMO-37', 'DEMO-50', 'DEMO-51']);
   const first = r.issues[0];
   assert.equal(first.key, 'DEMO-1');
@@ -16,8 +16,9 @@ test('the local replay gives the same calls as the CI replay of the sample', () 
   assert.deepEqual(r.issues[49].knownDuplicateOf, [r.issues[49].knownDuplicateOf[0]]);
 });
 
-test('an uncertified or unknown budget asks about everything or is refused', () => {
-  assert.deepEqual(replay(0.02).counts, { link: 0, clear: 0, ask: 150 });
+test('the tightest budget catches one more duplicate, and an unknown budget is refused', () => {
+  assert.deepEqual(replay(0.02).counts, { link: 0, clear: 105, ask: 45 });
+  assert.deepEqual(replay(0.02).missed, ['DEMO-50', 'DEMO-51']);
   assert.throws(() => replay(0.04), /not a budget/);
   assert.throws(() => replay('0.03'), /not a budget/);
 });
@@ -37,7 +38,7 @@ test('the server serves the page, the shared view code and the API, and nothing 
       assert.equal((await fetch(base + path)).status, 200, path);
     }
     const r = await (await fetch(`${base}/data/replay-0.025.json`)).json();
-    assert.equal(r.counts.clear, 114);
+    assert.equal(r.counts.clear, 113);
     assert.equal((await (await fetch(`${base}/data/index.json`)).json()).default, 0.03);
     assert.equal((await fetch(`${base}/data/settings-0.03.json`)).status, 200);
     assert.equal((await fetch(`${base}/data/replay-9.json`)).status, 404);

@@ -69,6 +69,10 @@ CASES = [
         _issue("Login page crashes on submit"),
         _issue("totally different"),
     ]),
+    ("a restated title beats a shared stack trace", _issue("Board filter drops sprint column", "at com.atlassian.jira.Foo.bar(Foo.java:10) at com.atlassian.jira.Foo.baz(Foo.java:20)"), [
+        _issue("Sprint column dropped by board filter", "seen on 8.5"),
+        _issue("Slow reindex", "at com.atlassian.jira.Foo.bar(Foo.java:10) at com.atlassian.jira.Foo.baz(Foo.java:20)"),
+    ]),
     ("dotted and underscored names are single tokens", _issue("max_len breaks FileSystem.open"), [
         _issue("max len breaks file system open"),
         _issue("max_len and FileSystem.open"),

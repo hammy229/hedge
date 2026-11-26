@@ -1,11 +1,11 @@
 {
   "about": "Shared retrieval cases, written by python -m hedge.contract and read by ml/tests/test_bm25_contract.py and app/test/bm25.test.js.",
-  "retriever": "bm25-recent1000-v1",
+  "retriever": "bm25-recent1000-title3-v2",
   "window": 1000,
   "k": 10,
   "k1": 1.2,
   "b": 0.75,
-  "summaryWeight": 1,
+  "summaryWeight": 3,
   "maxDescription": 1000,
   "projectKeys": [
     "HADOOP",
@@ -41,7 +41,7 @@
           "NPE in FileSystem.open when path is null\n"
         ],
         "scores": [
-          3.1720435416549444,
+          16.995991071492774,
           0.0,
           0.0
         ],
@@ -49,7 +49,7 @@
           0
         ],
         "features": {
-          "top1": 3.1720435416549444,
+          "top1": 16.995991071492774,
           "margin": 0.0,
           "entropy": 0.0
         },
@@ -79,17 +79,17 @@
           "Crash on login,\nsee"
         ],
         "scores": [
-          1.0137006432518842,
-          0.1604429699786801
+          4.444687435796723,
+          0.8022148498934005
         ],
         "top": [
           0,
           1
         ],
         "features": {
-          "top1": 1.0137006432518842,
-          "margin": 0.8532576732732041,
-          "entropy": 0.26483338280999735
+          "top1": 4.444687435796723,
+          "margin": 3.642472585903323,
+          "entropy": 0.05159573884858114
         },
         "copies": []
       }
@@ -117,17 +117,17 @@
           "UTF-8 names break python-3 builds\nSHA-256 mismatch"
         ],
         "scores": [
-          3.2036214227560498,
-          2.2647383127206133
+          15.667025314026162,
+          3.4140085012654025
         ],
         "top": [
           0,
           1
         ],
         "features": {
-          "top1": 3.2036214227560498,
-          "margin": 0.9388831100354365,
-          "entropy": 0.25797684747741173
+          "top1": 15.667025314026162,
+          "margin": 12.253016812760759,
+          "entropy": 2.7458668755231243e-05
         },
         "copies": []
       }
@@ -160,8 +160,8 @@
           "cache leak\n"
         ],
         "scores": [
-          0.940007258491471,
-          0.940007258491471,
+          4.431462790031221,
+          4.431462790031221,
           0.0
         ],
         "top": [
@@ -169,7 +169,7 @@
           1
         ],
         "features": {
-          "top1": 0.940007258491471,
+          "top1": 4.431462790031221,
           "margin": 0.0,
           "entropy": 0.30102999566398114
         },
@@ -258,14 +258,14 @@
           "éHADOOP-1 and fail\nGrüße"
         ],
         "scores": [
-          2.2261661273458095,
+          7.721133150541164,
           0.0
         ],
         "top": [
           0
         ],
         "features": {
-          "top1": 2.2261661273458095,
+          "top1": 7.721133150541164,
           "margin": 0.0,
           "entropy": 0.0
         },
@@ -300,9 +300,9 @@
           "emoji crash tailword\n"
         ],
         "scores": [
-          1.4472055908585735,
-          0.5619608610546839,
-          0.5619608610546839
+          7.169222662413302,
+          2.372135964075536,
+          2.372135964075536
         ],
         "top": [
           0,
@@ -310,9 +310,9 @@
           2
         ],
         "features": {
-          "top1": 1.4472055908585735,
-          "margin": 0.8852447298038896,
-          "entropy": 0.4351384449878886
+          "top1": 7.169222662413302,
+          "margin": 4.7970866983377665,
+          "entropy": 0.0409430088350985
         },
         "copies": [
           0
@@ -342,17 +342,17 @@
           "render render render ui\n"
         ],
         "scores": [
-          2.4077744166819155,
-          1.016615864821253
+          10.557164750066859,
+          3.921232621453405
         ],
         "top": [
           0,
           1
         ],
         "features": {
-          "top1": 2.4077744166819155,
-          "margin": 1.3911585518606624,
-          "entropy": 0.21685330896894356
+          "top1": 10.557164750066859,
+          "margin": 6.635932128613454,
+          "entropy": 0.004346757303714431
         },
         "copies": []
       }
@@ -385,8 +385,8 @@
           "Login page CRASHES, on submit!\nSteps:"
         ],
         "scores": [
-          2.8780131606729773,
-          2.2108723349388217,
+          11.289618217672272,
+          10.588089138543232,
           0.0
         ],
         "top": [
@@ -394,13 +394,51 @@
           1
         ],
         "features": {
-          "top1": 2.8780131606729773,
-          "margin": 0.6671408257341556,
-          "entropy": 0.2781489519426714
+          "top1": 11.289618217672272,
+          "margin": 0.7015290791290401,
+          "entropy": 0.2758712808005828
         },
         "copies": [
           0
         ]
+      }
+    },
+    {
+      "name": "a restated title beats a shared stack trace",
+      "query": {
+        "summary": "Board filter drops sprint column",
+        "description": "at com.atlassian.jira.Foo.bar(Foo.java:10) at com.atlassian.jira.Foo.baz(Foo.java:20)"
+      },
+      "window": [
+        {
+          "summary": "Sprint column dropped by board filter",
+          "description": "seen on 8.5"
+        },
+        {
+          "summary": "Slow reindex",
+          "description": "at com.atlassian.jira.Foo.bar(Foo.java:10) at com.atlassian.jira.Foo.baz(Foo.java:20)"
+        }
+      ],
+      "expected": {
+        "texts": [
+          "Sprint column dropped by board filter\nseen on 8.5",
+          "Slow reindex\nat com.atlassian.jira.Foo.bar(Foo.java:10) at com.atlassian.jira.Foo.baz(Foo.java:20)",
+          "Board filter drops sprint column\nat com.atlassian.jira.Foo.bar(Foo.java:10) at com.atlassian.jira.Foo.baz(Foo.java:20)"
+        ],
+        "scores": [
+          12.53362025122093,
+          7.059184321327828
+        ],
+        "top": [
+          0,
+          1
+        ],
+        "features": {
+          "top1": 12.53362025122093,
+          "margin": 5.474435929893102,
+          "entropy": 0.01174335843169235
+        },
+        "copies": []
       }
     },
     {
@@ -426,17 +464,17 @@
           "max_len breaks FileSystem.open\n"
         ],
         "scores": [
-          0.609969518892752,
-          1.6051829444546102
+          3.0498475944637593,
+          7.038109833377906
         ],
         "top": [
           1,
           0
         ],
         "features": {
-          "top1": 1.6051829444546102,
-          "margin": 0.9952134255618582,
-          "entropy": 0.2532557831918304
+          "top1": 7.038109833377906,
+          "margin": 3.9882622389141464,
+          "entropy": 0.03948932594922264
         },
         "copies": []
       }
