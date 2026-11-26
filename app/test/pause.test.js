@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { describePolicy } from '../src/gate.js';
-import { checkEvidence, counted, pauseReason, readPauses, recheck, resume, withPauses } from '../src/pause.js';
+import { checkAfterVerdict, checkEvidence, counted, pausesForAdmin, pauseReason, readPauses, recheck, resume, withPauses } from '../src/pause.js';
 import policies from '../src/policy.js';
 import seed from '../src/seed.js';
 import { triage } from '../src/triage.js';
@@ -94,4 +94,24 @@ test('resuming an action that is not paused keeps its evidence', async () => {
   const store = memory();
   await resume(store, 'clear', '2026-11-24T00:00:00.000Z');
   assert.equal((await checkEvidence(store, [call('wrong'), call('wrong')], 'clear')).paused, true);
+});
+
+const cut = () => Object.assign([call('wrong'), call('wrong')], { truncated: true });
+
+test('a verdict whose check could not run is still saved, and says the check did not run', async () => {
+  const store = { ...memory(), list: async () => cut() };
+  const got = await checkAfterVerdict(store, call('wrong'));
+  assert.equal(got.paused, false);
+  assert.match(got.unchecked, /too many verdicts/i);
+  const fine = { ...memory(), list: async () => [] };
+  assert.deepEqual(await checkAfterVerdict(fine, call('wrong', { issueKey: 'X-1' })), { paused: false });
+});
+
+test('the admin page learns when the check cannot run, since the trigger then stops acting', async () => {
+  const store = { ...memory(), list: async () => cut() };
+  const got = await pausesForAdmin(store);
+  assert.equal(got.clear.paused, false);
+  assert.match(got.checkFailed, /too many verdicts/i);
+  const fine = await pausesForAdmin({ ...memory(), list: async () => [] });
+  assert.equal('checkFailed' in fine, false);
 });

@@ -197,12 +197,14 @@ function AutoAct({ on, saving, status, onChange, projects, onSaveProjects }) {
 
 function Paused({ views, saving, onResume }) {
   return views.map((v) => (
-    <SectionMessage key={v.action} appearance="warning" title={v.title}>
+    <SectionMessage key={v.action ?? 'check'} appearance="warning" title={v.title}>
       <Stack space="space.100">
         <Text>{v.text}</Text>
-        <Inline>
-          <Button isDisabled={saving} onClick={() => onResume(v.action)}>Resume</Button>
-        </Inline>
+        {v.action && (
+          <Inline>
+            <Button isDisabled={saving} onClick={() => onResume(v.action)}>Resume</Button>
+          </Inline>
+        )}
       </Stack>
     </SectionMessage>
   ));

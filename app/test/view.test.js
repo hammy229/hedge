@@ -216,6 +216,10 @@ test('the acting tile names the projects when the admin limited them', () => {
 test('a paused action gets a banner with the counts, and nothing shows when none is', () => {
   assert.deepEqual(pauseViews({ clear: { paused: false }, link: { paused: false } }), []);
   assert.deepEqual(pauseViews(null), []);
+  const stuck = pauseViews({ clear: { paused: false }, link: { paused: false }, checkFailed: 'Too many verdicts are stored to check them all.' });
+  assert.equal(stuck.length, 1);
+  assert.equal(stuck[0].action, null);
+  assert.match(stuck[0].text, /new issues are left alone/);
   const [v] = pauseViews({ clear: { paused: true, reviewed: 10, wrong: 3 }, link: { paused: false } });
   assert.equal(v.action, 'clear');
   assert.match(v.title, /clear new reports/);

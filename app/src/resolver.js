@@ -2,12 +2,12 @@
 import ResolverModule from '@forge/resolver';
 import { answerSummary, readAnswer, saveAnswer } from './answers.js';
 import { budgetOptions } from './budget.js';
-import { feedbackSummary, feedbackWith, readFeedback, saveFeedback } from './feedback.js';
+import { feedbackSummary, readFeedback, saveFeedback } from './feedback.js';
 import { forgetAccounts } from './forget.js';
 import { describePolicy } from './gate.js';
 import { leaveQueueAsUser, linkAsUser, openPolicies, projectQueue, queueCount, requeueAsUser, runTriage, seedProgress, seedProject, store } from './index.js';
 import { readLog } from './log.js';
-import { checkEvidence, readPauses, recheck, resume } from './pause.js';
+import { checkAfterVerdict, pausesForAdmin, resume } from './pause.js';
 import { inProject } from './queue.js';
 import policies from './policy.js';
 import { ACTIONS, readActProjects, readAutoAct, readBudgets, saveActProjects, saveAutoAct, saveBudget } from './settings.js';
@@ -31,8 +31,10 @@ export const handlers = {
     const saved = await saveFeedback(store, { issueKey, verdict: payload?.verdict, accountId: context?.accountId });
     // An answered ticket stays out of the queue, whatever anyone thinks of the old call.
     const requeued = (await readAnswer(store, issueKey)) ? null : await requeueAsUser(saved);
-    const pause = await checkEvidence(store, await feedbackWith(store, saved), saved.decision);
-    return { ...saved, paused: pause.paused && !pause.already, requeued };
+    const pause = await checkAfterVerdict(store, saved);
+    const out = { ...saved, paused: pause.paused && !pause.already, requeued };
+    if (pause.unchecked) out.unchecked = pause.unchecked;
+    return out;
   },
   answer: async ({ payload, context } = {}) => {
     const issueKey = context?.extension?.issue?.key;
@@ -66,9 +68,8 @@ export const handlers = {
   },
   pauses: async ({ context } = {}) => {
     adminOnly(context, 'Pauses can only be read from the admin page.');
-    // A failed check must not hide the banner; the trigger runs it again before acting.
-    await recheck(store).catch(() => {});
-    return readPauses(store);
+    // A failed check must not hide the banner, and is itself shown: the trigger stops acting.
+    return pausesForAdmin(store);
   },
   // Rewrites entries saved before account ids were dropped.
   forget: async ({ context } = {}) => {

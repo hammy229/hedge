@@ -87,6 +87,31 @@ export async function recheck(store) {
   for (const action of ACTIONS) await checkEvidence(store, feedback, action);
 }
 
+// After a verdict is saved. It is stored whatever happens here, so a check that cannot run
+// (storage down, or more verdicts than one read returns) is reported, not thrown: throwing
+// would tell the person their verdict was lost. The trigger runs the check again before it
+// acts and leaves issues alone while the check fails.
+export async function checkAfterVerdict(store, saved) {
+  try {
+    return await checkEvidence(store, await feedbackWith(store, saved), saved?.decision);
+  } catch (e) {
+    return { paused: false, unchecked: String(e?.message ?? e) };
+  }
+}
+
+// The pause state for the admin page, with the reason the check failed, if it did: the
+// trigger is then leaving every new issue alone, and only the admin can find out why.
+export async function pausesForAdmin(store) {
+  let checkFailed = null;
+  try {
+    await recheck(store);
+  } catch (e) {
+    checkFailed = String(e?.message ?? e);
+  }
+  const pauses = await readPauses(store);
+  return checkFailed ? { ...pauses, checkFailed } : pauses;
+}
+
 export async function resume(store, action, at = new Date().toISOString()) {
   if (!ACTIONS.includes(action)) throw new Error(`Unknown action ${action}.`);
   // Resuming what is not paused would only throw the evidence away.

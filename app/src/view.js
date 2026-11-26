@@ -333,7 +333,12 @@ export function pauseViews(pauses) {
         ? 'Hedge could not read whether it is paused, so it asks a person about every ticket. Resume to save a fresh state.'
         : `People marked ${p.wrong} of ${p.reviewed} reviewed calls wrong. If Hedge were inside its budget, evidence this strong would come up at most 5% of the time, so it now asks a person about every ticket. Look at the wrong calls, pick a tighter budget if they look alike, then resume. Only calls made after that will count.`;
       return { action, title, text };
-    });
+    })
+    .concat(
+      pauses?.checkFailed
+        ? [{ action: null, title: 'Hedge cannot check its verdicts', text: `${pauses.checkFailed} Until the check runs again, new issues are left alone. Verdicts are still saved.` }]
+        : [],
+    );
 }
 
 export function resumed(action) {
