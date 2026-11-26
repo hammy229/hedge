@@ -1,6 +1,44 @@
 # Results
 
-## Installed policy (Nov 20, 2026)
+## Installed policy (Nov 26, 2026, retriever v2)
+
+The retriever now counts each summary three times ([ADR 11](adr/0011-count-the-summary-three-times.md)),
+a weight picked on training duplicates only. Rows were rebuilt on the same tickets and the policy
+recalibrated with the Nov 20 commands, the minimum window of 30 included.
+
+```bash
+cd ml
+../.venv/bin/python -m hedge.sweep ../data/corpus.pkl --out ../data/sweep.json
+../.venv/bin/python -m hedge.rows ../data/corpus.pkl --out ../data/rows-v2.jsonl --per-split 20000
+../.venv/bin/python -m hedge.rows ../data/corpus.pkl --out ../data/rows-v2-fresh.jsonl --per-split 20000 --seed 1 --fresh-calibration ../data/rows-v2.jsonl
+../.venv/bin/python -m hedge.report ../data/rows-v2-fresh.jsonl --out ../data/report5-dial.json --exclude-jira Mojang --min-window 30 --alphas 0.02,0.025,0.03,0.035,0.05
+../.venv/bin/python -m hedge.calibrate ../data/rows-v2-fresh.jsonl --retriever bm25-recent1000-title3-v2 --alpha 0.03 --delta 0.1 --exclude-jira Mojang --budgets 0.02,0.025,0.03,0.035,0.05 --min-window 30 --out ../app/src/policy.js
+```
+
+Without Mojang, test window:
+
+| Budget | Certified on calibration | Test coverage | Test error | v1 test coverage |
+|---|---|---|---|---|
+| 2% | acts on 42.5% | 41.5% [36.7%, 46.9%] | 1.2% [0.8%, 1.6%] | nothing certified |
+| 2.5% | acts on 65.4% | 63.2% [57.8%, 68.6%] | 1.5% [1.1%, 2.0%] | 60.3% |
+| 3% (default) | acts on 82.5% | 79.5% [74.1%, 83.8%] | 1.8% [1.3%, 2.3%] | 79.6% |
+| 3.5% | acts on 96.5% | 94.4% [90.8%, 96.4%] | 2.0% [1.5%, 2.6%] | 94.4% |
+| 5% | acts on 99.4% | 99.2% [98.8%, 99.4%] | 2.2% [1.6%, 2.8%] | 99.2% |
+
+Linking still certifies nothing at any budget.
+
+| Budget | Tickets asked about | Duplicates kept for a person | Against asking at random |
+|---|---:|---:|---:|
+| 2% | 58.5% | 77.4% [69.4%, 83.1%] | 1.32x [1.20, 1.45] |
+| 2.5% | 36.8% | 55.1% [46.0%, 61.1%] | 1.50x [1.27, 1.74] |
+| 3% | 20.5% | 33.2% [27.1%, 39.7%] | 1.62x [1.21, 2.15] |
+| 3.5% | 5.6% | 9.5% [5.9%, 13.8%] | 1.70x [0.87, 3.14] |
+| 5% | 0.8% | 0.0% | 0x |
+
+Retrieval on test tickets with a duplicate (283, without Mojang): recall@1 37.5% (v1 33.9%),
+recall@10 54.4% (51.2%), MRR 0.428 (0.391).
+
+## Installed policy until Nov 26 (retriever v1, Nov 20, 2026)
 
 The app ships the clear policy from [ADR 8](adr/0008-ask-below-a-minimum-window.md): it
 asks about every ticket whose project has fewer than 30 earlier issues, and it was
@@ -63,14 +101,15 @@ and replayed through the app's triage:
 
 | Budget | Cleared | Asked | Duplicates cleared by mistake (of 5) |
 |---|---:|---:|---:|
-| 2% | 0 | 150 | 0 |
-| 2.5% | 114 | 36 | 3 |
-| 3% (default) | 119 | 31 | 3 |
+| 2% | 105 | 45 | 2 (v1: nothing certified, all 150 asked) |
+| 2.5% | 113 | 37 | 3 |
+| 3% (default) | 118 | 32 | 3 |
 | 3.5% | 120 | 30 | 3 |
 
-The first 30 are always asked about (minimum window). The two duplicates Hedge asks about
-fall inside those 30, so on this sample the gate itself caught none of the five. Each
-missed one has its right original as the top candidate, which the panel shows.
+The first 30 are always asked about (minimum window), and DEMO-15 and DEMO-29 fall inside
+them. At 2% the gate itself catches DEMO-37. At 3% the three missed ones have as top
+candidate DEMO-4 (DEMO-37's original), DEMO-35 (not DEMO-50's original, DEMO-44) and DEMO-50
+(a duplicate of the same DEMO-44 as DEMO-51).
 
 ## Nov 18 runs
 
